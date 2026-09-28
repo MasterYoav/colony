@@ -62,7 +62,7 @@ public struct LiveStat<Format: FormatStyle>: View where Format.FormatInput == Do
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text(label.uppercased())
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .tracking(1.2)
                     .foregroundStyle(style.muted)
                     .lineLimit(1)
@@ -74,7 +74,7 @@ public struct LiveStat<Format: FormatStyle>: View where Format.FormatInput == Do
             }
 
             RollingNumber(value: rolled, target: scrubIndex.map { series[$0] } ?? value, format: format, dim: style.muted)
-                .font(.system(size: style.numeralSize * numeralScale, weight: .light))
+                .appFont(.system(size: style.numeralSize * numeralScale, weight: .light), role: .data)
                 .tracking(-style.numeralSize * 0.02)
                 .monospacedDigit()
                 .lineLimit(1)
@@ -176,7 +176,7 @@ public struct LiveStat<Format: FormatStyle>: View where Format.FormatInput == Do
                 extreme("High", hi)
                 Spacer(minLength: 0)
                 Text("\(series.count) pts")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .appFont(.system(size: 12, weight: .semibold, design: .monospaced))
                     .foregroundStyle(style.muted)
             }
         }
@@ -185,11 +185,11 @@ public struct LiveStat<Format: FormatStyle>: View where Format.FormatInput == Do
     private func extreme(_ title: String, _ value: Double) -> some View {
         HStack(spacing: 6) {
             Text(title.uppercased())
-                .font(.system(size: 11, weight: .semibold))
+                .appFont(.system(size: 11, weight: .semibold))
                 .tracking(1)
                 .foregroundStyle(style.muted)
             Text(value, format: format)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .appFont(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(style.text)
         }
     }
@@ -271,10 +271,10 @@ public struct LiveStat<Format: FormatStyle>: View where Format.FormatInput == Do
         let strong = contrast == .increased
         return HStack(spacing: 4) {
             Image(systemName: up ? "arrow.up.right" : "arrow.down.right")
-                .font(.system(size: 11, weight: .heavy))
+                .appFont(.system(size: 11, weight: .heavy))
             Text(abs(delta), format: .percent.precision(.fractionLength(0...1)))
         }
-        .font(.system(size: 13, weight: .bold))
+        .appFont(.system(size: 13, weight: .bold))
         .monospacedDigit()
         .foregroundStyle(style.chipInk)
         .padding(.horizontal, 10)

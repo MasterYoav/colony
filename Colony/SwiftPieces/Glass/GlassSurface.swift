@@ -200,21 +200,21 @@ private struct GlassSurfaceExample: View {
                 HStack(spacing: 12) {
                     Button {} label: {
                         Image(systemName: "chevron.left")
-                            .font(.title3.weight(.semibold))
+                            .appFont(.title3.weight(.semibold))
                             .frame(width: 76, height: 76)
                     }
                     .glassSurface(.circle, interactive: true)
                     .accessibilityLabel("Previous")
                     Button {} label: {
                         Image(systemName: "play.fill")
-                            .font(.title.weight(.semibold))
+                            .appFont(.title.weight(.semibold))
                             .frame(width: 190, height: 76)
                     }
                     .glassSurface(.capsule, tint: Color(red: 1, green: 0, blue: 0), interactive: true)
                     .accessibilityLabel("Play")
                     Button {} label: {
                         Image(systemName: "chevron.right")
-                            .font(.title3.weight(.semibold))
+                            .appFont(.title3.weight(.semibold))
                             .frame(width: 76, height: 76)
                     }
                     .glassSurface(.circle, interactive: true)

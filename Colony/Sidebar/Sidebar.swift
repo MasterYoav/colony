@@ -70,7 +70,7 @@ struct RailButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 15, weight: .regular))
+                .appFont(.system(size: 15, weight: .regular))
                 .foregroundStyle(tint ?? (isSelected ? Theme.text : Theme.icon))
                 .frame(width: 34, height: 34)
                 .background {
@@ -114,10 +114,10 @@ struct SidebarPanel: View {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    CommandField { app.toggleCommandPalette() }
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .padding(.bottom, 10)
+                    workspaceSwitcher
+                        .padding(.horizontal, 8)
+                        .padding(.top, 8)
+                        .padding(.bottom, 6)
 
                     VStack(spacing: 2) {
                         ForEach(layout.pinned) { item in
@@ -158,7 +158,7 @@ struct SidebarPanel: View {
                         if projects.isEmpty {
                             Button { app.present(.newProject) } label: {
                                 Label("Create a project", systemImage: "plus")
-                                    .font(.system(size: 13))
+                                    .appFont(.system(size: 13))
                                     .foregroundStyle(Theme.secondaryText)
                                     .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, alignment: .leading)
                                     .padding(.horizontal, 8)
@@ -258,42 +258,32 @@ struct SidebarPanel: View {
 
     private var unreadMessages: Int { channels.reduce(0) { $0 + $1.unreadCount } }
 
+    /// Title-bar row: Command field beside the traffic lights, collapse toggle on the right.
     private var header: some View {
-        HStack(spacing: 8) {
-            Menu {
-                Button("Workspace settings", systemImage: "gearshape") { app.go(.settings) }
-                Button("Apple services", systemImage: "puzzlepiece.extension") { app.go(.appleServices) }
-                Divider()
-                Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
-                Button("New channel", systemImage: "number") { app.present(.newChannel) }
-            } label: {
-                HStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Theme.brandGradient)
-                        .frame(width: 22, height: 22)
-                    Text(app.preferences.workspaceName)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.text)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Theme.secondaryText)
-                }
-                .contentShape(.rect)
-            }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-
-            Spacer(minLength: 0)
-
+        HStack(spacing: 6) {
+            CommandField { app.toggleCommandPalette() }
             SidebarToggleButton()
         }
         .padding(.leading, headerLeadingInset)
-        .padding(.trailing, 10)
+        .padding(.trailing, 8)
         .frame(height: headerHeight, alignment: .center)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1) }
+    }
+
+    private var workspaceSwitcher: some View {
+        Menu {
+            Button("Workspace settings", systemImage: "gearshape") { app.go(.settings) }
+            Button("Apple services", systemImage: "puzzlepiece.extension") { app.go(.appleServices) }
+            Divider()
+            Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
+            Button("New channel", systemImage: "number") { app.present(.newChannel) }
+        } label: {
+            WorkspaceSwitcherLabel(name: app.preferences.workspaceName)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .accessibilityLabel("Workspace: \(app.preferences.workspaceName)")
     }
 
     /// On macOS the header shares the title-bar row with the traffic lights.
@@ -356,14 +346,19 @@ struct CollapsedPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(macOS)
+            // The toggle lives in the title bar, right of the traffic lights
+            // (`CollapsedSidebarToggle` in RootView); the column starts below them.
+            Color.clear.frame(height: topInset + 8)
+            #else
             SidebarToggleButton()
-                .padding(.top, topInset)
-                .frame(height: 44 + topInset)
+                .frame(height: 44)
+            #endif
 
             ScrollView {
                 VStack(spacing: 6) {
                     RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
-                        .padding(.top, 10)
+                        .padding(.top, 2)
                     ForEach(layout.pinned) { item in navIcon(item, in: .pinned) }
                     SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
 
@@ -445,7 +440,7 @@ struct SidebarToggleButton: View {
             app.preferences.isSidebarCollapsed.toggle()
         } label: {
             Image(systemName: "sidebar.left")
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(app.preferences.isSidebarCollapsed ? Theme.text : Theme.secondaryText)
                 .frame(width: 30, height: 30)
                 .background {
@@ -460,25 +455,50 @@ struct SidebarToggleButton: View {
     }
 }
 
+struct WorkspaceSwitcherLabel: View {
+    let name: String
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 9) {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Theme.brandGradient)
+                .frame(width: 22, height: 22)
+            Text(name)
+                .appFont(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+            Image(systemName: "chevron.down")
+                .appFont(.system(size: 9, weight: .bold))
+                .foregroundStyle(Theme.secondaryText)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 34)
+        .frame(maxWidth: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .fill(isHovering ? Theme.hover : .clear)
+        }
+        .contentShape(.rect)
+        .onHover { isHovering = $0 }
+    }
+}
+
 struct CommandField: View {
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: "command")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Theme.secondaryText)
-                Text("Command")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.secondaryText)
-                Spacer()
-                Text("⌘K")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(Theme.tertiaryText)
+            // The label wins over the shortcut hint: when the title-bar row is tight the
+            // ⌘K hint drops out instead of truncating "Command".
+            ViewThatFits(in: .horizontal) {
+                content(showsHint: true)
+                content(showsHint: false)
             }
-            .padding(.horizontal, 10)
-            .frame(height: 30)
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .frame(maxWidth: .infinity)
             .background(Theme.field, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.strongStroke)
@@ -488,6 +508,26 @@ struct CommandField: View {
         .buttonStyle(.plain)
         .help("Command Center (⌘K)")
         .accessibilityLabel("Open command palette")
+    }
+
+    private func content(showsHint: Bool) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "command")
+                .appFont(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(Theme.secondaryText)
+            Text("Command")
+                .appFont(.system(size: 13))
+                .foregroundStyle(Theme.secondaryText)
+                .lineLimit(1)
+                .fixedSize()
+            Spacer(minLength: 6)
+            if showsHint {
+                Text("⌘K")
+                    .appFont(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize()
+            }
+        }
     }
 }
 
@@ -514,7 +554,7 @@ struct SidebarRow<Glyph: View>: View {
             glyph
                 .frame(width: 18)
             Text(title)
-                .font(.system(size: 13.5, weight: isSelected ? .medium : .regular))
+                .appFont(.system(size: 13.5, weight: isSelected ? .medium : .regular))
                 .foregroundStyle(Theme.text)
                 .lineLimit(1)
             Spacer(minLength: 4)
@@ -546,7 +586,7 @@ struct SidebarRow<Glyph: View>: View {
             case .add(let add):
                 Button(action: add) {
                     Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .semibold))
+                        .appFont(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Theme.secondaryText)
                         .frame(width: 20, height: 20)
                         .contentShape(.rect)
@@ -556,7 +596,7 @@ struct SidebarRow<Glyph: View>: View {
             case .chevron(let expanded, let toggle):
                 Button(action: toggle) {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
+                        .appFont(.system(size: 10, weight: .semibold))
                         .foregroundStyle(Theme.secondaryText)
                         .rotationEffect(.degrees(expanded ? 180 : 0))
                         .frame(width: 20, height: 20)
@@ -567,7 +607,7 @@ struct SidebarRow<Glyph: View>: View {
             case .disclosure(let expanded, let toggle):
                 Button(action: toggle) {
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 9, weight: .bold))
+                        .appFont(.system(size: 9, weight: .bold))
                         .foregroundStyle(expanded ? Theme.text : Theme.secondaryText)
                         .frame(width: 18, height: 18)
                         .background {
@@ -594,7 +634,7 @@ struct SidebarIcon: View {
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: 13.5))
+            .appFont(.system(size: 13.5))
             .foregroundStyle(Theme.icon)
     }
 }
@@ -610,7 +650,7 @@ struct SidebarChildRow: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5))
                 .foregroundStyle(isSelected ? Theme.text : Theme.secondaryText)
                 .lineLimit(1)
             Spacer(minLength: 4)
@@ -638,7 +678,7 @@ struct CountBadge: View {
 
     var body: some View {
         Text(count > 99 ? "99+" : "\(count)")
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .appFont(.system(size: 11, weight: .medium).monospacedDigit())
             .foregroundStyle(Theme.secondaryText)
             .underline(true, color: Theme.tertiaryText)
             .accessibilityLabel("\(count)")
@@ -660,10 +700,10 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .bold))
+                            .appFont(.system(size: 9, weight: .bold))
                             .rotationEffect(.degrees(isExpanded ? 0 : -90))
                         Text(title.uppercased())
-                            .font(.system(size: 11, weight: .semibold))
+                            .appFont(.system(size: 11, weight: .semibold))
                             .kerning(0.4)
                     }
                     .foregroundStyle(Theme.secondaryText)
@@ -679,7 +719,7 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
                     menu()
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.system(size: 11, weight: .bold))
+                        .appFont(.system(size: 11, weight: .bold))
                         .foregroundStyle(Theme.secondaryText)
                         .frame(width: 20, height: 20)
                         .contentShape(.rect)
@@ -692,7 +732,7 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
 
                 Button(action: onAdd) {
                     Image(systemName: "plus")
-                        .font(.system(size: 11, weight: .semibold))
+                        .appFont(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Theme.secondaryText)
                         .frame(width: 20, height: 20)
                         .contentShape(.rect)
@@ -777,12 +817,12 @@ struct SidebarFooter: View {
                     .frame(width: 28, height: 28)
                     .overlay {
                         Text(ColonyText.initials(for: app.preferences.displayName))
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .appFont(.system(size: 11, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                     }
                 if showsName {
                     Text(app.preferences.displayName)
-                        .font(.system(size: 13, weight: .medium))
+                        .appFont(.system(size: 13, weight: .medium))
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
                 }

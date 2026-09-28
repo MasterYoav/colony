@@ -167,8 +167,8 @@ extension View {
     func sidebarDraggable(_ payload: SidebarDragPayload, symbol: String, title: String) -> some View {
         draggable(payload.string) {
             HStack(spacing: 8) {
-                Image(systemName: symbol).font(.system(size: 12.5)).foregroundStyle(Theme.icon)
-                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
+                Image(systemName: symbol).appFont(.system(size: 12.5)).foregroundStyle(Theme.icon)
+                Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
             }
             .padding(.horizontal, 10)
             .frame(height: 28)

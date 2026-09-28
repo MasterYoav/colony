@@ -34,9 +34,9 @@ public struct CommitButton: View {
         /// Height of the capsule; the loading circle uses the same diameter. Never below 44.
         public var height: CGFloat
         /// Label font.
-        public var font: Font
+        public var font: AppFont
 
-        public init(fill: Color = House.hex(0xFF5B3A), ink: Color = House.hex(0x141414), successFill: Color = House.hex(0xA9DCB7), errorFill: Color = House.hex(0xFFD976), disabledFill: Color = House.adaptive(light: 0xEAE8E2, dark: 0x262626), disabledInk: Color = House.adaptive(light: 0x8B8984, dark: 0x6F6D69), height: CGFloat = 56, font: Font = .body.weight(.semibold)) {
+        public init(fill: Color = House.hex(0xFF5B3A), ink: Color = House.hex(0x141414), successFill: Color = House.hex(0xA9DCB7), errorFill: Color = House.hex(0xFFD976), disabledFill: Color = House.adaptive(light: 0xEAE8E2, dark: 0x262626), disabledInk: Color = House.adaptive(light: 0x8B8984, dark: 0x6F6D69), height: CGFloat = 56, font: AppFont = .body.weight(.semibold)) {
             self.fill = fill
             self.ink = ink
             self.successFill = successFill
@@ -132,21 +132,21 @@ public struct CommitButton: View {
                 } else if phase == .success, let successTitle {
                     HStack(spacing: 10) {
                         checkDisc
-                        Text(successTitle).font(style.font).lineLimit(1)
+                        Text(successTitle).appFont(style.font).lineLimit(1)
                     }
                     .transition(.scale(scale: 0.8).combined(with: .opacity))
                 } else {
                     HStack(spacing: 10) {
                         if phase.isError {
                             Image(systemName: "exclamationmark")
-                                .font(.caption.weight(.black))
+                                .appFont(.caption.weight(.black))
                                 .foregroundStyle(errorTint ?? style.errorFill)
                                 .frame(width: 22, height: 22)
                                 .background(ink, in: Circle())
                                 .transition(.scale.combined(with: .opacity))
                         }
                         Text(shownTitle)
-                            .font(style.font)
+                            .appFont(style.font)
                             .lineLimit(1)
                             .fixedSize()
                             .id(shownTitle)

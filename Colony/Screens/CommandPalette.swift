@@ -65,11 +65,11 @@ struct CommandPalette: View {
     private var searchField: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14, weight: .medium))
+                .appFont(.system(size: 14, weight: .medium))
                 .foregroundStyle(Theme.secondaryText)
             TextField("Search", text: $query, prompt: Text("Type a command or search…").foregroundStyle(Theme.tertiaryText))
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(Theme.text)
                 .focused($focused)
                 .onSubmit(runHighlighted)
@@ -83,7 +83,7 @@ struct CommandPalette: View {
                 .accessibilityLabel("Clear search")
             }
             Text("esc")
-                .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                .appFont(.system(size: 10.5, weight: .medium, design: .rounded))
                 .foregroundStyle(Theme.secondaryText)
                 .padding(.horizontal, 6)
                 .frame(height: 20)
@@ -100,15 +100,15 @@ struct CommandPalette: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if results.isEmpty {
                         VStack(spacing: 6) {
-                            Image(systemName: "magnifyingglass").font(.system(size: 20)).foregroundStyle(Theme.tertiaryText)
-                            Text("No results for \u{201C}\(query)\u{201D}").font(.system(size: 13)).foregroundStyle(Theme.secondaryText)
+                            Image(systemName: "magnifyingglass").appFont(.system(size: 20)).foregroundStyle(Theme.tertiaryText)
+                            Text("No results for \u{201C}\(query)\u{201D}").appFont(.system(size: 13)).foregroundStyle(Theme.secondaryText)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
                     }
                     ForEach(grouped, id: \.group) { section in
                         Text(section.group.rawValue)
-                            .font(.system(size: 11, weight: .medium))
+                            .appFont(.system(size: 11, weight: .medium))
                             .foregroundStyle(Theme.tertiaryText)
                             .padding(.horizontal, 10)
                             .padding(.top, 10)
@@ -139,29 +139,29 @@ struct CommandPalette: View {
                         ProjectGlyph(symbol: item.symbol, color: tint, size: 18)
                     } else {
                         Image(systemName: item.symbol)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(isOn ? Theme.text : Theme.icon)
                     }
                 }
                 .frame(width: 20)
                 Text(item.title)
-                    .font(.system(size: 13.5))
+                    .appFont(.system(size: 13.5))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                 if let subtitle = item.subtitle {
                     Text(subtitle)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(Theme.tertiaryText)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 if let shortcut = item.shortcut {
                     Text(shortcut)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .appFont(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(Theme.tertiaryText)
                 } else if isOn {
                     Image(systemName: "return")
-                        .font(.system(size: 11, weight: .medium))
+                        .appFont(.system(size: 11, weight: .medium))
                         .foregroundStyle(Theme.tertiaryText)
                 }
             }
@@ -189,7 +189,7 @@ struct CommandPalette: View {
             KeyHint(keys: ["esc"], label: "close")
             Spacer()
             Text("\(results.count) result\(results.count == 1 ? "" : "s")")
-                .font(.system(size: 11.5).monospacedDigit())
+                .appFont(.system(size: 11.5).monospacedDigit())
                 .foregroundStyle(Theme.tertiaryText)
         }
         .padding(.horizontal, 14)

@@ -41,7 +41,7 @@ struct MessagesView: View {
     private var channelList: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Channels").font(.headline).foregroundStyle(Theme.text)
+                Text("Channels").appFont(.headline).foregroundStyle(Theme.text)
                 Spacer()
                 Button { app.present(.newChannel) } label: {
                     Image(systemName: "plus").frame(width: 24, height: 24).contentShape(.rect)
@@ -85,9 +85,9 @@ struct ChannelThread: View {
             HStack(spacing: 10) {
                 Image(systemName: channel.symbol).foregroundStyle(Theme.secondaryText)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(channel.name).font(.headline).foregroundStyle(Theme.text)
+                    Text(channel.name).appFont(.headline).foregroundStyle(Theme.text)
                     if !channel.topic.isEmpty {
-                        Text(channel.topic).font(.caption).foregroundStyle(Theme.secondaryText)
+                        Text(channel.topic).appFont(.caption).foregroundStyle(Theme.secondaryText)
                     }
                 }
                 Spacer()
@@ -127,6 +127,7 @@ struct ChannelThread: View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField("Message #\(channel.name)", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
+                .fontRole(.data)
                 .lineLimit(1...6)
                 .focused($focused)
                 .onSubmit(send)
@@ -134,7 +135,7 @@ struct ChannelThread: View {
                 .padding(.vertical, 10)
             Button(action: send) {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 13, weight: .bold))
+                    .appFont(.system(size: 13, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 30, height: 30)
                     .background(ColonyText.trimmed(draft).isEmpty ? Theme.tertiaryText : ColonyColor.blue.color, in: Circle())
@@ -169,13 +170,13 @@ struct MessageBubble: View {
             AvatarView(name: message.authorName, color: message.isMine ? ColonyColor.blue.color : ColonyColor.purple.color, size: 32)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(message.authorName).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                    Text(message.authorName).appFont(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
                     Text(message.createdAt, format: .dateTime.hour().minute())
-                        .font(.caption)
+                        .appFont(.caption)
                         .foregroundStyle(Theme.tertiaryText)
                 }
                 Text(message.body)
-                    .font(.body)
+                    .appFont(.body)
                     .foregroundStyle(Theme.text)
                     .textSelection(.enabled)
             }
@@ -184,6 +185,7 @@ struct MessageBubble: View {
                 .opacity(isPinned ? 1 : 0.55)
                 .accessibilityLabel(isPinned ? "Unpin message" : "Pin message")
         }
+        .fontRole(.data)
         .onAppear { isPinned = message.isPinned }
         .onChange(of: isPinned) { message.isPinned = isPinned }
     }

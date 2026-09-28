@@ -173,7 +173,7 @@ public struct FormField: View {
             HStack(alignment: multiline ? .top : .center, spacing: 10) {
                 if let leading {
                     leading
-                        .font(.body.weight(.medium))
+                        .appFont(.body.weight(.medium))
                         .foregroundStyle(isFocused ? style.label : style.secondaryLabel)
                         .frame(width: iconWidth)
                         .padding(.top, multiline ? 12 : 0)
@@ -183,11 +183,11 @@ public struct FormField: View {
                 ZStack(alignment: floated ? .topLeading : .leading) {
                     VStack(alignment: .leading, spacing: 1) {
                         // Reserves the caption slot the floated label lands in.
-                        Text(verbatim: " ").font(.caption).accessibilityHidden(true)
+                        Text(verbatim: " ").appFont(.caption).accessibilityHidden(true)
                         input
                     }
                     Text(label)
-                        .font(.body)
+                        .appFont(.body)
                         .lineLimit(1)
                         .foregroundStyle(style.secondaryLabel)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -199,7 +199,7 @@ public struct FormField: View {
 
                 if valid {
                     Image(systemName: "checkmark")
-                        .font(.caption.weight(.heavy))
+                        .appFont(.caption.weight(.heavy))
                         .foregroundStyle(style.ink)
                         .frame(width: 24, height: 24)
                         .background(style.success, in: Circle())
@@ -213,7 +213,7 @@ public struct FormField: View {
                         text = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.body)
+                            .appFont(.body)
                             .foregroundStyle(style.secondaryLabel)
                             .frame(width: 44, height: 44)
                             .contentShape(.rect)
@@ -272,7 +272,7 @@ public struct FormField: View {
 
     private var input: some View {
         TextField(label, text: $text, prompt: Text(isFocused ? prompt ?? "" : "").foregroundStyle(style.secondaryLabel), axis: axis)
-            .font(.body)
+            .appFont(.body)
             .foregroundStyle(style.label)
             .tint(style.label)
             .lineLimit(axis == .vertical ? 8 : 1)
@@ -307,13 +307,13 @@ public struct FormField: View {
                     if let error {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Image(systemName: "exclamationmark")
-                                .font(.caption2.weight(.black))
+                                .appFont(.caption2.weight(.black))
                                 .foregroundStyle(style.ink)
                                 .frame(width: 16, height: 16)
                                 .background(style.error, in: Circle())
                                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
                             Text(error)
-                                .font(.footnote.weight(.semibold))
+                                .appFont(.footnote.weight(.semibold))
                                 .foregroundStyle(style.label)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -321,7 +321,7 @@ public struct FormField: View {
                         .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                     } else if let help {
                         Text(help)
-                            .font(.footnote)
+                            .appFont(.footnote)
                             .foregroundStyle(style.secondaryLabel)
                             .fixedSize(horizontal: false, vertical: true)
                             .transition(.opacity)
@@ -332,7 +332,7 @@ public struct FormField: View {
 
                 if let limit {
                     Text("\(count.formatted())/\(limit.formatted())")
-                        .font(.footnote.weight(.semibold).monospacedDigit())
+                        .appFont(.footnote.weight(.semibold).monospacedDigit())
                         .foregroundStyle(atLimit ? style.ink : style.secondaryLabel)
                         .contentTransition(reduceMotion ? .opacity : .numericText(value: Double(count)))
                         .padding(.horizontal, atLimit ? 8 : 0)
@@ -419,7 +419,7 @@ private struct FormFieldExample: View {
                     attempted = true
                     focus = nil
                 }
-                .font(.body.weight(.semibold))
+                .appFont(.body.weight(.semibold))
                 .foregroundStyle(adaptive(light: 0xF4F3EF, dark: 0x141414))
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .background(adaptive(light: 0x141414, dark: 0xF4F3EF), in: .rect(cornerRadius: 18, style: .continuous))

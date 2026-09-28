@@ -120,7 +120,7 @@ public struct PermissionSheet: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: tileSymbol)
-                .font(.system(size: 30, weight: .bold))
+                .appFont(.system(size: 30, weight: .bold))
                 .foregroundStyle(style.ink)
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.bounce.down, options: reduceMotion ? .speed(100) : .default, value: presentTick)
@@ -168,7 +168,7 @@ public struct PermissionSheet: View {
                         .opacity(phase == .requesting ? 0 : 1)
                         ProgressView().tint(phase == .denied ? style.surface : style.ink).opacity(phase == .requesting ? 1 : 0)
                     }
-                    .font(.headline)
+                    .appFont(.headline)
                     .foregroundStyle(phase == .denied ? style.surface : style.ink)
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(phase == .granted ? style.success : (phase == .denied ? style.label : style.action), in: .rect(cornerRadius: 18, style: .continuous))
@@ -181,7 +181,7 @@ public struct PermissionSheet: View {
                 if let onSkip, phase != .granted {
                     Button(action: onSkip) {
                         Text("Not now")
-                            .font(.body.weight(.semibold))
+                            .appFont(.body.weight(.semibold))
                             .foregroundStyle(style.secondaryLabel)
                             .frame(maxWidth: .infinity, minHeight: 44)
                             .contentShape(.rect)
@@ -206,11 +206,11 @@ public struct PermissionSheet: View {
     private func copy(title: String, message: String, shown: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: titleSize, weight: .bold))
+                .appFont(.system(size: titleSize, weight: .bold))
                 .tracking(-0.8)
                 .foregroundStyle(style.label)
             Text(message)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(style.secondaryLabel)
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -234,13 +234,13 @@ public struct PermissionSheet: View {
     private func row(_ benefit: Benefit, tile: Color) -> some View {
         HStack(spacing: 14) {
             Image(systemName: benefit.symbol)
-                .font(.body.weight(.semibold))
+                .appFont(.body.weight(.semibold))
                 .foregroundStyle(style.ink)
                 .frame(width: 44, height: 44)
                 .background(tile, in: .rect(cornerRadius: 12, style: .continuous))
                 .accessibilityHidden(true)
             Text(benefit.text)
-                .font(.body.weight(.medium))
+                .appFont(.body.weight(.medium))
                 .foregroundStyle(style.label)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -52,14 +52,15 @@ struct ContactsView: View {
                                 HStack(spacing: 12) {
                                     AvatarView(name: contact.name, color: contact.color.color, imageData: contact.imageData, size: 34)
                                     VStack(alignment: .leading, spacing: 1) {
-                                        Text(contact.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                                        Text(contact.name).appFont(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
                                         Text([contact.jobTitle, contact.company].filter { !$0.isEmpty }.joined(separator: " · "))
-                                            .font(.caption)
+                                            .appFont(.caption)
                                             .foregroundStyle(Theme.secondaryText)
                                     }
                                     Spacer()
                                     StageChip(stage: contact.stage)
                                 }
+                                .fontRole(.data)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
                                 .background {
@@ -100,7 +101,7 @@ struct StageChip: View {
 
     var body: some View {
         Text(stage.title)
-            .font(.caption.weight(.medium))
+            .appFont(.caption.weight(.medium))
             .foregroundStyle(stage.color.color)
             .padding(.horizontal, 8)
             .frame(height: 22)
@@ -118,13 +119,13 @@ struct ContactInspector: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(spacing: 10) {
                     AvatarView(name: contact.name, color: contact.color.color, imageData: contact.imageData, size: 64)
-                    Text(contact.name).font(.title3.weight(.semibold)).foregroundStyle(Theme.text)
+                    Text(contact.name).appFont(.title3.weight(.semibold), role: .data).foregroundStyle(Theme.text)
                     if !contact.company.isEmpty {
-                        Text(contact.company).font(.subheadline).foregroundStyle(Theme.secondaryText)
+                        Text(contact.company).appFont(.subheadline, role: .data).foregroundStyle(Theme.secondaryText)
                     }
                     if contact.appleContactIdentifier != nil {
                         Label("Linked to Apple Contacts", systemImage: "person.crop.circle.badge.checkmark")
-                            .font(.caption)
+                            .appFont(.caption)
                             .foregroundStyle(Theme.secondaryText)
                     }
                 }
@@ -137,7 +138,7 @@ struct ContactInspector: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Stage").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
+                    Text("Stage").appFont(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
                     Picker("Stage", selection: Binding(get: { contact.stage }, set: { WorkspaceActions(context: context).setStage($0, for: contact) })) {
                         ForEach(DealStage.allCases) { Text($0.title).tag($0) }
                     }
@@ -152,9 +153,10 @@ struct ContactInspector: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Notes").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
+                    Text("Notes").appFont(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
                     TextField("Add notes", text: $contact.notes, axis: .vertical)
                         .textFieldStyle(.plain)
+                        .fontRole(.data)
                         .lineLimit(3...10)
                         .padding(10)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -175,8 +177,8 @@ struct ContactInspector: View {
             if let url { openURL(url) }
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: symbol).font(.system(size: 15))
-                Text(title).font(.caption2)
+                Image(systemName: symbol).appFont(.system(size: 15))
+                Text(title).appFont(.caption2)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 50)
@@ -189,8 +191,8 @@ struct ContactInspector: View {
 
     private func field(_ label: String, _ text: Binding<String>) -> some View {
         HStack {
-            Text(label).font(.caption).foregroundStyle(Theme.secondaryText).frame(width: 64, alignment: .leading)
-            TextField(label, text: text).textFieldStyle(.plain).font(.subheadline)
+            Text(label).appFont(.caption).foregroundStyle(Theme.secondaryText).frame(width: 64, alignment: .leading)
+            TextField(label, text: text).textFieldStyle(.plain).appFont(.subheadline, role: .data)
         }
         .padding(.vertical, 4)
         .overlay(alignment: .bottom) { SidebarDivider() }
@@ -231,8 +233,8 @@ struct PipelineView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Circle().fill(stage.color.color).frame(width: 8, height: 8)
-                Text(stage.title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
-                Text("\(people.count)").font(.caption).foregroundStyle(Theme.secondaryText)
+                Text(stage.title).appFont(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                Text("\(people.count)").appFont(.caption).foregroundStyle(Theme.secondaryText)
             }
             ScrollView {
                 VStack(spacing: 8) {
@@ -240,12 +242,13 @@ struct PipelineView: View {
                         HStack(spacing: 10) {
                             AvatarView(name: contact.name, color: contact.color.color, imageData: contact.imageData, size: 28)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(contact.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
-                                Text(contact.company).font(.caption).foregroundStyle(Theme.secondaryText)
+                                Text(contact.name).appFont(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                                Text(contact.company).appFont(.caption).foregroundStyle(Theme.secondaryText)
                             }
                             Spacer()
                         }
                         .padding(10)
+                        .fontRole(.data)
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.stroke) }
                         .draggable(contact.uuid.uuidString)
@@ -281,20 +284,20 @@ struct ReportsView: View {
                 ScreenHeader(title: "Reports", subtitle: "Computed on-device from your iCloud data")
                 HStack(alignment: .top, spacing: 16) {
                     Card {
-                        Text("Tasks by status").font(.headline).foregroundStyle(Theme.text)
+                        Text("Tasks by status").appFont(.headline).foregroundStyle(Theme.text)
                         RingBreakdown(slices: TaskStatus.allCases.map { status in
                             .init(label: status.title, value: Double(tasks.filter { $0.status == status }.count))
                         }, thickness: 26)
                     }
                     Card {
-                        Text("Pipeline by stage").font(.headline).foregroundStyle(Theme.text)
+                        Text("Pipeline by stage").appFont(.headline).foregroundStyle(Theme.text)
                         RingBreakdown(slices: DealStage.allCases.map { stage in
                             .init(label: stage.title, value: Double(contacts.filter { $0.stage == stage }.count), color: stage.color.color)
                         }, thickness: 26)
                     }
                 }
                 Card {
-                    Text("Open work per project").font(.headline).foregroundStyle(Theme.text)
+                    Text("Open work per project").appFont(.headline).foregroundStyle(Theme.text)
                     RingBreakdown(slices: projects.map { project in
                         .init(label: project.name, value: Double(project.openTaskCount), color: project.color.color)
                     }, thickness: 26)

@@ -82,7 +82,7 @@ struct ProjectGlyph: View {
             .frame(width: size, height: size)
             .overlay {
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.52, weight: .bold))
+                    .appFont(.system(size: size * 0.52, weight: .bold))
                     .foregroundStyle(.white.opacity(0.95))
             }
     }
@@ -103,7 +103,7 @@ struct AvatarView: View {
                     .fill(color.gradient)
                     .overlay {
                         Text(ColonyText.initials(for: name))
-                            .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+                            .appFont(.system(size: size * 0.38, weight: .semibold, design: .rounded))
                             .foregroundStyle(.white)
                     }
             }
@@ -136,11 +136,11 @@ struct ScreenHeader<Trailing: View>: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 24, weight: .semibold))
+                    .appFont(.system(size: 24, weight: .semibold))
                     .foregroundStyle(Theme.text)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.subheadline)
+                        .appFont(.subheadline)
                         .foregroundStyle(Theme.secondaryText)
                 }
             }
@@ -177,7 +177,7 @@ struct Card<Content: View>: View {
 struct QuietButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.subheadline.weight(.medium))
+            .appFont(.subheadline.weight(.medium))
             .foregroundStyle(Theme.text)
             .padding(.horizontal, 12)
             .frame(height: 30)
@@ -200,13 +200,13 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: symbol)
-                .font(.system(size: 26, weight: .regular))
+                .appFont(.system(size: 26, weight: .regular))
                 .foregroundStyle(Theme.tertiaryText)
             Text(title)
-                .font(.headline)
+                .appFont(.headline)
                 .foregroundStyle(Theme.text)
             Text(message)
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(Theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)

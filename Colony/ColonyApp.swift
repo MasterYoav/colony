@@ -61,6 +61,12 @@ struct ColonyApp: App {
         RootView()
             .environment(app)
             .preferredColorScheme(app.preferences.appearance.colorScheme)
+            // Default font for plain Text; must sit inside the typefaces environment.
+            .appFont(.body)
+            .environment(\.appTypefaces, AppTypefaces(
+                ui: InstalledFonts.available(app.preferences.uiFontFamily),
+                data: InstalledFonts.available(app.preferences.dataFontFamily)
+            ))
             .task {
                 guard !CloudStore.isRunningForTests else { return }
                 StarterContent.seedIfNeeded(context: container.mainContext, preferences: app.preferences)

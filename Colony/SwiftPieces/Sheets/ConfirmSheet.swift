@@ -107,7 +107,7 @@ public struct ConfirmSheet: View {
                 .accessibilityHidden(true)
 
             Image(systemName: phase == .done ? "checkmark" : systemImage)
-                .font(.system(size: 24, weight: .bold))
+                .appFont(.system(size: 24, weight: .bold))
                 .foregroundStyle(style.ink)
                 .contentTransition(.symbolEffect(.replace))
                 .symbolEffect(.bounce.down, options: reduceMotion ? .speed(100) : .default, value: presentTick)
@@ -117,13 +117,13 @@ public struct ConfirmSheet: View {
                 .accessibilityHidden(true)
 
             Text(title)
-                .font(.system(size: titleSize, weight: .bold))
+                .appFont(.system(size: titleSize, weight: .bold))
                 .tracking(-0.6)
                 .foregroundStyle(style.label)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 20)
             Text(message)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(style.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
@@ -145,7 +145,7 @@ public struct ConfirmSheet: View {
                         ProgressView().tint(primaryText).opacity(phase == .confirming ? 1 : 0)
                         Image(systemName: "checkmark").fontWeight(.heavy).opacity(phase == .done ? 1 : 0)
                     }
-                    .font(.headline)
+                    .appFont(.headline)
                     .foregroundStyle(primaryText)
                     .frame(maxWidth: .infinity, minHeight: 56)
                     .background(primaryFill, in: .rect(cornerRadius: 18, style: .continuous))
@@ -161,7 +161,7 @@ public struct ConfirmSheet: View {
                     isPresented = false
                 } label: {
                     Text(cancelTitle)
-                        .font(.headline)
+                        .appFont(.headline)
                         .foregroundStyle(style.label)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .background(style.quiet, in: .rect(cornerRadius: 18, style: .continuous))

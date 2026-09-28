@@ -13,7 +13,7 @@ public struct GlassSegmentsStyle: Sendable {
     /// Raised indicator fill when `indicatorTint` is `nil`.
     public var indicatorSurface: Color
     /// Label font.
-    public var font: Font
+    public var font: AppFont
     /// Opacity of the control while disabled with `.disabled(true)`.
     public var disabledOpacity: Double
 
@@ -23,7 +23,7 @@ public struct GlassSegmentsStyle: Sendable {
         selectedInk: Color = GlassSegmentsStyle.adaptive(light: 0x141414, dark: 0xF4F3EF),
         indicatorTint: Color? = nil,
         indicatorSurface: Color = GlassSegmentsStyle.adaptive(light: 0xFFFFFF, dark: 0x3A3A3A),
-        font: Font = .subheadline.weight(.semibold),
+        font: AppFont = .subheadline.weight(.semibold),
         disabledOpacity: Double = 0.45
     ) {
         self.track = track
@@ -139,7 +139,7 @@ public struct GlassSegments<Option: Hashable>: View {
         HStack(spacing: 0) {
             ForEach(options.indices, id: \.self) { index in
                 segmentLabel(options[index])
-                    .font(style.font)
+                    .appFont(style.font)
                     .foregroundStyle(color)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)

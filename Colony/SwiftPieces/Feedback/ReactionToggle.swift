@@ -106,7 +106,7 @@ public struct ReactionToggle: View {
                 symbol
                 if let total {
                     Text(total.formatted())
-                        .font(.system(size: size * 0.7, weight: .semibold, design: .rounded))
+                        .appFont(.system(size: size * 0.7, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .lineLimit(1)
                         .fixedSize()
@@ -184,7 +184,7 @@ public struct ReactionToggle: View {
                 .foregroundStyle(ink)
                 .contentTransition(.symbolEffect(.replace.downUp))
         }
-        .font(.system(size: size, weight: .semibold))
+        .appFont(.system(size: size, weight: .semibold))
         .frame(width: box, height: box)
             .keyframeAnimator(initialValue: Bounce(), trigger: burst) { view, value in
                 view.scaleEffect(value.scale).rotationEffect(.degrees(value.tilt))
@@ -205,10 +205,10 @@ public struct ReactionToggle: View {
     private var pill: some View {
         if showsPill, let confirmation {
             HStack(spacing: 5) {
-                Image(systemName: "checkmark").font(.caption2.weight(.heavy))
+                Image(systemName: "checkmark").appFont(.caption2.weight(.heavy))
                 Text(confirmation)
             }
-            .font(.footnote.weight(.semibold))
+            .appFont(.footnote.weight(.semibold))
             .foregroundStyle(style.pillInk)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)

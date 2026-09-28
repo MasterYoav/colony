@@ -106,7 +106,7 @@ public struct TaskRow: View {
             checkControl
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
-                    .font(compact ? .subheadline.weight(.medium) : .body.weight(.semibold))
+                    .appFont(compact ? .subheadline.weight(.medium) : .body.weight(.semibold))
                     .foregroundStyle(completing ? style.ink : status == .open ? style.text : style.muted)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -150,14 +150,14 @@ public struct TaskRow: View {
     private var meta: some View {
         if status == .snoozed {
             Label("Snoozed", systemImage: "moon.zzz.fill")
-                .font(.caption.weight(.bold))
+                .appFont(.caption.weight(.bold))
                 .foregroundStyle(style.ink)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(style.snooze, in: Capsule())
         } else if let due {
             Label(due, systemImage: "clock")
-                .font(.footnote.weight(.medium))
+                .appFont(.footnote.weight(.medium))
                 .foregroundStyle(completing ? style.ink.opacity(0.7) : style.muted)
                 .labelStyle(TightLabel())
         }
@@ -170,7 +170,7 @@ public struct TaskRow: View {
         case .high: ("HIGH", style.high)
         }
         return Text(label)
-            .font(.caption2.weight(.heavy))
+            .appFont(.caption2.weight(.heavy), role: .ui) // a badge is chrome, even inside a data row
             .tracking(0.8)
             .foregroundStyle(style.ink)
             .padding(.horizontal, 8)
@@ -190,7 +190,7 @@ public struct TaskRow: View {
                     .scaleEffect(status == .open ? 0.001 : 1)
                 if status == .snoozed {
                     Image(systemName: "moon.zzz.fill")
-                        .font(.system(size: 12, weight: .bold))
+                        .appFont(.system(size: 12, weight: .bold))
                         .foregroundStyle(style.ink)
                         .transition(.scale.combined(with: .opacity))
                 } else {
@@ -242,7 +242,7 @@ public struct TaskRow: View {
         if revealed > 0 {
             let reveal = min(1, revealed / completeThreshold)
             Image(systemName: status == .completed ? "arrow.uturn.backward" : "checkmark")
-                .font(.system(size: 22, weight: .bold))
+                .appFont(.system(size: 22, weight: .bold))
                 .foregroundStyle(style.ink)
                 .scaleEffect(0.55 + 0.45 * reveal + (armed ? 0.2 : 0))
                 .frame(width: revealed, height: rowHeight)
@@ -276,10 +276,10 @@ public struct TaskRow: View {
         Button { settle(0); action() } label: {
             VStack(spacing: 5) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 19, weight: .semibold))
+                    .appFont(.system(size: 19, weight: .semibold))
                     .scaleEffect(0.55 + 0.45 * reveal)
                 Text(label)
-                    .font(.caption.weight(.semibold))
+                    .appFont(.caption.weight(.semibold))
                     .opacity(max(0, (reveal - 0.45) / 0.55))
             }
             .foregroundStyle(style.ink)

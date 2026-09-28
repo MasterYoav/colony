@@ -64,7 +64,7 @@ struct NewProjectSheet: View {
                 DialogField(label: "Name") {
                     DialogTextField(placeholder: "e.g. Website relaunch", text: $name, limit: 40, autofocus: true, onSubmit: create)
                 } accessory: {
-                    Text("\(name.count)/40").font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiaryText)
+                    Text("\(name.count)/40").appFont(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiaryText)
                 }
             }
 
@@ -110,7 +110,7 @@ struct SymbolGrid: View {
                 let selected = item == selection
                 Button { selection = item } label: {
                     Image(systemName: item)
-                        .font(.system(size: 14, weight: .medium))
+                        .appFont(.system(size: 14, weight: .medium))
                         .foregroundStyle(selected ? .white : Theme.icon)
                         .frame(maxWidth: .infinity)
                         .frame(height: 36)
@@ -143,7 +143,7 @@ struct ColorSwatches: View {
                         .frame(width: 20, height: 20)
                         .overlay {
                             if selected {
-                                Image(systemName: "checkmark").font(.system(size: 9, weight: .heavy)).foregroundStyle(.white)
+                                Image(systemName: "checkmark").appFont(.system(size: 9, weight: .heavy)).foregroundStyle(.white)
                             }
                         }
                         .padding(3)
@@ -396,18 +396,18 @@ struct ImportContactsSheet: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: imported || selected ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(imported ? Theme.tertiaryText : (selected ? Theme.text : Theme.secondaryText))
                 AvatarView(name: person.name, color: ColonyColor.indigo.color, imageData: person.imageData, size: 26)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(person.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
+                    Text(person.name).appFont(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
                     if !person.company.isEmpty {
-                        Text(person.company).font(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
+                        Text(person.company).appFont(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
                     }
                 }
                 Spacer()
                 if imported {
-                    Text("Added").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.tertiaryText)
+                    Text("Added").appFont(.system(size: 11, weight: .medium)).foregroundStyle(Theme.tertiaryText)
                 }
             }
             .padding(.horizontal, 8)
@@ -471,11 +471,11 @@ struct PermissionDialog: View {
                 ForEach(Array(benefits.enumerated()), id: \.offset) { index, benefit in
                     HStack(spacing: 12) {
                         Image(systemName: benefit.symbol)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(Theme.icon)
                             .frame(width: 20)
                         Text(benefit.text)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(Theme.text)
                         Spacer()
                     }
@@ -491,7 +491,7 @@ struct PermissionDialog: View {
 
             if wasDenied {
                 Label("Access is off. Turn it on in System Settings › Privacy & Security.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(.orange)
             }
         } footer: {
@@ -606,7 +606,7 @@ private struct TaskDetailForm: View {
                 .foregroundStyle(.red)
             Spacer()
             Text("Changes save automatically")
-                .font(.system(size: 11.5))
+                .appFont(.system(size: 11.5))
                 .foregroundStyle(Theme.tertiaryText)
             Button("Done") { dismiss() }
                 .buttonStyle(.dialogPrimary)

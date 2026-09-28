@@ -128,9 +128,9 @@ public struct FilterRail: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: "xmark")
-                    .font(.caption.weight(.bold))
+                    .appFont(.caption.weight(.bold))
                 Text("\(selection.count)")
-                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .appFont(.subheadline.weight(.semibold).monospacedDigit())
                     .contentTransition(.numericText(value: Double(selection.count)))
             }
             .foregroundStyle(style.onIndicator)
@@ -183,15 +183,15 @@ public struct FilterRail: View {
                 HStack(spacing: 6) {
                     if showsCheck && isSelected {
                         Image(systemName: "checkmark")
-                            .font(.caption.weight(.heavy))
+                            .appFont(.caption.weight(.heavy))
                             .transition(.scale.combined(with: .opacity))
                     }
                     Text(title)
-                        .font(.subheadline.weight(.semibold))
+                        .appFont(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     if let count {
                         Text(count.formatted())
-                            .font(.footnote.weight(.medium).monospacedDigit())
+                            .appFont(.footnote.weight(.medium).monospacedDigit())
                             .foregroundStyle(isSelected ? foreground.opacity(0.62) : style.secondaryLabel)
                     }
                 }

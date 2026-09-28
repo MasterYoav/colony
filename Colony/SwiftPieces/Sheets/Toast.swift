@@ -184,7 +184,7 @@ public struct Toast: ViewModifier {
     private var label: some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage ?? style.symbol)
-                .font(.body.weight(.bold))
+                .appFont(.body.weight(.bold))
                 .foregroundStyle(appearance.ink)
                 .symbolEffect(.bounce, value: arriveTick)
                 .frame(width: 40, height: 40)
@@ -192,12 +192,12 @@ public struct Toast: ViewModifier {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(message)
-                    .font(.subheadline.weight(.semibold))
+                    .appFont(.subheadline.weight(.semibold))
                     .foregroundStyle(appearance.label)
                     .lineLimit(2)
                 if let detail {
                     Text(detail)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(appearance.secondaryLabel)
                         .lineLimit(1)
                 }
@@ -219,7 +219,7 @@ public struct Toast: ViewModifier {
                         Image(systemName: "checkmark").fontWeight(.heavy).opacity(phase == .actioned ? 1 : 0)
                             .scaleEffect(phase == .actioned || reduceMotion ? 1 : 0.4)
                     }
-                    .font(.subheadline.weight(.bold))
+                    .appFont(.subheadline.weight(.bold))
                     .foregroundStyle(appearance.ink)
                     .padding(.horizontal, 16)
                     .frame(minWidth: 64, minHeight: 40)

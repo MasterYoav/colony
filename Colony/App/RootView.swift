@@ -26,6 +26,11 @@ struct RootView: View {
                         .background(Theme.canvas)
                 }
                 #if os(macOS)
+                .overlay(alignment: .topLeading) {
+                    if app.preferences.isSidebarCollapsed {
+                        CollapsedSidebarToggle()
+                    }
+                }
                 .ignoresSafeArea(edges: .top) // content runs under the hidden title bar
                 #endif
             }
@@ -166,3 +171,17 @@ struct DialogPresenter: ViewModifier {
         }
     }
 }
+
+#if os(macOS)
+/// When the sidebar is collapsed, its toggle sits in the title bar just right of the
+/// traffic lights (which are centred in the collapsed column), on the same line.
+struct CollapsedSidebarToggle: View {
+    var body: some View {
+        SidebarToggleButton()
+            // Traffic lights are 16pt tall at y 8, so their centre is y 16; the toggle is 30pt.
+            .padding(.top, 16 - 15)
+            .padding(.leading, Theme.collapsedPanelWidth + 6)
+            .transition(.opacity)
+    }
+}
+#endif

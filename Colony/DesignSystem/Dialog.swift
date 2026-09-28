@@ -138,7 +138,7 @@ struct DialogFrame<Content: View, Footer: View>: View {
         HStack(alignment: .top, spacing: 12) {
             if let symbol {
                 Image(systemName: symbol)
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .foregroundStyle(tint)
                     .frame(width: 32, height: 32)
                     .background(tint.opacity(0.12), in: .rect(cornerRadius: 8, style: .continuous))
@@ -147,12 +147,12 @@ struct DialogFrame<Content: View, Footer: View>: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Theme.text)
                     .accessibilityAddTraits(.isHeader)
                 if let description {
                     Text(description)
-                        .font(.system(size: 12.5))
+                        .appFont(.system(size: 12.5))
                         .foregroundStyle(Theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -181,7 +181,7 @@ struct DialogCloseButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .semibold))
+                .appFont(.system(size: 11, weight: .semibold))
                 .foregroundStyle(isHovering ? Theme.text : Theme.secondaryText)
                 .frame(width: 26, height: 26)
                 .background(isHovering ? Theme.hover : .clear, in: .rect(cornerRadius: 6, style: .continuous))
@@ -206,7 +206,7 @@ struct DialogButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .appFont(.system(size: 13, weight: .medium))
             .foregroundStyle(foreground)
             .padding(.horizontal, 14)
             .frame(height: 32)
@@ -257,7 +257,7 @@ struct KeyHint: View {
         HStack(spacing: 4) {
             ForEach(keys, id: \.self) { key in
                 Text(key)
-                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .appFont(.system(size: 10.5, weight: .medium, design: .rounded))
                     .foregroundStyle(Theme.secondaryText)
                     .padding(.horizontal, 5)
                     .frame(minWidth: 18, minHeight: 18)
@@ -265,7 +265,7 @@ struct KeyHint: View {
                     .overlay { RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(Theme.stroke) }
             }
             Text(label)
-                .font(.system(size: 11.5))
+                .appFont(.system(size: 11.5))
                 .foregroundStyle(Theme.tertiaryText)
         }
         .accessibilityHidden(true)
@@ -285,7 +285,7 @@ struct DialogField<Control: View, Accessory: View>: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label)
-                    .font(.system(size: 12.5, weight: .medium))
+                    .appFont(.system(size: 12.5, weight: .medium))
                     .foregroundStyle(Theme.text)
                 Spacer(minLength: 8)
                 accessory()
@@ -293,7 +293,7 @@ struct DialogField<Control: View, Accessory: View>: View {
             control()
             if let hint {
                 Text(hint)
-                    .font(.system(size: 11.5))
+                    .appFont(.system(size: 11.5))
                     .foregroundStyle(Theme.tertiaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -354,14 +354,14 @@ struct DialogTextField: View {
         HStack(spacing: 8) {
             if let symbol {
                 Image(systemName: symbol)
-                    .font(.system(size: 12.5))
+                    .appFont(.system(size: 12.5))
                     .foregroundStyle(Theme.tertiaryText)
                     .frame(width: 16)
                     .accessibilityHidden(true)
             }
             TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(Theme.tertiaryText))
                 .textFieldStyle(.plain)
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5), role: .data) // what the user types is content
                 .foregroundStyle(Theme.text)
                 .focused($focused)
                 .onSubmit { onSubmit?() }
@@ -403,7 +403,7 @@ struct DialogTextEditor: View {
     var body: some View {
         TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(Theme.tertiaryText), axis: .vertical)
             .textFieldStyle(.plain)
-            .font(.system(size: 13.5))
+            .appFont(.system(size: 13.5), role: .data)
             .foregroundStyle(Theme.text)
             .lineLimit(lines)
             .focused($focused)
@@ -437,15 +437,15 @@ struct DialogSelect<Value: Hashable>: View {
         } label: {
             HStack(spacing: 8) {
                 if let symbol = current?.symbol {
-                    Image(systemName: symbol).font(.system(size: 12.5)).foregroundStyle(Theme.icon)
+                    Image(systemName: symbol).appFont(.system(size: 12.5)).foregroundStyle(Theme.icon)
                 }
                 Text(current?.title ?? "Select")
-                    .font(.system(size: 13.5))
+                    .appFont(.system(size: 13.5))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                 Spacer(minLength: 6)
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
+                    .appFont(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.tertiaryText)
             }
             .dialogInput(isFocused: false)
@@ -470,9 +470,9 @@ struct DialogToggleRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
+                Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
                 if let description {
-                    Text(description).font(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
+                    Text(description).appFont(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
                 }
             }
             Spacer(minLength: 8)
@@ -499,13 +499,13 @@ struct ChipInput: View {
             ForEach(items, id: \.self) { item in
                 HStack(spacing: 4) {
                     Text(item)
-                        .font(.system(size: 12.5, weight: .medium))
+                        .appFont(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(Theme.text)
                     Button {
                         withAnimation(.snappy(duration: 0.18)) { items.removeAll { $0 == item } }
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 8.5, weight: .bold))
+                            .appFont(.system(size: 8.5, weight: .bold))
                             .foregroundStyle(Theme.secondaryText)
                             .frame(width: 14, height: 14)
                             .contentShape(.rect)
@@ -522,7 +522,7 @@ struct ChipInput: View {
             }
             TextField(placeholder, text: $draft, prompt: Text(items.isEmpty ? placeholder : "Add…").foregroundStyle(Theme.tertiaryText))
                 .textFieldStyle(.plain)
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5))
                 .foregroundStyle(Theme.text)
                 .focused($focused)
                 .frame(minWidth: 90)
@@ -613,17 +613,17 @@ struct ConfirmDialog: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: symbol)
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .foregroundStyle(isDestructive ? Color.red : Theme.text)
                     .frame(width: 36, height: 36)
                     .background((isDestructive ? Color.red : Theme.text).opacity(0.12), in: Circle())
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .appFont(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Theme.text)
                     Text(message)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(Theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }

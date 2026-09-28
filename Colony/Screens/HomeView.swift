@@ -33,7 +33,7 @@ struct HomeView: View {
                         let due = openTasks.filter { $0.dueDate != nil }.sorted { $0.dueDate! < $1.dueDate! }.prefix(6)
                         if due.isEmpty {
                             Text("Nothing due. Enjoy the calm.")
-                                .font(.subheadline)
+                                .appFont(.subheadline)
                                 .foregroundStyle(Theme.secondaryText)
                         } else {
                             ForEach(Array(due)) { task in
@@ -49,13 +49,13 @@ struct HomeView: View {
                             Button { app.go(.project(project.uuid)) } label: {
                                 HStack(spacing: 10) {
                                     ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 20)
-                                    Text(project.name).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                                    Text(project.name).appFont(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
                                     Spacer()
                                     ProgressView(value: project.progress)
                                         .frame(width: 70)
                                         .tint(project.color.color)
                                     Text(project.progress, format: .percent.precision(.fractionLength(0)))
-                                        .font(.caption.monospacedDigit())
+                                        .appFont(.caption.monospacedDigit())
                                         .foregroundStyle(Theme.secondaryText)
                                         .frame(width: 36, alignment: .trailing)
                                 }
@@ -119,11 +119,11 @@ struct HomeView: View {
 
     private func sectionTitle(_ title: String, action: String, perform: @escaping () -> Void) -> some View {
         HStack {
-            Text(title).font(.headline).foregroundStyle(Theme.text)
+            Text(title).appFont(.headline).foregroundStyle(Theme.text)
             Spacer()
             Button(action, action: perform)
                 .buttonStyle(.plain)
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(Theme.secondaryText)
         }
     }
@@ -142,7 +142,7 @@ struct CompactTaskRow: View {
             } label: {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(task.isDone ? Color.green : Theme.secondaryText)
-                    .font(.system(size: 16))
+                    .appFont(.system(size: 16))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(task.isDone ? "Mark not done" : "Mark done")
@@ -150,14 +150,14 @@ struct CompactTaskRow: View {
             Button { app.present(.task(task.uuid)) } label: {
                 HStack {
                     Text(task.title)
-                        .font(.subheadline)
+                        .appFont(.subheadline)
                         .foregroundStyle(task.isDone ? Theme.secondaryText : Theme.text)
                         .strikethrough(task.isDone)
                         .lineLimit(1)
                     Spacer()
                     if let due = task.dueDate {
                         Text(due, format: .dateTime.month(.abbreviated).day())
-                            .font(.caption)
+                            .appFont(.caption)
                             .foregroundStyle(task.isOverdue ? Color.red : Theme.secondaryText)
                     }
                     if let project = task.project {
@@ -169,6 +169,7 @@ struct CompactTaskRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 3)
+        .fontRole(.data)
     }
 }
 
@@ -178,23 +179,24 @@ struct UpdateRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: event.symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 26, height: 26)
                 .background(event.color.color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(event.title).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
-                Text(event.detail).font(.caption).foregroundStyle(Theme.secondaryText).lineLimit(2)
+                Text(event.title).appFont(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                Text(event.detail).appFont(.caption).foregroundStyle(Theme.secondaryText).lineLimit(2)
             }
             Spacer()
             Text(event.createdAt, format: .relative(presentation: .named))
-                .font(.caption)
+                .appFont(.caption)
                 .foregroundStyle(Theme.tertiaryText)
             if !event.isRead {
                 Circle().fill(Color.blue).frame(width: 6, height: 6).padding(.top, 6)
             }
         }
         .padding(.vertical, 4)
+        .fontRole(.data)
     }
 }
 

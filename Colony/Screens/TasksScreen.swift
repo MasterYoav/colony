@@ -77,11 +77,11 @@ struct TasksScreen: View {
                     if case .list(let project, _) = scope {
                         Button(project.name) { app.go(.project(project.uuid)) }
                             .buttonStyle(.plain)
-                            .font(.caption)
+                            .appFont(.caption)
                             .foregroundStyle(Theme.secondaryText)
                     }
                     Text(scope.title)
-                        .font(.system(size: 24, weight: .semibold))
+                        .appFont(.system(size: 24, weight: .semibold))
                         .foregroundStyle(Theme.text)
                 }
                 Spacer()
@@ -94,7 +94,7 @@ struct TasksScreen: View {
             }
 
             if let project = scope.project, !project.summary.isEmpty, scope.list == nil {
-                Text(project.summary).font(.subheadline).foregroundStyle(Theme.secondaryText)
+                Text(project.summary).appFont(.subheadline).foregroundStyle(Theme.secondaryText)
             }
 
             if layout == .list {
@@ -215,6 +215,7 @@ struct TaskListRow: View {
             onSnooze: snooze,
             onDelete: { withAnimation { WorkspaceActions(context: context).delete(task) } }
         )
+        .fontRole(.data)
         .contextMenu {
             Menu("Status") {
                 ForEach(TaskStatus.allCases) { status in
@@ -276,7 +277,7 @@ struct PriorityChip: View {
 
     var body: some View {
         Text(priority.title)
-            .font(.caption.weight(.medium))
+            .appFont(.caption.weight(.medium))
             .foregroundStyle(priority.color)
             .padding(.horizontal, 8)
             .frame(height: 22)
@@ -308,8 +309,8 @@ struct BoardView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: status.symbol).foregroundStyle(status.color)
-                Text(status.title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
-                Text("\(items.count)").font(.caption).foregroundStyle(Theme.secondaryText)
+                Text(status.title).appFont(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+                Text("\(items.count)").appFont(.caption).foregroundStyle(Theme.secondaryText)
                 Spacer()
             }
             .padding(.horizontal, 4)
@@ -324,7 +325,7 @@ struct BoardView: View {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .strokeBorder(Theme.stroke, style: StrokeStyle(lineWidth: 1, dash: [4]))
                             .frame(height: 64)
-                            .overlay { Text("Drop here").font(.caption).foregroundStyle(Theme.tertiaryText) }
+                            .overlay { Text("Drop here").appFont(.caption).foregroundStyle(Theme.tertiaryText) }
                     }
                 }
             }
@@ -354,14 +355,14 @@ struct BoardCard: View {
         Button { app.present(.task(task.uuid)) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 Text(task.title)
-                    .font(.subheadline.weight(.medium))
+                    .appFont(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.text)
                     .multilineTextAlignment(.leading)
                 HStack(spacing: 6) {
                     PriorityChip(priority: task.priority)
                     if let due = task.dueDate {
                         Label(due.formatted(.dateTime.month(.abbreviated).day()), systemImage: "calendar")
-                            .font(.caption)
+                            .appFont(.caption)
                             .foregroundStyle(task.isOverdue ? Color.red : Theme.secondaryText)
                     }
                     Spacer()
@@ -371,6 +372,7 @@ struct BoardCard: View {
                 }
             }
             .padding(12)
+            .fontRole(.data)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.stroke) }
@@ -403,11 +405,11 @@ struct ProjectsView: View {
                                 HStack {
                                     ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 28)
                                     Spacer()
-                                    Text("\(project.openTaskCount) open").font(.caption).foregroundStyle(Theme.secondaryText)
+                                    Text("\(project.openTaskCount) open").appFont(.caption).foregroundStyle(Theme.secondaryText)
                                 }
-                                Text(project.name).font(.headline).foregroundStyle(Theme.text)
+                                Text(project.name).appFont(.headline).foregroundStyle(Theme.text)
                                 Text(project.summary.isEmpty ? "No description" : project.summary)
-                                    .font(.subheadline)
+                                    .appFont(.subheadline)
                                     .foregroundStyle(Theme.secondaryText)
                                     .lineLimit(2, reservesSpace: true)
                                 ProgressView(value: project.progress).tint(project.color.color)

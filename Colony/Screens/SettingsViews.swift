@@ -17,35 +17,55 @@ struct SettingsView: View {
                 ScreenHeader(title: "Settings", subtitle: "Preferences roam with your iCloud account")
 
                 Card {
-                    Text("Profile").font(.headline).foregroundStyle(Theme.text)
+                    Text("Profile").appFont(.headline).foregroundStyle(Theme.text)
                     FormField("Your name", text: $prefs.displayName, leading: Image(systemName: "person"), limit: 40, textContentType: .name, style: fieldStyle)
                     FormField("Workspace name", text: $prefs.workspaceName, leading: Image(systemName: "square.stack.3d.up"), limit: 32, style: fieldStyle)
                 }
 
                 Card {
-                    Text("Appearance").font(.headline).foregroundStyle(Theme.text)
+                    Text("Appearance").appFont(.headline).foregroundStyle(Theme.text)
                     GlassSegments(options: AppearancePreference.allCases, selection: $prefs.appearance, label: { $0.title }, systemImage: { $0.symbol })
                         .frame(maxWidth: 360)
+                    SidebarDivider().padding(.vertical, 2)
+                    FontPickerRow(
+                        title: "Interface font",
+                        detail: "Sidebar, headers, buttons and labels",
+                        sample: "Home  Updates  Settings",
+                        family: $prefs.uiFontFamily
+                    )
+                    FontPickerRow(
+                        title: "Data font",
+                        detail: "Tasks, messages, contacts and numbers",
+                        sample: "Ship the onboarding flow · 42",
+                        family: $prefs.dataFontFamily
+                    )
+                    if !prefs.uiFontFamily.isEmpty || !prefs.dataFontFamily.isEmpty {
+                        Button("Reset to system fonts", systemImage: "arrow.counterclockwise") {
+                            prefs.uiFontFamily = ""
+                            prefs.dataFontFamily = ""
+                        }
+                        .buttonStyle(QuietButtonStyle())
+                    }
                 }
 
                 Card {
                     HStack {
-                        Text("iCloud").font(.headline).foregroundStyle(Theme.text)
+                        Text("iCloud").appFont(.headline).foregroundStyle(Theme.text)
                         Spacer()
                         Button("Refresh", systemImage: "arrow.clockwise") { Task { await app.iCloud.refresh() } }
                             .buttonStyle(QuietButtonStyle())
                     }
                     HStack(spacing: 12) {
                         Image(systemName: app.iCloud.displayState.symbol)
-                            .font(.system(size: 22))
+                            .appFont(.system(size: 22))
                             .foregroundStyle(app.iCloud.displayState.isHealthy ? Color.green : Color.orange)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(app.iCloud.displayState.title).font(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
-                            Text(iCloudDetail).font(.caption).foregroundStyle(Theme.secondaryText)
+                            Text(app.iCloud.displayState.title).appFont(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
+                            Text(iCloudDetail).appFont(.caption).foregroundStyle(Theme.secondaryText)
                         }
                     }
                     Text("Projects, tasks, messages and contacts are stored in your private iCloud database (\(CloudStore.containerIdentifier)). Only you can read them; Colony has no server.")
-                        .font(.caption)
+                        .appFont(.caption)
                         .foregroundStyle(Theme.secondaryText)
                 }
             }
@@ -105,7 +125,7 @@ struct AppleServicesView: View {
                                 app.show("Mirrored \(open.count) tasks to Reminders")
                             }
                         if let error = app.reminders.lastError {
-                            Text(error).font(.caption).foregroundStyle(.red)
+                            Text(error).appFont(.caption).foregroundStyle(.red)
                         }
                     } else {
                         Button("Connect Reminders") { app.present(.connectReminders) }.buttonStyle(QuietButtonStyle())
@@ -147,19 +167,19 @@ struct AppleServicesView: View {
         return Card {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: symbol)
-                    .font(.system(size: 18, weight: .semibold))
+                    .appFont(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.white)
                     .frame(width: 40, height: 40)
                     .background(color.color.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(title).font(.headline).foregroundStyle(Theme.text)
+                        Text(title).appFont(.headline).foregroundStyle(Theme.text)
                         Spacer()
                         Label(status, systemImage: healthy ? "checkmark.circle.fill" : "circle.dashed")
-                            .font(.caption)
+                            .appFont(.caption)
                             .foregroundStyle(healthy ? Color.green : Theme.secondaryText)
                     }
-                    Text(detail).font(.subheadline).foregroundStyle(Theme.secondaryText)
+                    Text(detail).appFont(.subheadline).foregroundStyle(Theme.secondaryText)
                     controls.padding(.top, 6)
                 }
             }

@@ -47,6 +47,8 @@ final class CloudPreferences {
         static let mirrorsToReminders = "mirrorsToReminders"
         static let sidebarPinned = "sidebarPinnedItems"
         static let sidebarWorkspace = "sidebarWorkspaceItems"
+        static let uiFont = "uiFontFamily"
+        static let dataFont = "dataFontFamily"
     }
 
     private let store: NSUbiquitousKeyValueStore?
@@ -63,6 +65,10 @@ final class CloudPreferences {
     /// Sidebar order the user set by dragging (raw values of `SidebarNavItem`). Roams via iCloud.
     var sidebarPinnedItems: [String] { didSet { write(sidebarPinnedItems, Key.sidebarPinned) } }
     var sidebarWorkspaceItems: [String] { didSet { write(sidebarWorkspaceItems, Key.sidebarWorkspace) } }
+    /// Font family names for the app chrome and for the user's content. Empty means the
+    /// system font. Roams via iCloud; a family missing on a device falls back to system.
+    var uiFontFamily: String { didSet { write(uiFontFamily, Key.uiFont) } }
+    var dataFontFamily: String { didSet { write(dataFontFamily, Key.dataFont) } }
 
     init(useICloud: Bool = true, defaults: UserDefaults = .standard) {
         self.store = useICloud ? NSUbiquitousKeyValueStore.default : nil
@@ -81,6 +87,8 @@ final class CloudPreferences {
         mirrorsToReminders = read(Key.mirrorsToReminders) ?? false
         sidebarPinnedItems = read(Key.sidebarPinned) ?? []
         sidebarWorkspaceItems = read(Key.sidebarWorkspace) ?? []
+        uiFontFamily = read(Key.uiFont) ?? ""
+        dataFontFamily = read(Key.dataFont) ?? ""
 
         if let store {
             observer = NotificationCenter.default.addObserver(
@@ -104,6 +112,8 @@ final class CloudPreferences {
         if store.object(forKey: Key.mirrorsToReminders) != nil { mirrorsToReminders = store.bool(forKey: Key.mirrorsToReminders) }
         if let value = store.array(forKey: Key.sidebarPinned) as? [String], value != sidebarPinnedItems { sidebarPinnedItems = value }
         if let value = store.array(forKey: Key.sidebarWorkspace) as? [String], value != sidebarWorkspaceItems { sidebarWorkspaceItems = value }
+        if let value = store.string(forKey: Key.uiFont), value != uiFontFamily { uiFontFamily = value }
+        if let value = store.string(forKey: Key.dataFont), value != dataFontFamily { dataFontFamily = value }
     }
 
     private func write(_ value: Any, _ key: String) {
