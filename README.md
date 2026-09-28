@@ -2,7 +2,7 @@
   <img src="docs/assets/banner-fade.png" alt="Colony" width="100%">
 </p>
 
-# private workspace for Apple Devices
+**private workspace for Apple Devices**
 projects, tasks, team channels, and a lightweight CRM in one native SwiftUI app for iPhone, iPad and Mac.
 
 There's no Colony server and no third-party SDK. Your data lives in your own iCloud account, and integrations use Apple's built-in apps.
