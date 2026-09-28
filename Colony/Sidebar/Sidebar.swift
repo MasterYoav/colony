@@ -1,0 +1,796 @@
+//
+//  Sidebar.swift
+//  Colony
+//
+//  Single sidebar modelled on the reference design:
+//  ┌──────────────────────────┐
+//  │ ● ● ●  workspace ▾  [◧]  │
+//  │ [⌘ Command          /]   │
+//  │ ⌂ Home                   │
+//  │ ── WORKSPACE ───── ⋯ +   │
+//  │ ── PROJECTS ────── ⋯ +   │
+//  │    Project ▾             │
+//  │       List          23   │
+//  │ (YP) Name     ☾  ☁  ⚙   │
+//  └──────────────────────────┘
+//  It collapses to an icon-only column with the same footer stacked vertically.
+//
+
+import SwiftData
+import SwiftUI
+
+struct Sidebar: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        Group {
+            if app.preferences.isSidebarCollapsed {
+                CollapsedPanel()
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            } else {
+                SidebarPanel()
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
+        }
+        .frame(maxHeight: .infinity)
+        .background(Theme.sidebar)
+        .animation(.snappy(duration: 0.25), value: app.preferences.isSidebarCollapsed)
+    }
+}
+
+enum SidebarMetrics {
+    /// Height of the row that shares space with the macOS traffic lights.
+    static var titleBarHeight: CGFloat {
+        #if os(macOS)
+        28
+        #else
+        0
+        #endif
+    }
+
+    /// Leading space the traffic lights occupy on macOS.
+    static var trafficLightsWidth: CGFloat {
+        #if os(macOS)
+        70
+        #else
+        0
+        #endif
+    }
+}
+
+struct RailButton: View {
+    let symbol: String
+    let title: String
+    let isSelected: Bool
+    var showsDot: Bool = false
+    var tint: Color? = nil
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(tint ?? (isSelected ? Theme.text : Theme.icon))
+                .frame(width: 34, height: 34)
+                .background {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
+                }
+                .overlay(alignment: .topTrailing) {
+                    if showsDot {
+                        Circle().fill(Color.red).frame(width: 6, height: 6).offset(x: -8, y: 8)
+                    }
+                }
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(title)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .onHover { isHovering = $0 }
+    }
+}
+
+// MARK: - Expanded panel
+
+struct SidebarPanel: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Project.sortIndex) private var projects: [Project]
+    @Query(filter: #Predicate<ActivityEvent> { !$0.isRead }) private var unreadUpdates: [ActivityEvent]
+    @Query private var channels: [Channel]
+    @Query private var contacts: [Contact]
+    @Query(filter: #Predicate<TaskItem> { $0.statusRaw != "done" && $0.assignedToMe }) private var myOpenTasks: [TaskItem]
+
+    @State private var isWorkspaceExpanded = true
+    @State private var isProjectsExpanded = true
+    @State private var isProjectsRowExpanded = false
+
+    private var layout: SidebarLayout { SidebarLayout(preferences: app.preferences) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    CommandField { app.toggleCommandPalette() }
+                        .padding(.horizontal, 12)
+                        .padding(.top, 12)
+                        .padding(.bottom, 10)
+
+                    VStack(spacing: 2) {
+                        ForEach(layout.pinned) { item in
+                            navRow(item, in: .pinned)
+                        }
+                        SidebarDropTail(height: layout.pinned.isEmpty ? 28 : 8, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
+
+                    SidebarDivider()
+
+                    SidebarSection(title: "Workspace", isExpanded: $isWorkspaceExpanded, onAdd: { app.present(.newProject) }, menu: {
+                        Button("New channel", systemImage: "number") { app.present(.newChannel) }
+                        Button("New contact", systemImage: "person.crop.circle.badge.plus") { app.present(.newContact) }
+                        Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.present(app.contacts.canRead ? .importContacts : .connectContacts) }
+                        if layout.isCustomized {
+                            Divider()
+                            Button("Reset sidebar layout", systemImage: "arrow.counterclockwise") { layout.reset() }
+                        }
+                    }) {
+                        ForEach(layout.workspace) { item in
+                            navRow(item, in: .workspace)
+                        }
+                        SidebarDropTail(height: layout.workspace.isEmpty ? 28 : 8, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
+                    }
+
+                    SidebarDivider()
+
+                    SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, onAdd: { app.present(.newProject) }, menu: {
+                        Button("Expand all", systemImage: "chevron.down") {
+                            app.preferences.expandedProjectIDs = Set(projects.map(\.uuid.uuidString))
+                        }
+                        Button("Collapse all", systemImage: "chevron.up") {
+                            app.preferences.expandedProjectIDs = []
+                        }
+                    }) {
+                        if projects.isEmpty {
+                            Button { app.present(.newProject) } label: {
+                                Label("Create a project", systemImage: "plus")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Theme.secondaryText)
+                                    .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, alignment: .leading)
+                                    .padding(.horizontal, 8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        ForEach(projects) { project in
+                            projectRows(project)
+                        }
+                        if !projects.isEmpty {
+                            SidebarDropTail(accepts: acceptsProject) { dropProject($0, before: nil) }
+                        }
+                    }
+                    .padding(.bottom, 16)
+                }
+            }
+            .scrollIndicators(.never)
+
+            SidebarFooter(axis: .horizontal)
+        }
+        .frame(width: Theme.panelWidth)
+        .background(Theme.sidebar)
+    }
+
+    // MARK: Rows
+
+    @ViewBuilder
+    private func navRow(_ item: SidebarNavItem, in group: SidebarGroup) -> some View {
+        SidebarRow(symbol: item.symbol, title: item.title, count: count(for: item), isSelected: item.isSelected(app.destination), trailing: trailing(for: item)) {
+            app.go(item.destination)
+        }
+        .sidebarDraggable(.nav(item), symbol: item.symbol, title: item.title)
+        .sidebarDropTarget(accepts: acceptsNav) { drop($0, in: group, before: item) }
+        .contextMenu { moveMenu(item, from: group) }
+
+        if item == .projects, isProjectsRowExpanded {
+            ForEach(projects.prefix(5)) { project in
+                SidebarChildRow(title: project.name, count: project.openTaskCount, isSelected: app.destination == .project(project.uuid)) {
+                    app.go(.project(project.uuid))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func moveMenu(_ item: SidebarNavItem, from group: SidebarGroup) -> some View {
+        if group == .pinned {
+            Button("Move to Workspace", systemImage: "arrow.down") { layout.move(item, to: .workspace, before: nil) }
+        } else {
+            Button("Move to top", systemImage: "arrow.up") { layout.move(item, to: .pinned, before: nil) }
+        }
+        if layout.isCustomized {
+            Button("Reset sidebar layout", systemImage: "arrow.counterclockwise") { layout.reset() }
+        }
+    }
+
+    private func count(for item: SidebarNavItem) -> Int? {
+        switch item {
+        case .updates: unreadUpdates.count
+        case .inbox: unreadMessages
+        case .contacts: contacts.count
+        default: nil
+        }
+    }
+
+    private func trailing(for item: SidebarNavItem) -> SidebarTrailing {
+        switch item {
+        case .myTasks, .tasks: .add { app.present(.newTask(project: nil, list: nil)) }
+        case .projects: .chevron(isProjectsRowExpanded) { withAnimation(.snappy(duration: 0.2)) { isProjectsRowExpanded.toggle() } }
+        default: .none
+        }
+    }
+
+    // MARK: Drag and drop
+
+    private func acceptsNav(_ payload: SidebarDragPayload) -> Bool {
+        if case .nav = payload { return true }
+        return false
+    }
+
+    private func acceptsProject(_ payload: SidebarDragPayload) -> Bool {
+        if case .project = payload { return true }
+        return false
+    }
+
+    private func drop(_ payload: SidebarDragPayload, in group: SidebarGroup, before target: SidebarNavItem?) {
+        guard case .nav(let item) = payload else { return }
+        layout.move(item, to: group, before: target)
+    }
+
+    private func dropProject(_ payload: SidebarDragPayload, before target: Project?) {
+        guard case .project(let id) = payload, let project = context.project(id) else { return }
+        withAnimation(.snappy(duration: 0.22)) {
+            WorkspaceActions(context: context).move(project, before: target)
+        }
+    }
+
+    private var unreadMessages: Int { channels.reduce(0) { $0 + $1.unreadCount } }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Menu {
+                Button("Workspace settings", systemImage: "gearshape") { app.go(.settings) }
+                Button("Apple services", systemImage: "puzzlepiece.extension") { app.go(.appleServices) }
+                Divider()
+                Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
+                Button("New channel", systemImage: "number") { app.present(.newChannel) }
+            } label: {
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Theme.brandGradient)
+                        .frame(width: 22, height: 22)
+                    Text(app.preferences.workspaceName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.text)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Theme.secondaryText)
+                }
+                .contentShape(.rect)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+
+            Spacer(minLength: 0)
+
+            SidebarToggleButton()
+        }
+        .padding(.leading, headerLeadingInset)
+        .padding(.trailing, 10)
+        .frame(height: headerHeight, alignment: .center)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1) }
+    }
+
+    /// On macOS the header shares the title-bar row with the traffic lights.
+    private var headerHeight: CGFloat {
+        #if os(macOS)
+        SidebarMetrics.titleBarHeight + 12
+        #else
+        52
+        #endif
+    }
+
+    private var headerLeadingInset: CGFloat {
+        #if os(macOS)
+        SidebarMetrics.trafficLightsWidth + 6
+        #else
+        14
+        #endif
+    }
+
+    @ViewBuilder
+    private func projectRows(_ project: Project) -> some View {
+        let expanded = app.isExpanded(project)
+        SidebarRow(
+            glyph: ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 17),
+            title: project.name,
+            isSelected: app.destination == .project(project.uuid),
+            trailing: project.sortedLists.isEmpty ? .none : .disclosure(expanded) { app.toggleExpanded(project) }
+        ) {
+            app.go(.project(project.uuid))
+        }
+        .sidebarDraggable(.project(project.uuid), symbol: project.symbol, title: project.name)
+        .sidebarDropTarget(accepts: acceptsProject) { dropProject($0, before: project) }
+        .contextMenu {
+            Button("New task", systemImage: "plus") { app.present(.newTask(project: project.uuid, list: nil)) }
+            Button(expanded ? "Collapse" : "Expand", systemImage: expanded ? "chevron.up" : "chevron.down") { app.toggleExpanded(project) }
+            Divider()
+            Button("Delete project…", systemImage: "trash", role: .destructive) {
+                app.present(.deleteProject(project.uuid))
+            }
+        }
+
+        if expanded {
+            ForEach(project.sortedLists) { list in
+                SidebarChildRow(title: list.name, count: list.openTaskCount, isSelected: app.destination == .list(project: project.uuid, list: list.uuid)) {
+                    app.go(.list(project: project.uuid, list: list.uuid))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Collapsed panel (icon-only)
+
+struct CollapsedPanel: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Project.sortIndex) private var projects: [Project]
+
+    private var layout: SidebarLayout { SidebarLayout(preferences: app.preferences) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SidebarToggleButton()
+                .padding(.top, topInset)
+                .frame(height: 44 + topInset)
+
+            ScrollView {
+                VStack(spacing: 6) {
+                    RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
+                        .padding(.top, 10)
+                    ForEach(layout.pinned) { item in navIcon(item, in: .pinned) }
+                    SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
+
+                    SidebarDivider().padding(.vertical, 4)
+
+                    ForEach(layout.workspace) { item in navIcon(item, in: .workspace) }
+                    SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
+
+                    SidebarDivider().padding(.vertical, 4)
+
+                    ForEach(projects) { project in
+                        Button { app.go(.project(project.uuid)) } label: {
+                            ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 18)
+                                .frame(width: 34, height: 34)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                        .fill(app.destination == .project(project.uuid) ? Theme.selection : .clear)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .help(project.name)
+                        .accessibilityLabel(project.name)
+                        .sidebarDraggable(.project(project.uuid), symbol: project.symbol, title: project.name)
+                        .sidebarDropTarget(accepts: acceptsProject) { payload in
+                            guard case .project(let id) = payload, let moved = context.project(id) else { return }
+                            withAnimation(.snappy(duration: 0.22)) { WorkspaceActions(context: context).move(moved, before: project) }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 4)
+            }
+            .scrollIndicators(.never)
+
+            SidebarFooter(axis: .vertical)
+        }
+        .frame(width: Theme.collapsedPanelWidth)
+        .background(Theme.sidebar)
+    }
+
+    private func navIcon(_ item: SidebarNavItem, in group: SidebarGroup) -> some View {
+        RailButton(symbol: item.symbol, title: item.title, isSelected: item.isSelected(app.destination)) { app.go(item.destination) }
+            .sidebarDraggable(.nav(item), symbol: item.symbol, title: item.title)
+            .sidebarDropTarget(accepts: acceptsNav) { drop($0, in: group, before: item) }
+    }
+
+    private func acceptsNav(_ payload: SidebarDragPayload) -> Bool {
+        if case .nav = payload { return true }
+        return false
+    }
+
+    private func acceptsProject(_ payload: SidebarDragPayload) -> Bool {
+        if case .project = payload { return true }
+        return false
+    }
+
+    private func drop(_ payload: SidebarDragPayload, in group: SidebarGroup, before target: SidebarNavItem?) {
+        guard case .nav(let item) = payload else { return }
+        layout.move(item, to: group, before: target)
+    }
+
+    /// Title-bar row height on macOS; the toggle sits just below the traffic lights.
+    private var topInset: CGFloat {
+        #if os(macOS)
+        SidebarMetrics.titleBarHeight
+        #else
+        0
+        #endif
+    }
+}
+
+// MARK: - Building blocks
+
+struct SidebarToggleButton: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        Button {
+            app.preferences.isSidebarCollapsed.toggle()
+        } label: {
+            Image(systemName: "sidebar.left")
+                .font(.system(size: 14))
+                .foregroundStyle(app.preferences.isSidebarCollapsed ? Theme.text : Theme.secondaryText)
+                .frame(width: 30, height: 30)
+                .background {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(app.preferences.isSidebarCollapsed ? Theme.selection : .clear)
+                }
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(app.preferences.isSidebarCollapsed ? "Expand sidebar (⌃⌘S)" : "Collapse sidebar (⌃⌘S)")
+        .accessibilityLabel(app.preferences.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
+    }
+}
+
+struct CommandField: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: "command")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                Text("Command")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Theme.secondaryText)
+                Spacer()
+                Text("⌘K")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.tertiaryText)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(Theme.field, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.strongStroke)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help("Command Center (⌘K)")
+        .accessibilityLabel("Open command palette")
+    }
+}
+
+enum SidebarTrailing {
+    case none
+    case add(() -> Void)
+    /// Chevron that rotates; used for inline expansion.
+    case chevron(Bool, () -> Void)
+    /// Boxed chevron used on projects, matching the reference (filled box when expanded).
+    case disclosure(Bool, () -> Void)
+}
+
+struct SidebarRow<Glyph: View>: View {
+    let glyph: Glyph
+    let title: String
+    var count: Int? = nil
+    let isSelected: Bool
+    var trailing: SidebarTrailing = .none
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            glyph
+                .frame(width: 18)
+            Text(title)
+                .font(.system(size: 13.5, weight: isSelected ? .medium : .regular))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            trailingView
+        }
+        .padding(.horizontal, 8)
+        .frame(height: Theme.rowHeight)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
+        }
+        .contentShape(.rect)
+        .onTapGesture(perform: action)
+        .onHover { isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction(.default, action)
+    }
+
+    @ViewBuilder
+    private var trailingView: some View {
+        HStack(spacing: 6) {
+            if let count, count > 0 {
+                CountBadge(count: count)
+            }
+            switch trailing {
+            case .none:
+                EmptyView()
+            case .add(let add):
+                Button(action: add) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .frame(width: 20, height: 20)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add to \(title)")
+            case .chevron(let expanded, let toggle):
+                Button(action: toggle) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .rotationEffect(.degrees(expanded ? 180 : 0))
+                        .frame(width: 20, height: 20)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(expanded ? "Collapse \(title)" : "Expand \(title)")
+            case .disclosure(let expanded, let toggle):
+                Button(action: toggle) {
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(expanded ? Theme.text : Theme.secondaryText)
+                        .frame(width: 18, height: 18)
+                        .background {
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .fill(expanded ? Theme.selection : .clear)
+                        }
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(expanded ? "Collapse \(title)" : "Expand \(title)")
+            }
+        }
+    }
+}
+
+extension SidebarRow where Glyph == SidebarIcon {
+    init(symbol: String, title: String, count: Int? = nil, isSelected: Bool, trailing: SidebarTrailing = .none, action: @escaping () -> Void) {
+        self.init(glyph: SidebarIcon(symbol: symbol), title: title, count: count, isSelected: isSelected, trailing: trailing, action: action)
+    }
+}
+
+struct SidebarIcon: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 13.5))
+            .foregroundStyle(Theme.icon)
+    }
+}
+
+/// Indented child row (project lists), no icon, count on the right.
+struct SidebarChildRow: View {
+    let title: String
+    let count: Int
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 13.5))
+                .foregroundStyle(isSelected ? Theme.text : Theme.secondaryText)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            if count > 0 { CountBadge(count: count) }
+        }
+        .padding(.leading, 36)
+        .padding(.trailing, 8)
+        .frame(height: Theme.rowHeight)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
+        }
+        .contentShape(.rect)
+        .onTapGesture(perform: action)
+        .onHover { isHovering = $0 }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction(.default, action)
+    }
+}
+
+/// Small underlined count like "44" in the reference.
+struct CountBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text(count > 99 ? "99+" : "\(count)")
+            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .foregroundStyle(Theme.secondaryText)
+            .underline(true, color: Theme.tertiaryText)
+            .accessibilityLabel("\(count)")
+    }
+}
+
+struct SidebarSection<Content: View, MenuContent: View>: View {
+    let title: String
+    @Binding var isExpanded: Bool
+    let onAdd: () -> Void
+    @ViewBuilder var menu: () -> MenuContent
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Button {
+                    withAnimation(.snappy(duration: 0.2)) { isExpanded.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                        Text(title.uppercased())
+                            .font(.system(size: 11, weight: .semibold))
+                            .kerning(0.4)
+                    }
+                    .foregroundStyle(Theme.secondaryText)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(title) section")
+                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+
+                Spacer()
+
+                Menu {
+                    menu()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .frame(width: 20, height: 20)
+                        .contentShape(.rect)
+                }
+                .menuStyle(.button)
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .accessibilityLabel("\(title) options")
+
+                Button(action: onAdd) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.secondaryText)
+                        .frame(width: 20, height: 20)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add to \(title)")
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 2, content: content)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 10)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .clipped()
+    }
+}
+
+struct SidebarDivider: View {
+    var body: some View {
+        Rectangle().fill(Theme.stroke).frame(height: 1)
+    }
+}
+
+/// Bottom of the sidebar: account, appearance, iCloud status and settings.
+/// Horizontal in the expanded panel, stacked in the collapsed column.
+struct SidebarFooter: View {
+    @Environment(AppModel.self) private var app
+    let axis: Axis
+
+    var body: some View {
+        Group {
+            if axis == .horizontal {
+                HStack(spacing: 2) {
+                    accountButton(showsName: true)
+                    Spacer(minLength: 4)
+                    controls
+                }
+                .padding(.leading, 10)
+                .padding(.trailing, 8)
+                .padding(.vertical, 10)
+            } else {
+                VStack(spacing: 6) {
+                    controls
+                    accountButton(showsName: false)
+                        .padding(.top, 4)
+                }
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .overlay(alignment: .top) { SidebarDivider() }
+    }
+
+    @ViewBuilder
+    private var controls: some View {
+        RailButton(symbol: app.preferences.appearance == .light ? "moon" : "sun.max", title: "Toggle appearance", isSelected: false) {
+            app.preferences.appearance = app.preferences.appearance == .light ? .dark : .light
+        }
+        RailButton(
+            symbol: app.iCloud.displayState.symbol,
+            title: "iCloud: \(app.iCloud.displayState.title)",
+            isSelected: false,
+            tint: app.iCloud.displayState.isHealthy ? nil : .orange
+        ) {
+            app.go(.settings)
+        }
+        RailButton(symbol: RailItem.settings.symbol, title: "Settings", isSelected: app.destination == .settings) {
+            app.go(.settings)
+        }
+    }
+
+    private func accountButton(showsName: Bool) -> some View {
+        Button { app.go(.settings) } label: {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Theme.avatarGradient)
+                    .frame(width: 28, height: 28)
+                    .overlay {
+                        Text(ColonyText.initials(for: app.preferences.displayName))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                if showsName {
+                    Text(app.preferences.displayName)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.text)
+                        .lineLimit(1)
+                }
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(app.preferences.displayName)
+        .accessibilityLabel("Account: \(app.preferences.displayName)")
+    }
+}

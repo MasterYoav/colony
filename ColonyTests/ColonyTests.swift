@@ -2,155 +2,152 @@
 //  ColonyTests.swift
 //  ColonyTests
 //
-//  Created by Yoav Peretz on 17/06/2026.
-//
 
-import Testing
 import Foundation
+import SwiftData
+import Testing
 @testable import Colony
 
 @MainActor
 struct ColonyTests {
-
-    @Test func sampleWorkspaceStartsWithExpectedMetrics() {
-        let store = WorkspaceStore.sample()
-
-        #expect(store.activeChannelCount == 3)
-        #expect(store.openTaskCount == 4)
-        #expect(store.crmRecordCount == 4)
-        #expect(store.ssoProviderCount == 3)
-        #expect(store.members.count == 3)
-        #expect(store.pendingInvites.count == 1)
-        #expect(store.enabledAuthProviderCount == 3)
+    private func makeContext() -> ModelContext {
+        ModelContext(CloudStore.inMemoryContainer())
     }
 
-    @Test func sendMessageAppendsToSelectedChannelAndClearsDraft() throws {
-        var store = WorkspaceStore.sample()
-        let channelID = try #require(store.selectedChannelID)
-        let initialMessageCount = store.activeChannel.messages.count
-
-        store.messageText = "Let's keep chat connected to CRM and tasks."
-        store.sendMessage(to: channelID)
-
-        #expect(store.activeChannel.messages.count == initialMessageCount + 1)
-        #expect(store.activeChannel.messages.last?.body == "Let's keep chat connected to CRM and tasks.")
-        #expect(store.messageText.isEmpty)
+    @Test func schemaIsCloudKitCompatible() throws {
+        // CloudKit mirroring rejects schemas with unique constraints or non-optional
+        // relationships. Building a container with the full schema catches regressions.
+        let container = CloudStore.inMemoryContainer()
+        #expect(container.schema.entities.count == ColonySchema.models.count)
+        for entity in container.schema.entities {
+            for relationship in entity.relationships {
+                #expect(relationship.isOptional, "\(entity.name).\(relationship.name) must be optional for CloudKit")
+                #expect(relationship.inverseName != nil, "\(entity.name).\(relationship.name) needs an inverse for CloudKit")
+            }
+            for attribute in entity.attributes {
+                #expect(!attribute.options.contains(.unique), "\(entity.name).\(attribute.name) can't be unique under CloudKit")
+            }
+        }
     }
 
-    @Test func createChannelAddsChannelSelectsItAndRecordsActivity() {
-        var store = WorkspaceStore.sample()
-        let initialChannelCount = store.channels.count
-        let initialUpdateCount = store.updates.count
+    @Test func createProjectAddsListsAndLogsActivity() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
 
-        store.createChannel(name: "Customer Success", description: "Renewals and customer health")
+        let project = try #require(actions.createProject(name: "  Launch ", symbol: "calendar", color: .blue, lists: ["March", " ", "April"]))
 
-        #expect(store.channels.count == initialChannelCount + 1)
-        #expect(store.activeChannel.name == "customer-success")
-        #expect(store.selectedSection == .messages)
-        #expect(store.updates.count == initialUpdateCount + 1)
-        #expect(store.updates.first?.title == "Channel created")
+        #expect(project.name == "Launch")
+        #expect(project.sortedLists.map(\.name) == ["March", "April"])
+        let events = try context.fetch(FetchDescriptor<ActivityEvent>())
+        #expect(events.contains { $0.title == "Project created" })
     }
 
-    @Test func createTaskAddsTaskAndRecordsActivity() {
-        var store = WorkspaceStore.sample()
-        let initialTaskCount = store.tasks.count
-
-        store.createTask(title: "Design passkey setup", owner: "Maya", priority: "High", status: .active)
-
-        #expect(store.tasks.count == initialTaskCount + 1)
-        #expect(store.tasks.last?.title == "Design passkey setup")
-        #expect(store.tasks.last?.status == .active)
-        #expect(store.selectedSection == .work)
-        #expect(store.updates.first?.title == "Task created")
+    @Test func blankNamesAreRejected() {
+        let actions = WorkspaceActions(context: makeContext())
+        #expect(actions.createProject(name: "   ", symbol: "folder", color: .blue) == nil)
+        #expect(actions.createTask(title: "") == nil)
+        #expect(actions.createChannel(name: "  ", topic: "") == nil)
+        #expect(actions.createContact(name: "") == nil)
     }
 
-    @Test func createContactAddsContactWithInitialsAndRecordsActivity() {
-        var store = WorkspaceStore.sample()
-        let initialContactCount = store.contacts.count
+    @Test func tasksCountTowardProjectAndListUntilDone() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
+        let project = try #require(actions.createProject(name: "Sales", symbol: "doc", color: .purple, lists: ["Demos"]))
+        let list = try #require(project.sortedLists.first)
 
-        store.createContact(name: "Lior Stein", company: "Northwind", stage: "Pilot")
+        let task = try #require(actions.createTask(title: "Prepare demo", list: list))
+        #expect(task.project?.uuid == project.uuid)
+        #expect(project.openTaskCount == 1)
+        #expect(list.openTaskCount == 1)
 
-        #expect(store.contacts.count == initialContactCount + 1)
-        #expect(store.contacts.last?.initials == "LS")
-        #expect(store.selectedSection == .crm)
-        #expect(store.updates.first?.title == "Contact created")
+        actions.setStatus(.done, for: task)
+        #expect(task.completedAt != nil)
+        #expect(project.openTaskCount == 0)
+        #expect(project.progress == 1)
+
+        actions.toggleDone(task)
+        #expect(task.status == .todo)
+        #expect(task.completedAt == nil)
     }
 
-    @Test func updateTaskStatusMovesTaskAndRecordsActivity() throws {
-        var store = WorkspaceStore.sample()
-        let taskID = try #require(store.tasks.first?.id)
-
-        store.updateTaskStatus(taskID: taskID, status: .review)
-
-        #expect(store.tasks.first?.status == .review)
-        #expect(store.updates.first?.title == "Task moved")
+    @Test func channelNamesAreSluggedAndUnique() throws {
+        let actions = WorkspaceActions(context: makeContext())
+        let channel = try #require(actions.createChannel(name: "Customer Success", topic: "Renewals"))
+        #expect(channel.name == "customer-success")
+        #expect(actions.createChannel(name: "customer success", topic: "dup") == nil)
     }
 
-    @Test func updateContactStageMovesContactAndRecordsActivity() throws {
-        var store = WorkspaceStore.sample()
-        let contactID = try #require(store.contacts.first?.id)
+    @Test func unreadCountsAndSending() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
+        let channel = try #require(actions.createChannel(name: "general", topic: ""))
+        channel.lastReadAt = .distantPast
+        context.insert(Message(body: "Hi", authorName: "Maya", isMine: false, channel: channel))
+        #expect(channel.unreadCount == 1)
 
-        store.updateContactStage(contactID: contactID, stage: "Customer")
-
-        #expect(store.contacts.first?.stage == "Customer")
-        #expect(store.updates.first?.title == "CRM stage updated")
+        let sent = try #require(actions.send("  Hello team  ", to: channel, as: "Yoav"))
+        #expect(sent.body == "Hello team")
+        #expect(actions.send("   ", to: channel, as: "Yoav") == nil)
+        #expect(channel.unreadCount == 0)
+        #expect(channel.sortedMessages.last?.body == "Hello team")
     }
 
-    @Test func prepareInviteAddsPendingInviteAndRecordsActivity() {
-        var store = WorkspaceStore.sample()
-        let initialInviteCount = store.pendingInvites.count
-
-        store.prepareInvite(email: "ops@example.com", role: .admin)
-
-        #expect(store.pendingInvites.count == initialInviteCount + 1)
-        #expect(store.pendingInvites.last?.email == "ops@example.com")
-        #expect(store.pendingInvites.last?.role == .admin)
-        #expect(store.updates.first?.title == "Invite prepared")
+    @Test func appleContactImportIsIdempotent() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
+        let first = try #require(actions.createContact(name: "Lior Stein", company: "Northwind", appleIdentifier: "ABC"))
+        let second = try #require(actions.createContact(name: "Lior Stein", company: "Northwind", appleIdentifier: "ABC"))
+        #expect(first.uuid == second.uuid)
+        #expect(try context.fetchCount(FetchDescriptor<Contact>()) == 1)
+        #expect(first.initials == "LS")
     }
 
-    @Test func securityPolicyAndProviderStatusCanBeConfiguredAndEncoded() throws {
-        var store = WorkspaceStore.sample()
-        store.securityPolicy.requiresTwoFactor = false
-        store.securityPolicy.requiresSSOForBusinessUsers = true
-        store.appearancePreferences.density = .compact
-        store.appearancePreferences.usesHighContrastAccents = true
+    @Test func stageChangesAreLogged() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
+        let contact = try #require(actions.createContact(name: "Noa", stage: .lead))
+        actions.setStage(.won, for: contact)
+        #expect(contact.stage == .won)
+        let events = try context.fetch(FetchDescriptor<ActivityEvent>())
+        #expect(events.contains { $0.title == "Deal moved" })
 
-        let microsoftIndex = try #require(store.authProviders.firstIndex { $0.kind == .microsoft })
-        store.authProviders[microsoftIndex].status = .enabled
-
-        let data = try JSONEncoder().encode(store)
-        let decodedStore = try JSONDecoder().decode(WorkspaceStore.self, from: data)
-
-        #expect(decodedStore.securityPolicy.requiresTwoFactor == false)
-        #expect(decodedStore.securityPolicy.requiresSSOForBusinessUsers)
-        #expect(decodedStore.authProviders[microsoftIndex].status == .enabled)
-        #expect(decodedStore.appearancePreferences.density == .compact)
-        #expect(decodedStore.appearancePreferences.usesHighContrastAccents)
+        actions.markAllUpdatesRead()
+        #expect(try context.fetch(FetchDescriptor<ActivityEvent>()).allSatisfy(\.isRead))
     }
 
-    @Test func appearancePreferencesDefaultWhenDecodingOlderWorkspaceJSON() throws {
-        let store = WorkspaceStore.sample()
-        let data = try JSONEncoder().encode(store)
-        var payload = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        payload.removeValue(forKey: "appearancePreferences")
+    @Test func starterContentSeedsOnce() throws {
+        let context = makeContext()
+        let defaults = try #require(UserDefaults(suiteName: "colony-tests-\(UUID())"))
+        let prefs = CloudPreferences(useICloud: false, defaults: defaults)
 
-        let olderData = try JSONSerialization.data(withJSONObject: payload)
-        let decodedStore = try JSONDecoder().decode(WorkspaceStore.self, from: olderData)
+        StarterContent.seedIfNeeded(context: context, preferences: prefs)
+        let projects = try context.fetchCount(FetchDescriptor<Project>())
+        #expect(projects == 3)
+        #expect(prefs.didSeedStarterContent)
 
-        #expect(decodedStore.appearancePreferences == .default)
-        #expect(decodedStore.profilePreferences == .default)
-        #expect(decodedStore.channels.count == store.channels.count)
+        StarterContent.seedIfNeeded(context: context, preferences: prefs)
+        #expect(try context.fetchCount(FetchDescriptor<Project>()) == projects)
     }
 
-    @Test func workspaceStoreRoundTripsThroughJSON() throws {
-        var store = WorkspaceStore.sample()
-        store.createChannel(name: "Design Systems", description: "Tokens, components, and UI polish")
-        store.createTask(title: "Persist workspace state", owner: "Yoav", priority: "High", status: .active)
+    @Test func unknownRawValuesFallBackSafely() {
+        let task = TaskItem(title: "x")
+        task.statusRaw = "from-a-newer-version"
+        task.priorityRaw = "???"
+        #expect(task.status == .todo)
+        #expect(task.priority == .medium)
+    }
 
-        let data = try JSONEncoder().encode(store)
-        let decodedStore = try JSONDecoder().decode(WorkspaceStore.self, from: data)
+    @Test func preferencesPersistLocallyWithoutICloud() throws {
+        let defaults = try #require(UserDefaults(suiteName: "colony-tests-\(UUID())"))
+        let prefs = CloudPreferences(useICloud: false, defaults: defaults)
+        prefs.appearance = .light
+        prefs.expandedProjectIDs = ["a", "b"]
+        prefs.displayName = "Yoav"
 
-        #expect(decodedStore == store)
-        #expect(decodedStore.activeChannel.name == "design-systems")
+        let reloaded = CloudPreferences(useICloud: false, defaults: defaults)
+        #expect(reloaded.appearance == .light)
+        #expect(reloaded.expandedProjectIDs == ["a", "b"])
+        #expect(reloaded.displayName == "Yoav")
     }
 }

@@ -1,43 +1,75 @@
+<p align="center">
+  <img src="docs/assets/banner-fade.png" alt="Colony" width="100%">
+</p>
+
 # Colony
 
-Colony is planned as a private, self-hosted collaboration workspace: team chat, project execution, CRM records, and business identity in one clean product.
+Colony is a private workspace for Apple devices: projects and tasks, team channels, and a lightweight CRM in one native SwiftUI app for iPhone, iPad, Mac and Apple Vision Pro.
 
-The product direction is inspired by the strengths of Discord, Slack, Plane, ClickUp, and Twenty, but the goal is not to clone any one of them. Colony should feel calm, fast, customizable, and trustworthy: the kind of internal operating system a small team, agency, startup, or community could run on its own infrastructure.
+There's no Colony server and no third-party SDK. Your data lives in your own iCloud account, and integrations use Apple's built-in apps.
 
-## Product Goals
+## Highlights
 
-- Self-hosted by default, with a clean path to managed hosting later.
-- Open source, with a license chosen intentionally before public release.
-- Private team communication with channels, threads, reactions, files, and search.
-- CRM objects for contacts, companies, deals, accounts, and custom records.
-- Project management with tasks, boards, lists, timelines, docs, and views.
-- Business SSO through Google Workspace, Microsoft Entra ID, OIDC, and SAML.
-- Personal sign-in through email, Google, GitHub, passkeys, and optional 2FA.
-- User-friendly theming for colors, density, button placement, and navigation style.
-- Native-feeling clients, beginning with this SwiftUI app.
+- **iCloud storage.** SwiftData models are mirrored to your private CloudKit database. Preferences, such as appearance and sidebar layout, sync through iCloud key-value storage.
+- **Apple services.** Import people from Contacts, mirror due dates into Reminders, and reach contacts through Mail, Phone, FaceTime and the share sheet.
+- **Keyboard-first on Mac.** The ⌘K command center searches actions, projects, tasks and contacts. ⌘N creates a task, ⌘⇧N a project, and ⌃⌘S collapses the sidebar.
+- **Arrangeable sidebar.** Drag navigation items and projects to reorder them. The order syncs to your other devices.
+- **UI pieces.** Several components come from [Swift Pieces](https://swiftpieces.com), vendored in `Colony/SwiftPieces/` with a small AppKit compatibility shim.
+
+## Requirements
+
+- Xcode 26 or later.
+- iOS, iPadOS, macOS or visionOS 26.5 or later.
+- An Apple Developer account for iCloud sync. Without one the app still runs, but saves on the device only (see below).
+
+## Try it out
+
+```bash
+git clone git@github.com:MasterYoav/colony.git
+cd colony
+open Colony.xcodeproj
+```
+
+Choose the **Colony** scheme and a destination, then press Run.
+
+**Running without iCloud.** Builds without the iCloud entitlement, such as simulator runs without a team, fall back to an on-device store automatically. The sidebar footer then shows *Saved on this device only*. This is the quickest way to explore the UI.
+
+**Running with your own iCloud container.** The project is set up for team `N6883L5366` and container `iCloud.yoavperetz.Colony`. To use your own:
+
+1. In **Signing & Capabilities**, choose your team and change the bundle identifier.
+2. Under **iCloud**, replace the container with one of yours (`iCloud.<your.bundle.id>`), and update `CloudStore.containerIdentifier` in `Colony/Services/CloudStore.swift` to match.
+3. Sign in to iCloud on the device or simulator and run. The first launch can take a minute while CloudKit provisions the container.
+
+Starter content is created once per iCloud account. To seed it again, pass `-didSeedStarterContent NO` as a launch argument.
+
+## Tests
+
+```bash
+xcodebuild test -project Colony.xcodeproj -scheme Colony \
+  -destination 'platform=macOS' -only-testing:ColonyTests CODE_SIGNING_ALLOWED=NO
+```
+
+The unit tests use an in-memory store and throwaway preferences, so they never touch your iCloud data.
+
+## Project layout
+
+```
+Colony/
+  App/           app model, root view, starter content
+  Models/        SwiftData models and WorkspaceActions (the single mutation path)
+  Services/      CloudStore (SwiftData + CloudKit), CloudPreferences (iCloud KVS), Apple services
+  Sidebar/       sidebar, drag-and-drop layout
+  Screens/       Home, Tasks, Messages, CRM, Settings, dialogs, command palette
+  DesignSystem/  theme tokens and the shared dialog system
+  SwiftPieces/   vendored Swift Pieces components
+  Colony.icon    app icon (Icon Composer)
+```
+
+When changing models, keep them CloudKit-compatible: every attribute needs a default value, relationships must be optional with inverses, and `.unique` isn't allowed. [Architecture](docs/ARCHITECTURE.md) covers the details.
 
 ## Documentation
 
-- [Product Vision](docs/PRODUCT.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Authentication](docs/AUTH.md)
+- [Architecture](docs/ARCHITECTURE.md): storage, CloudKit schema rules, Apple services, code layout
+- [Product](docs/PRODUCT.md)
 - [Theming](docs/THEMING.md)
-- [Self-Hosting](docs/SELF_HOSTING.md)
 - [Roadmap](docs/ROADMAP.md)
-
-## Recommended First Build
-
-The first useful version should be small and complete:
-
-1. Workspace creation.
-2. User authentication.
-3. Channels and messages.
-4. Basic contacts and tasks.
-5. Theme preferences.
-6. Docker Compose deployment.
-
-That gives Colony a real product core without committing too early to every advanced CRM, project management, automation, or enterprise feature.
-
-## Current App
-
-This repository currently contains a small SwiftUI project. The proposed direction is to use it as the first native Apple client while designing the platform as backend-first and client-agnostic.

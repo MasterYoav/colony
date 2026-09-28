@@ -1,142 +1,60 @@
 # Architecture
 
-Colony should be designed as a backend-first platform with multiple clients. The SwiftUI app in this repository can become the first Apple client, but the data model and API should not depend on Apple platforms.
+Colony is a native Apple app. All data lives in the user's iCloud account and every integration uses a built-in Apple framework. There is no Colony server and no third-party SDK.
 
-## System Shape
+## Storage
 
-The recommended initial architecture is a modular monolith with clear internal boundaries:
+| What | Where | Framework |
+| --- | --- | --- |
+| Projects, lists, tasks, channels, messages, contacts, activity | Private CloudKit database `iCloud.yoavperetz.Colony` | SwiftData with `ModelConfiguration(cloudKitDatabase: .private(...))` |
+| Preferences (appearance, name, workspace name, expanded sidebar projects, seed flag) | iCloud key-value store | `NSUbiquitousKeyValueStore`, mirrored to `UserDefaults` |
+| Contact photos | CloudKit assets | `@Attribute(.externalStorage)` |
 
-- Web/API server
-- Realtime gateway
-- Background worker
-- PostgreSQL database
-- Redis cache and pub/sub
-- S3-compatible object storage
-- Search service later
-- Identity provider integration
+`CloudStore.makeContainer()` opens the CloudKit-backed store. If the build has no iCloud entitlement (for example an unsigned CI build) it falls back to a local-only store, and the UI says "Saved on this device only" instead of pretending to sync.
 
-A modular monolith is the right starting point because the product surface is large. It keeps deployment simple while still allowing modules to split into services if scale demands it.
+`ICloudStatus` watches `CKAccountChanged` and `NSPersistentCloudKitContainer.eventChangedNotification`, so the sidebar footer and Settings show the real account and mirroring state.
 
-## Suggested Stack
+### CloudKit schema rules
 
-The exact stack can change, but the first serious implementation should optimize for self-hosting, hiring, and long-term maintenance.
+Every `@Model` in `Models/ColonyModels.swift` follows these rules. `ColonyTests.schemaIsCloudKitCompatible` enforces them.
 
-- Backend: TypeScript with NestJS/Fastify, or Go if we prioritize a compact binary.
-- Database: PostgreSQL.
-- Realtime: WebSockets backed by Redis pub/sub.
-- Jobs: worker process with durable job queue.
-- Object storage: S3 API, with MinIO for local/self-hosted installs.
-- Search: Meilisearch for simplicity or OpenSearch for heavier enterprise needs.
-- Web client: React/Next.js if a web app is added.
-- Apple client: SwiftUI.
-- Auth: internal auth adapter backed by OIDC/SAML providers and optional external IdP.
+- Every attribute has a default value or is optional.
+- Every relationship is optional and has an inverse.
+- No `@Attribute(.unique)`.
+- Enums are stored as raw strings with a safe fallback, so an older client can read records written by a newer one.
 
-## Modules
+Before the first App Store release, deploy the schema to production in the CloudKit Console (Schema → Deploy Schema Changes).
 
-### Identity
+## Apple services
 
-Owns users, sessions, auth providers, passkeys, 2FA configuration, invitations, and workspace membership.
+| Feature | Framework | Notes |
+| --- | --- | --- |
+| Import people into the CRM | Contacts (`CNContactStore`) | Read-only. `appleContactIdentifier` makes imports idempotent. |
+| Due-date alerts | EventKit (`EKReminder`) | Optional mirror of tasks into Apple Reminders. |
+| Share, Mail, Phone, FaceTime | `ShareLink`, `mailto:`, `tel:`, `facetime:` | Hands off to system apps. |
+| Identity | iCloud account | No separate sign-up. |
 
-### Workspace
+## Code layout
 
-Owns tenant settings, roles, permissions, audit logs, theme defaults, notification policies, and admin controls.
+```
+Colony/
+  App/            ColonyApp entry, AppModel (navigation + sheets), RootView, starter content
+  Models/         SwiftData models, WorkspaceActions (every mutation goes through here)
+  Services/       CloudStore, CloudPreferences, AppleServices (Contacts, Reminders)
+  Sidebar/        Rail + expandable panel + collapsed icon column
+  Screens/        Home, Tasks/Board/Projects, Messages, CRM/Pipeline/Reports, Settings, Sheets
+  DesignSystem/   Theme tokens and shared primitives
+  SwiftPieces/    Components installed from the Swift Pieces MCP (see below)
+```
 
-### Messaging
+## Swift Pieces
 
-Owns channels, direct messages, messages, threads, reactions, mentions, read state, attachments, and presence.
+UI components come from the Swift Pieces registry (`claude mcp add --transport http swiftpieces https://swiftpieces.com/api/mcp`) and are installed as source under `Colony/SwiftPieces/`:
 
-### CRM
+GlassSurface, GlassSegments, FormField, FilterRail, TaskRow, LiveStat, RingBreakdown, ReactionToggle, CommitButton, Toast, ConfirmSheet, PermissionSheet.
 
-Owns contacts, companies, deals, notes, activities, custom fields, and object relations.
+The pieces are written for iOS. `SwiftPieces/PlatformCompat.swift` maps the few UIKit spellings they use onto AppKit so they also compile on macOS, and the Liquid Glass calls are compiled out on visionOS (where windows are already glass). Keep those shims when updating a piece.
 
-### Work
+## Platforms
 
-Owns projects, tasks, statuses, labels, assignments, dates, views, docs, and milestones.
-
-### Integrations
-
-Owns OAuth connections, webhooks, sync jobs, external account links, and provider-specific adapters.
-
-### Theming
-
-Owns theme tokens, user preferences, workspace defaults, density, navigation layout, and command/button customization.
-
-## Data Model Rules
-
-- Every business record belongs to a workspace.
-- Prefer stable IDs over mutable slugs.
-- Model object relations explicitly so messages, tasks, contacts, companies, and deals can link to each other.
-- Keep audit fields on important records: createdBy, updatedBy, createdAt, updatedAt.
-- Use soft deletion for user-facing collaborative records.
-- Treat files as metadata records pointing at object storage keys.
-
-## API Design
-
-Use a versioned API from the start:
-
-- `/api/v1/auth`
-- `/api/v1/workspaces`
-- `/api/v1/channels`
-- `/api/v1/messages`
-- `/api/v1/crm`
-- `/api/v1/projects`
-- `/api/v1/tasks`
-- `/api/v1/themes`
-
-Realtime events should be explicit and typed:
-
-- `message.created`
-- `message.updated`
-- `reaction.added`
-- `channel.read`
-- `task.updated`
-- `contact.updated`
-- `presence.changed`
-- `theme.updated`
-
-## Permission Model
-
-Start with role-based access control and leave room for attribute-based rules later.
-
-Default roles:
-
-- Owner
-- Admin
-- Member
-- Guest
-
-Permission checks should happen server-side in every module. Clients can hide controls for UX, but the backend must enforce all access decisions.
-
-## Client Architecture
-
-Clients should consume the same API and realtime events.
-
-The SwiftUI app should eventually use:
-
-- A small API client layer.
-- Observable state models.
-- Local cache for recent messages and records.
-- Optimistic updates for chat and task changes.
-- System support for passkeys and secure token storage.
-
-## Deployment Architecture
-
-Initial Docker Compose services:
-
-- `app`
-- `worker`
-- `postgres`
-- `redis`
-- `minio`
-- `reverse-proxy`
-
-Later optional services:
-
-- `search`
-- `metrics`
-- `tracing`
-- `identity`
-
-## Architecture Decision Records
-
-Major decisions should be captured in short ADR files under `docs/adr/` once implementation starts.
+iOS, iPadOS, macOS and visionOS 26.5+. iPhone uses a slide-in drawer for the sidebar. iPad, Mac and Vision Pro show the full sidebar.

@@ -1,0 +1,56 @@
+{
+  "fill": {
+    "linear-gradient": [
+      "extended-gray:1.00000,1.00000",
+      "display-p3:1.00000,1.00000,1.00000,1.00000"
+    ]
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "blend-mode": "normal",
+          "fill": "none",
+          "image-name": "colony-mark.png",
+          "name": "colony-mark",
+          "opacity": 1,
+          "position-specializations": [
+            {
+              "value": {
+                "scale": 1,
+                "translation-in-points": [
+                  315,
+                  -97
+                ]
+              }
+            },
+            {
+              "idiom": "square",
+              "value": {
+                "scale": 0.87,
+                "translation-in-points": [
+                  324,
+                  -138
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.5
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}

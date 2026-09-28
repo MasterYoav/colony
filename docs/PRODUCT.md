@@ -1,72 +1,36 @@
 # Product Vision
 
-Colony is a self-hosted workspace for communication, customer context, and execution. The product should help a team understand what is happening, who it affects, and what needs to move next.
+Colony is a private workspace for Apple devices. It brings projects and tasks, channels, and a lightweight CRM into one calm app that helps you see what's happening, who it affects, and what needs to move next.
 
-## Positioning
+## Principles
 
-Colony combines four product categories:
+- **Your iCloud, your data.** Everything is stored in the user's private iCloud database. Colony runs no server and uses no third-party services.
+- **Apple-native integrations.** Contacts, Reminders, Mail, Phone, FaceTime and the share sheet instead of external accounts.
+- **Calm by default.** Dark, low-contrast chrome, hairline borders and quiet counts. Color is reserved for projects and status.
+- **Fast everywhere.** Navigation is instant and data is local-first; CloudKit syncs in the background.
+- **One workspace graph.** Tasks, projects, messages and people are linked.
 
-- Team chat: channels, direct messages, threads, reactions, calls later.
-- CRM: contacts, companies, deals, notes, activity history, custom objects.
-- Project management: tasks, projects, boards, lists, docs, reminders, timelines.
-- Internal workspace: search, permissions, notifications, integrations, automation.
+## Core objects
 
-The core promise is privacy and ownership without giving up polish. A team should be able to run Colony on its own server and still get an interface that feels smooth, coherent, and modern.
+- **Project**: a group of lists and tasks, with an icon and color.
+- **List**: a sub-group inside a project (sprints, months, phases). Lists appear as expandable children in the sidebar.
+- **Task**: status, priority, due date and notes. Can be mirrored to Apple Reminders.
+- **Channel / Message**: threaded notes and conversations.
+- **Contact**: a person in the CRM with a pipeline stage. Can be imported from Apple Contacts.
+- **Activity**: the Updates feed of what changed.
 
-## Target Users
+## Navigation
 
-- Small companies that want Slack, CRM, and project work in one place.
-- Agencies that manage clients, conversations, deliverables, and sales pipeline.
-- Technical teams that prefer self-hosting and open-source infrastructure.
-- Personal power users who want a private workspace with GitHub, Google, email, and passkey sign-in.
-- Communities that want Discord-like spaces without giving ownership to a cloud platform.
+The sidebar follows the reference design:
 
-## Product Principles
+1. **Header**: workspace switcher and collapse button, sharing the title bar with the window controls on Mac.
+2. **Panel**: ⌘K command field, Home / Updates / Inbox / My tasks, a **Workspace** section and a **Projects** section. Projects expand to show their lists with open-task counts.
+3. **Footer**: account, appearance, iCloud status and settings.
+4. **Collapsed**: icon-only column with the same items, project glyphs and footer.
 
-- Calm by default: avoid clutter, heavy colors, and noisy dashboards.
-- Fast everywhere: chat and navigation should feel instant.
-- One workspace graph: messages, tasks, contacts, companies, files, and docs should be linkable.
-- Customizable without chaos: themes and layout preferences should be structured, not arbitrary CSS pasted into the app.
-- Secure by design: authentication, permissions, audit logs, and admin controls are first-class.
-- Self-hostable without pain: one-command local deployment first, deeper deployment options later.
+## Out of scope for now
 
-## Core Objects
-
-- Workspace: a tenant boundary for users, settings, billing later, auth providers, themes, and data.
-- User: a person with identity, security settings, preferences, memberships, and presence.
-- Channel: a shared conversation space.
-- Message: a chat entry with attachments, reactions, mentions, edits, and thread links.
-- Contact: a person tracked in CRM.
-- Company: an account or organization tracked in CRM.
-- Deal: an opportunity, renewal, partnership, or sales process.
-- Project: a group of tasks, docs, and milestones.
-- Task: assignable work with status, priority, dates, labels, and relations.
-- View: a saved representation of objects, such as list, board, table, calendar, or timeline.
-- Theme: a user or workspace visual configuration.
-
-## MVP Scope
-
-The MVP should prove that the product can be useful and self-hosted:
-
-- Create a workspace.
-- Invite users.
-- Sign in with email, Google, GitHub, and passkeys.
-- Create channels.
-- Send messages.
-- Create contacts and tasks.
-- Link a task or contact inside a message.
-- Customize basic theme settings.
-- Deploy with Docker Compose.
-
-## Out of Scope for MVP
-
-- Native voice and video.
-- Full Slack/Discord importers.
-- Deep workflow automation.
-- Public app marketplace.
-- Advanced CRM reporting.
-- Enterprise data retention policies.
-- Mobile push notification infrastructure.
+- Multi-person workspaces (see Roadmap: CloudKit sharing).
+- Voice and video.
+- Importers from Slack, Discord or other tools.
 - AI features.
-
-These can be designed later, after the foundation is stable.
