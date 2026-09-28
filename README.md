@@ -3,9 +3,10 @@
 </p>
 
 **private workspace for Apple Devices**
+
 projects, tasks, team channels, and a lightweight CRM in one native SwiftUI app for iPhone, iPad and Mac.
 
-There's no Colony server and no third-party SDK. Your data lives in your own iCloud account, and integrations use Apple's built-in apps.
+There's no Colony server and no third-party SDK. Your data lives in your iCloud account, and integrations use Apple's built-in apps.
 
 ## Highlights
 
