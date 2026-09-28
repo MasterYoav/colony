@@ -17,7 +17,7 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 ScreenHeader(title: greeting, subtitle: Date.now.formatted(.dateTime.weekday(.wide).month().day())) {
-                    Button("New task", systemImage: "plus") { app.sheet = .newTask(project: nil, list: nil) }
+                    Button("New task", systemImage: "plus") { app.present(.newTask(project: nil, list: nil)) }
                         .buttonStyle(QuietButtonStyle())
                 }
 
@@ -147,7 +147,7 @@ struct CompactTaskRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(task.isDone ? "Mark not done" : "Mark done")
 
-            Button { app.sheet = .task(task.uuid) } label: {
+            Button { app.present(.task(task.uuid)) } label: {
                 HStack {
                     Text(task.title)
                         .font(.subheadline)

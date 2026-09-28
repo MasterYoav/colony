@@ -45,6 +45,8 @@ final class CloudPreferences {
         static let expandedProjects = "expandedProjects"
         static let didSeedStarterContent = "didSeedStarterContent"
         static let mirrorsToReminders = "mirrorsToReminders"
+        static let sidebarPinned = "sidebarPinnedItems"
+        static let sidebarWorkspace = "sidebarWorkspaceItems"
     }
 
     private let store: NSUbiquitousKeyValueStore?
@@ -58,6 +60,9 @@ final class CloudPreferences {
     var expandedProjectIDs: Set<String> { didSet { write(Array(expandedProjectIDs), Key.expandedProjects) } }
     var didSeedStarterContent: Bool { didSet { write(didSeedStarterContent, Key.didSeedStarterContent) } }
     var mirrorsToReminders: Bool { didSet { write(mirrorsToReminders, Key.mirrorsToReminders) } }
+    /// Sidebar order the user set by dragging (raw values of `SidebarNavItem`). Roams via iCloud.
+    var sidebarPinnedItems: [String] { didSet { write(sidebarPinnedItems, Key.sidebarPinned) } }
+    var sidebarWorkspaceItems: [String] { didSet { write(sidebarWorkspaceItems, Key.sidebarWorkspace) } }
 
     init(useICloud: Bool = true, defaults: UserDefaults = .standard) {
         self.store = useICloud ? NSUbiquitousKeyValueStore.default : nil
@@ -74,6 +79,8 @@ final class CloudPreferences {
         expandedProjectIDs = Set(read(Key.expandedProjects) as [String]? ?? [])
         didSeedStarterContent = read(Key.didSeedStarterContent) ?? false
         mirrorsToReminders = read(Key.mirrorsToReminders) ?? false
+        sidebarPinnedItems = read(Key.sidebarPinned) ?? []
+        sidebarWorkspaceItems = read(Key.sidebarWorkspace) ?? []
 
         if let store {
             observer = NotificationCenter.default.addObserver(
@@ -95,6 +102,8 @@ final class CloudPreferences {
         if let value = store.array(forKey: Key.expandedProjects) as? [String], Set(value) != expandedProjectIDs { expandedProjectIDs = Set(value) }
         if store.bool(forKey: Key.didSeedStarterContent), !didSeedStarterContent { didSeedStarterContent = true }
         if store.object(forKey: Key.mirrorsToReminders) != nil { mirrorsToReminders = store.bool(forKey: Key.mirrorsToReminders) }
+        if let value = store.array(forKey: Key.sidebarPinned) as? [String], value != sidebarPinnedItems { sidebarPinnedItems = value }
+        if let value = store.array(forKey: Key.sidebarWorkspace) as? [String], value != sidebarWorkspaceItems { sidebarWorkspaceItems = value }
     }
 
     private func write(_ value: Any, _ key: String) {

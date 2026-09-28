@@ -26,7 +26,7 @@ struct MessagesView: View {
                     .id(channel.uuid)
             } else {
                 EmptyStateView(symbol: "bubble.left.and.bubble.right", title: "No channels", message: "Create a channel to start a conversation.", actionTitle: "New channel") {
-                    app.sheet = .newChannel
+                    app.present(.newChannel)
                 }
             }
         }
@@ -43,7 +43,7 @@ struct MessagesView: View {
             HStack {
                 Text("Channels").font(.headline).foregroundStyle(Theme.text)
                 Spacer()
-                Button { app.sheet = .newChannel } label: {
+                Button { app.present(.newChannel) } label: {
                     Image(systemName: "plus").frame(width: 24, height: 24).contentShape(.rect)
                 }
                 .buttonStyle(.plain)

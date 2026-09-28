@@ -31,10 +31,8 @@ struct RootView: View {
             }
         }
         .tint(ColonyColor.blue.color)
-        .sheet(item: $app.sheet) { sheet in
-            SheetHost(sheet: sheet)
-                .environment(app)
-        }
+        .modifier(CommandPaletteHost())
+        .modifier(DialogPresenter())
         .toast(
             isPresented: $app.isToastPresented,
             message: app.toast?.message ?? "",
@@ -130,19 +128,41 @@ struct SheetHost: View {
     let sheet: ActiveSheet
 
     var body: some View {
-        Group {
-            switch sheet {
-            case .newProject: NewProjectSheet()
-            case .newTask(let project, let list): NewTaskSheet(projectID: project, listID: list)
-            case .newChannel: NewChannelSheet()
-            case .newContact: NewContactSheet()
-            case .importContacts: ImportContactsSheet()
-            case .task(let id): TaskDetailSheet(taskID: id)
-            case .commandPalette: CommandPalette()
+        switch sheet {
+        case .newProject: NewProjectSheet()
+        case .newTask(let project, let list): NewTaskSheet(projectID: project, listID: list)
+        case .newChannel: NewChannelSheet()
+        case .newContact: NewContactSheet()
+        case .importContacts: ImportContactsSheet()
+        case .task(let id): TaskDetailSheet(taskID: id)
+        case .deleteProject(let id): DeleteProjectDialog(projectID: id)
+        case .deleteTask(let id): DeleteTaskDialog(taskID: id)
+        case .connectReminders: PermissionDialog(kind: .reminders)
+        case .connectContacts: PermissionDialog(kind: .contacts)
+        }
+    }
+}
+
+/// Centred in-window dialogs on Mac, iPad and Vision Pro; a native sheet on iPhone,
+/// where a floating card would be cramped. Both paths render the same `SheetHost`.
+struct DialogPresenter: ViewModifier {
+    @Environment(AppModel.self) private var app
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    func body(content: Content) -> some View {
+        @Bindable var app = app
+        if sizeClass == .compact {
+            content.sheet(item: $app.sheet) { sheet in
+                SheetHost(sheet: sheet)
+                    .environment(\.dialogDismiss, DialogDismissAction { app.sheet = nil })
+                    .environment(app)
+                    .presentationDetents([.large])
+                    .presentationBackground(Theme.raised)
+            }
+        } else {
+            content.dialogOverlay(item: $app.sheet, width: \.dialogWidth) { sheet in
+                SheetHost(sheet: sheet)
             }
         }
-        #if os(macOS)
-        .frame(minWidth: 460, idealWidth: 520, minHeight: 360)
-        #endif
     }
 }

@@ -48,7 +48,9 @@ enum Theme {
     // Metrics
     static let panelWidth: CGFloat = 232
     #if os(macOS)
-    static let collapsedPanelWidth: CGFloat = 64 // wide enough for the traffic lights
+    /// Traffic lights span x 8…70 (close at 8, zoom 54 + 16), so a 78pt column puts
+    /// them exactly in the middle: 8pt on each side.
+    static let collapsedPanelWidth: CGFloat = 78
     #else
     static let collapsedPanelWidth: CGFloat = 52
     #endif

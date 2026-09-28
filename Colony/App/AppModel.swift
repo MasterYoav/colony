@@ -97,7 +97,10 @@ enum ActiveSheet: Identifiable, Hashable {
     case newContact
     case importContacts
     case task(UUID)
-    case commandPalette
+    case deleteProject(UUID)
+    case deleteTask(UUID)
+    case connectReminders
+    case connectContacts
 
     var id: String {
         switch self {
@@ -107,7 +110,22 @@ enum ActiveSheet: Identifiable, Hashable {
         case .newContact: "newContact"
         case .importContacts: "importContacts"
         case .task(let id): "task-\(id)"
-        case .commandPalette: "commandPalette"
+        case .deleteProject(let id): "deleteProject-\(id)"
+        case .deleteTask(let id): "deleteTask-\(id)"
+        case .connectReminders: "connectReminders"
+        case .connectContacts: "connectContacts"
+        }
+    }
+
+    /// Dialog width on Mac, iPad and Vision Pro. iPhone uses a full-width sheet.
+    var dialogWidth: CGFloat {
+        switch self {
+        case .deleteProject, .deleteTask: 420
+        case .connectReminders, .connectContacts: 420
+        case .newChannel: 460
+        case .newProject: 520
+        case .newTask, .newContact, .importContacts: 540
+        case .task: 580
         }
     }
 }
@@ -124,7 +142,9 @@ struct ToastMessage: Equatable {
 @Observable
 final class AppModel {
     var destination: Destination = .home
+    /// The dialog on screen (new project, task detail, confirmations…). Only one at a time.
     var sheet: ActiveSheet?
+    var isCommandPalettePresented = false
     var toast: ToastMessage?
     var isToastPresented = false
 
@@ -140,6 +160,23 @@ final class AppModel {
 
     func go(_ destination: Destination) {
         withAnimation(.snappy(duration: 0.22)) { self.destination = destination }
+    }
+
+    func toggleCommandPalette() {
+        withAnimation(.snappy(duration: 0.18)) {
+            if isCommandPalettePresented {
+                isCommandPalettePresented = false
+            } else {
+                sheet = nil
+                isCommandPalettePresented = true
+            }
+        }
+    }
+
+    /// Opens a dialog, closing the command palette first.
+    func present(_ dialog: ActiveSheet) {
+        isCommandPalettePresented = false
+        sheet = dialog
     }
 
     func show(_ message: String, detail: String? = nil, style: ToastMessage.ToastKind = .success) {

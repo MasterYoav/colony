@@ -88,7 +88,7 @@ struct TasksScreen: View {
                 GlassSegments(options: Layout.allCases, selection: $layout, height: 32, label: { $0.rawValue }, systemImage: { $0 == .list ? "list.bullet" : "rectangle.split.3x1" })
                     .frame(width: 190)
                 Button("New task", systemImage: "plus") {
-                    app.sheet = .newTask(project: scope.project?.uuid, list: scope.list?.uuid)
+                    app.present(.newTask(project: scope.project?.uuid, list: scope.list?.uuid))
                 }
                 .buttonStyle(QuietButtonStyle())
             }
@@ -211,7 +211,7 @@ struct TaskListRow: View {
             priority: task.priority.piece,
             tint: task.project?.color.color,
             style: pieceStyle,
-            onTap: { app.sheet = .task(task.uuid) },
+            onTap: { app.present(.task(task.uuid)) },
             onSnooze: snooze,
             onDelete: { withAnimation { WorkspaceActions(context: context).delete(task) } }
         )
@@ -351,7 +351,7 @@ struct BoardCard: View {
     let task: TaskItem
 
     var body: some View {
-        Button { app.sheet = .task(task.uuid) } label: {
+        Button { app.present(.task(task.uuid)) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 Text(task.title)
                     .font(.subheadline.weight(.medium))
@@ -390,11 +390,11 @@ struct ProjectsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 ScreenHeader(title: "Projects", subtitle: "\(projects.count) active") {
-                    Button("New project", systemImage: "plus") { app.sheet = .newProject }
+                    Button("New project", systemImage: "plus") { app.present(.newProject) }
                         .buttonStyle(QuietButtonStyle())
                 }
                 if projects.isEmpty {
-                    EmptyStateView(symbol: "folder", title: "No projects", message: "Projects group tasks into lists and sync across your devices.", actionTitle: "Create project") { app.sheet = .newProject }
+                    EmptyStateView(symbol: "folder", title: "No projects", message: "Projects group tasks into lists and sync across your devices.", actionTitle: "Create project") { app.present(.newProject) }
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
                     ForEach(projects) { project in

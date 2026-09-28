@@ -39,6 +39,21 @@ struct WorkspaceActions {
         return list
     }
 
+    /// Moves `project` to sit just before `target` (or to the end when `target` is nil) and
+    /// renumbers every project, so the order is stable on all devices after CloudKit merges.
+    func move(_ project: Project, before target: Project?) {
+        guard project.uuid != target?.uuid else { return }
+        var ordered = ((try? context.fetch(FetchDescriptor<Project>())) ?? [])
+            .sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
+        ordered.removeAll { $0.uuid == project.uuid }
+        let index = target.flatMap { t in ordered.firstIndex { $0.uuid == t.uuid } } ?? ordered.endIndex
+        ordered.insert(project, at: index)
+        for (i, item) in ordered.enumerated() where item.sortIndex != i {
+            item.sortIndex = i
+        }
+        save() // commit now so the order reaches iCloud even if the app is killed
+    }
+
     func delete(_ project: Project) {
         log("Project deleted", project.name, symbol: "trash", color: .gray)
         context.delete(project)

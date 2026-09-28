@@ -106,54 +106,48 @@ struct SidebarPanel: View {
     @State private var isWorkspaceExpanded = true
     @State private var isProjectsExpanded = true
     @State private var isProjectsRowExpanded = false
-    @State private var projectPendingDeletion: Project?
-    @State private var isConfirmingDelete = false
+
+    private var layout: SidebarLayout { SidebarLayout(preferences: app.preferences) }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    CommandField { app.sheet = .commandPalette }
+                    CommandField { app.toggleCommandPalette() }
                         .padding(.horizontal, 12)
                         .padding(.top, 12)
                         .padding(.bottom, 10)
 
                     VStack(spacing: 2) {
-                        SidebarRow(symbol: "house", title: "Home", isSelected: app.destination == .home) { app.go(.home) }
-                        SidebarRow(symbol: "bell", title: "Updates", count: unreadUpdates.count, isSelected: app.destination == .updates) { app.go(.updates) }
-                        SidebarRow(symbol: "tray", title: "Inbox", count: unreadMessages, isSelected: app.destination.railItem == .messages) { app.go(.messages(channel: nil)) }
-                        SidebarRow(symbol: "list.clipboard", title: "My tasks", isSelected: app.destination == .myTasks, trailing: .add { app.sheet = .newTask(project: nil, list: nil) }) { app.go(.myTasks) }
+                        ForEach(layout.pinned) { item in
+                            navRow(item, in: .pinned)
+                        }
+                        SidebarDropTail(height: layout.pinned.isEmpty ? 28 : 8, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 4)
 
                     SidebarDivider()
 
-                    SidebarSection(title: "Workspace", isExpanded: $isWorkspaceExpanded, onAdd: { app.sheet = .newProject }, menu: {
-                        Button("New channel", systemImage: "number") { app.sheet = .newChannel }
-                        Button("New contact", systemImage: "person.crop.circle.badge.plus") { app.sheet = .newContact }
-                        Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.sheet = .importContacts }
-                    }) {
-                        SidebarRow(symbol: "square.stack.3d.up", title: "Projects", isSelected: app.destination == .projects, trailing: .chevron(isProjectsRowExpanded) {
-                            withAnimation(.snappy(duration: 0.2)) { isProjectsRowExpanded.toggle() }
-                        }) { app.go(.projects) }
-                        if isProjectsRowExpanded {
-                            ForEach(projects.prefix(5)) { project in
-                                SidebarChildRow(title: project.name, count: project.openTaskCount, isSelected: app.destination == .project(project.uuid)) {
-                                    app.go(.project(project.uuid))
-                                }
-                            }
+                    SidebarSection(title: "Workspace", isExpanded: $isWorkspaceExpanded, onAdd: { app.present(.newProject) }, menu: {
+                        Button("New channel", systemImage: "number") { app.present(.newChannel) }
+                        Button("New contact", systemImage: "person.crop.circle.badge.plus") { app.present(.newContact) }
+                        Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.present(app.contacts.canRead ? .importContacts : .connectContacts) }
+                        if layout.isCustomized {
+                            Divider()
+                            Button("Reset sidebar layout", systemImage: "arrow.counterclockwise") { layout.reset() }
                         }
-                        SidebarRow(symbol: "checklist", title: "Tasks", isSelected: app.destination == .allTasks, trailing: .add { app.sheet = .newTask(project: nil, list: nil) }) { app.go(.allTasks) }
-                        SidebarRow(symbol: "square.grid.2x2", title: "Pipeline", isSelected: app.destination == .pipeline) { app.go(.pipeline) }
-                        SidebarRow(symbol: "person.2", title: "Contacts", count: contacts.count, isSelected: app.destination == .contacts) { app.go(.contacts) }
-                        SidebarRow(symbol: "chart.pie", title: "Reports", isSelected: app.destination == .reports) { app.go(.reports) }
+                    }) {
+                        ForEach(layout.workspace) { item in
+                            navRow(item, in: .workspace)
+                        }
+                        SidebarDropTail(height: layout.workspace.isEmpty ? 28 : 8, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
                     }
 
                     SidebarDivider()
 
-                    SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, onAdd: { app.sheet = .newProject }, menu: {
+                    SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, onAdd: { app.present(.newProject) }, menu: {
                         Button("Expand all", systemImage: "chevron.down") {
                             app.preferences.expandedProjectIDs = Set(projects.map(\.uuid.uuidString))
                         }
@@ -162,7 +156,7 @@ struct SidebarPanel: View {
                         }
                     }) {
                         if projects.isEmpty {
-                            Button { app.sheet = .newProject } label: {
+                            Button { app.present(.newProject) } label: {
                                 Label("Create a project", systemImage: "plus")
                                     .font(.system(size: 13))
                                     .foregroundStyle(Theme.secondaryText)
@@ -174,6 +168,9 @@ struct SidebarPanel: View {
                         ForEach(projects) { project in
                             projectRows(project)
                         }
+                        if !projects.isEmpty {
+                            SidebarDropTail(accepts: acceptsProject) { dropProject($0, before: nil) }
+                        }
                     }
                     .padding(.bottom, 16)
                 }
@@ -184,19 +181,78 @@ struct SidebarPanel: View {
         }
         .frame(width: Theme.panelWidth)
         .background(Theme.sidebar)
-        .confirmSheet(
-            isPresented: $isConfirmingDelete,
-            systemImage: "trash",
-            title: "Delete \(projectPendingDeletion?.name ?? "project")?",
-            message: "Its lists are removed from every device signed in to your iCloud account. Tasks stay in My tasks.",
-            confirmTitle: "Delete project",
-            isDestructive: true
-        ) {
-            if let project = projectPendingDeletion {
-                if case .project(let id) = app.destination, id == project.uuid { app.go(.projects) }
-                WorkspaceActions(context: context).delete(project)
+    }
+
+    // MARK: Rows
+
+    @ViewBuilder
+    private func navRow(_ item: SidebarNavItem, in group: SidebarGroup) -> some View {
+        SidebarRow(symbol: item.symbol, title: item.title, count: count(for: item), isSelected: item.isSelected(app.destination), trailing: trailing(for: item)) {
+            app.go(item.destination)
+        }
+        .sidebarDraggable(.nav(item), symbol: item.symbol, title: item.title)
+        .sidebarDropTarget(accepts: acceptsNav) { drop($0, in: group, before: item) }
+        .contextMenu { moveMenu(item, from: group) }
+
+        if item == .projects, isProjectsRowExpanded {
+            ForEach(projects.prefix(5)) { project in
+                SidebarChildRow(title: project.name, count: project.openTaskCount, isSelected: app.destination == .project(project.uuid)) {
+                    app.go(.project(project.uuid))
+                }
             }
-            projectPendingDeletion = nil
+        }
+    }
+
+    @ViewBuilder
+    private func moveMenu(_ item: SidebarNavItem, from group: SidebarGroup) -> some View {
+        if group == .pinned {
+            Button("Move to Workspace", systemImage: "arrow.down") { layout.move(item, to: .workspace, before: nil) }
+        } else {
+            Button("Move to top", systemImage: "arrow.up") { layout.move(item, to: .pinned, before: nil) }
+        }
+        if layout.isCustomized {
+            Button("Reset sidebar layout", systemImage: "arrow.counterclockwise") { layout.reset() }
+        }
+    }
+
+    private func count(for item: SidebarNavItem) -> Int? {
+        switch item {
+        case .updates: unreadUpdates.count
+        case .inbox: unreadMessages
+        case .contacts: contacts.count
+        default: nil
+        }
+    }
+
+    private func trailing(for item: SidebarNavItem) -> SidebarTrailing {
+        switch item {
+        case .myTasks, .tasks: .add { app.present(.newTask(project: nil, list: nil)) }
+        case .projects: .chevron(isProjectsRowExpanded) { withAnimation(.snappy(duration: 0.2)) { isProjectsRowExpanded.toggle() } }
+        default: .none
+        }
+    }
+
+    // MARK: Drag and drop
+
+    private func acceptsNav(_ payload: SidebarDragPayload) -> Bool {
+        if case .nav = payload { return true }
+        return false
+    }
+
+    private func acceptsProject(_ payload: SidebarDragPayload) -> Bool {
+        if case .project = payload { return true }
+        return false
+    }
+
+    private func drop(_ payload: SidebarDragPayload, in group: SidebarGroup, before target: SidebarNavItem?) {
+        guard case .nav(let item) = payload else { return }
+        layout.move(item, to: group, before: target)
+    }
+
+    private func dropProject(_ payload: SidebarDragPayload, before target: Project?) {
+        guard case .project(let id) = payload, let project = context.project(id) else { return }
+        withAnimation(.snappy(duration: 0.22)) {
+            WorkspaceActions(context: context).move(project, before: target)
         }
     }
 
@@ -208,8 +264,8 @@ struct SidebarPanel: View {
                 Button("Workspace settings", systemImage: "gearshape") { app.go(.settings) }
                 Button("Apple services", systemImage: "puzzlepiece.extension") { app.go(.appleServices) }
                 Divider()
-                Button("New project", systemImage: "folder.badge.plus") { app.sheet = .newProject }
-                Button("New channel", systemImage: "number") { app.sheet = .newChannel }
+                Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
+                Button("New channel", systemImage: "number") { app.present(.newChannel) }
             } label: {
                 HStack(spacing: 8) {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -268,13 +324,14 @@ struct SidebarPanel: View {
         ) {
             app.go(.project(project.uuid))
         }
+        .sidebarDraggable(.project(project.uuid), symbol: project.symbol, title: project.name)
+        .sidebarDropTarget(accepts: acceptsProject) { dropProject($0, before: project) }
         .contextMenu {
-            Button("New task", systemImage: "plus") { app.sheet = .newTask(project: project.uuid, list: nil) }
+            Button("New task", systemImage: "plus") { app.present(.newTask(project: project.uuid, list: nil)) }
             Button(expanded ? "Collapse" : "Expand", systemImage: expanded ? "chevron.up" : "chevron.down") { app.toggleExpanded(project) }
             Divider()
-            Button("Delete project", systemImage: "trash", role: .destructive) {
-                projectPendingDeletion = project
-                isConfirmingDelete = true
+            Button("Delete project…", systemImage: "trash", role: .destructive) {
+                app.present(.deleteProject(project.uuid))
             }
         }
 
@@ -292,7 +349,10 @@ struct SidebarPanel: View {
 
 struct CollapsedPanel: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.modelContext) private var context
     @Query(sort: \Project.sortIndex) private var projects: [Project]
+
+    private var layout: SidebarLayout { SidebarLayout(preferences: app.preferences) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -302,22 +362,17 @@ struct CollapsedPanel: View {
 
             ScrollView {
                 VStack(spacing: 6) {
-                    iconButton("command", "Command") { app.sheet = .commandPalette }
+                    RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
                         .padding(.top, 10)
-                    iconButton("house", "Home", selected: app.destination == .home) { app.go(.home) }
-                    iconButton("bell", "Updates", selected: app.destination == .updates) { app.go(.updates) }
-                    iconButton("tray", "Inbox", selected: app.destination.railItem == .messages) { app.go(.messages(channel: nil)) }
-                    iconButton("list.clipboard", "My tasks", selected: app.destination == .myTasks) { app.go(.myTasks) }
+                    ForEach(layout.pinned) { item in navIcon(item, in: .pinned) }
+                    SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
 
-                    SidebarDivider().padding(.vertical, 6)
+                    SidebarDivider().padding(.vertical, 4)
 
-                    iconButton("square.stack.3d.up", "Projects", selected: app.destination == .projects) { app.go(.projects) }
-                    iconButton("checklist", "Tasks", selected: app.destination == .allTasks) { app.go(.allTasks) }
-                    iconButton("square.grid.2x2", "Pipeline", selected: app.destination == .pipeline) { app.go(.pipeline) }
-                    iconButton("person.2", "Contacts", selected: app.destination == .contacts) { app.go(.contacts) }
-                    iconButton("chart.pie", "Reports", selected: app.destination == .reports) { app.go(.reports) }
+                    ForEach(layout.workspace) { item in navIcon(item, in: .workspace) }
+                    SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
 
-                    SidebarDivider().padding(.vertical, 6)
+                    SidebarDivider().padding(.vertical, 4)
 
                     ForEach(projects) { project in
                         Button { app.go(.project(project.uuid)) } label: {
@@ -331,9 +386,15 @@ struct CollapsedPanel: View {
                         .buttonStyle(.plain)
                         .help(project.name)
                         .accessibilityLabel(project.name)
+                        .sidebarDraggable(.project(project.uuid), symbol: project.symbol, title: project.name)
+                        .sidebarDropTarget(accepts: acceptsProject) { payload in
+                            guard case .project(let id) = payload, let moved = context.project(id) else { return }
+                            withAnimation(.snappy(duration: 0.22)) { WorkspaceActions(context: context).move(moved, before: project) }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.horizontal, 4)
             }
             .scrollIndicators(.never)
 
@@ -343,17 +404,34 @@ struct CollapsedPanel: View {
         .background(Theme.sidebar)
     }
 
-    /// The column is narrower than the traffic lights, so the toggle sits below them on macOS.
+    private func navIcon(_ item: SidebarNavItem, in group: SidebarGroup) -> some View {
+        RailButton(symbol: item.symbol, title: item.title, isSelected: item.isSelected(app.destination)) { app.go(item.destination) }
+            .sidebarDraggable(.nav(item), symbol: item.symbol, title: item.title)
+            .sidebarDropTarget(accepts: acceptsNav) { drop($0, in: group, before: item) }
+    }
+
+    private func acceptsNav(_ payload: SidebarDragPayload) -> Bool {
+        if case .nav = payload { return true }
+        return false
+    }
+
+    private func acceptsProject(_ payload: SidebarDragPayload) -> Bool {
+        if case .project = payload { return true }
+        return false
+    }
+
+    private func drop(_ payload: SidebarDragPayload, in group: SidebarGroup, before target: SidebarNavItem?) {
+        guard case .nav(let item) = payload else { return }
+        layout.move(item, to: group, before: target)
+    }
+
+    /// Title-bar row height on macOS; the toggle sits just below the traffic lights.
     private var topInset: CGFloat {
         #if os(macOS)
         SidebarMetrics.titleBarHeight
         #else
         0
         #endif
-    }
-
-    private func iconButton(_ symbol: String, _ title: String, selected: Bool = false, action: @escaping () -> Void) -> some View {
-        RailButton(symbol: symbol, title: title, isSelected: selected, action: action)
     }
 }
 
@@ -377,8 +455,7 @@ struct SidebarToggleButton: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .keyboardShortcut("s", modifiers: [.command, .control])
-        .help(app.preferences.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
+        .help(app.preferences.isSidebarCollapsed ? "Expand sidebar (⌃⌘S)" : "Collapse sidebar (⌃⌘S)")
         .accessibilityLabel(app.preferences.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
     }
 }
@@ -396,9 +473,9 @@ struct CommandField: View {
                     .font(.system(size: 13))
                     .foregroundStyle(Theme.secondaryText)
                 Spacer()
-                Text("/")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(Theme.secondaryText)
+                Text("⌘K")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.tertiaryText)
             }
             .padding(.horizontal, 10)
             .frame(height: 30)
@@ -409,7 +486,7 @@ struct CommandField: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .keyboardShortcut("k", modifiers: .command)
+        .help("Command Center (⌘K)")
         .accessibilityLabel("Open command palette")
     }
 }

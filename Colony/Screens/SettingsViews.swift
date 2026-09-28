@@ -77,8 +77,6 @@ struct SettingsView: View {
 struct AppleServicesView: View {
     @Environment(AppModel.self) private var app
     @Query private var tasks: [TaskItem]
-    @State private var askingReminders = false
-    @State private var askingContacts = false
 
     var body: some View {
         @Bindable var prefs = app.preferences
@@ -110,7 +108,7 @@ struct AppleServicesView: View {
                             Text(error).font(.caption).foregroundStyle(.red)
                         }
                     } else {
-                        Button("Connect Reminders") { askingReminders = true }.buttonStyle(QuietButtonStyle())
+                        Button("Connect Reminders") { app.present(.connectReminders) }.buttonStyle(QuietButtonStyle())
                     }
                 }
 
@@ -120,9 +118,9 @@ struct AppleServicesView: View {
                     status: contactsStatus, healthy: app.contacts.canRead
                 ) {
                     if app.contacts.canRead {
-                        Button("Import people…") { app.sheet = .importContacts }.buttonStyle(QuietButtonStyle())
+                        Button("Import people…") { app.present(.importContacts) }.buttonStyle(QuietButtonStyle())
                     } else {
-                        Button("Connect Contacts") { askingContacts = true }.buttonStyle(QuietButtonStyle())
+                        Button("Connect Contacts") { app.present(.connectContacts) }.buttonStyle(QuietButtonStyle())
                     }
                 }
 
@@ -136,48 +134,6 @@ struct AppleServicesView: View {
             .frame(maxWidth: 760, alignment: .leading)
         }
         .navigationTitle("Apple services")
-        .sheet(isPresented: $askingReminders) {
-            PermissionSheet(
-                systemImage: "checklist",
-                title: "Connect Reminders",
-                message: "Colony can create a reminder for each task so you're notified when it's due.",
-                benefits: [
-                    .init(symbol: "bell.badge", text: "Due-date alerts on every Apple device"),
-                    .init(symbol: "applewatch", text: "Check tasks off from Apple Watch"),
-                    .init(symbol: "lock", text: "Stays in your iCloud account")
-                ],
-                allowTitle: "Allow access",
-                request: { await app.reminders.requestAccess() },
-                onGranted: {
-                    askingReminders = false
-                    app.preferences.mirrorsToReminders = true
-                },
-                onSkip: { askingReminders = false }
-            )
-            .padding(24)
-            .presentationBackground(PermissionSheet.Style.standard.surface)
-        }
-        .sheet(isPresented: $askingContacts) {
-            PermissionSheet(
-                systemImage: "person.crop.circle",
-                title: "Connect Contacts",
-                message: "Pick people from your address book to add them to Colony's CRM.",
-                benefits: [
-                    .init(symbol: "person.2", text: "Import names, companies and photos"),
-                    .init(symbol: "hand.raised", text: "Read-only: nothing is changed"),
-                    .init(symbol: "lock", text: "Imported records live in your iCloud")
-                ],
-                allowTitle: "Allow access",
-                request: { await app.contacts.requestAccess() },
-                onGranted: {
-                    askingContacts = false
-                    app.sheet = .importContacts
-                },
-                onSkip: { askingContacts = false }
-            )
-            .padding(24)
-            .presentationBackground(PermissionSheet.Style.standard.surface)
-        }
     }
 
     private var remindersStatus: String {

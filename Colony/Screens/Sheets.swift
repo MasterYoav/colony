@@ -2,59 +2,39 @@
 //  Sheets.swift
 //  Colony
 //
-//  Creation sheets, task detail, contacts import and the ⌘K command palette.
+//  Every dialog in the app: create project/task/channel/contact, task detail,
+//  Apple Contacts import, permission prompts and confirmations. All of them are
+//  built from `DialogFrame` (DesignSystem/Dialog.swift) so they share one look.
 //
 
 import SwiftData
 import SwiftUI
 
-private let sheetFieldStyle = FormField.Style(field: Theme.field, label: Theme.text, secondaryLabel: Theme.secondaryText, focusRing: Theme.strongStroke, height: 52, cornerRadius: 12)
+/// Swift Pieces `GlassSegments`, tuned to the dialog palette.
+private let segmentStyle = GlassSegmentsStyle(
+    track: Theme.field,
+    ink: Theme.secondaryText,
+    selectedInk: Theme.text,
+    indicatorSurface: Theme.selection,
+    font: .system(size: 12.5, weight: .medium)
+)
 
-/// Shared chrome: title, content, and a Swift Pieces `CommitButton` as the primary action.
-struct SheetScaffold<Content: View>: View {
-    @Environment(\.dismiss) private var dismiss
+/// Primary + Cancel footer shared by the create dialogs.
+private struct CreateFooter: View {
     let title: String
-    let actionTitle: String
     let canCommit: Bool
-    let commit: () -> Bool
-    @ViewBuilder var content: () -> Content
-    @State private var phase: CommitButton.Phase = .idle
+    let commit: () -> Void
+    @Environment(\.dialogDismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text(title).font(.title3.weight(.semibold)).foregroundStyle(Theme.text)
-                Spacer()
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 12, weight: .bold)).frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.secondaryText)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel("Close")
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14, content: content)
-            }
-            CommitButton(actionTitle, phase: $phase, successTitle: "Saved", style: .init(height: 46)) {
-                phase = .loading
-                if commit() {
-                    phase = .success
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(650))
-                        dismiss()
-                    }
-                } else {
-                    phase = .error("Check the fields")
-                }
-            }
-            .keyboardShortcut(.defaultAction)
-        }
-        .padding(24)
-        .background(Theme.canvas)
-        .onChange(of: canCommit, initial: true) { _, ok in
-            if phase == .idle || phase == .disabled { phase = ok ? .idle : .disabled }
-        }
+        KeyHint(keys: ["⌘", "⏎"], label: title.lowercased())
+        Spacer()
+        Button("Cancel") { dismiss() }
+            .buttonStyle(.dialogGhost)
+        Button(title, action: commit)
+            .buttonStyle(.dialogPrimary)
+            .keyboardShortcut(.return, modifiers: .command)
+            .disabled(!canCommit)
     }
 }
 
@@ -63,69 +43,119 @@ struct SheetScaffold<Content: View>: View {
 struct NewProjectSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
+    @Environment(\.dialogDismiss) private var dismiss
     @State private var name = ""
     @State private var summary = ""
     @State private var color: ColonyColor = .blue
     @State private var symbol = "folder.fill"
-    @State private var lists: [String] = ["March", "April"]
-    @State private var newList = ""
+    @State private var lists: [String] = []
 
-    private let symbols = ["folder.fill", "calendar", "doc.text.fill", "square.grid.2x2.fill", "chart.bar.fill", "creditcard.fill", "star.fill", "bolt.fill", "paintbrush.fill", "hammer.fill", "globe", "heart.fill"]
+    static let symbols = ["folder.fill", "calendar", "doc.text.fill", "square.grid.2x2.fill", "chart.bar.fill", "creditcard.fill", "star.fill", "bolt.fill", "paintbrush.fill", "hammer.fill", "globe", "heart.fill", "flag.fill", "cart.fill", "megaphone.fill", "book.fill"]
+
+    private var canCommit: Bool { !ColonyText.trimmed(name).isEmpty }
 
     var body: some View {
-        SheetScaffold(title: "New project", actionTitle: "Create project", canCommit: !ColonyText.trimmed(name).isEmpty, commit: create) {
-            FormField("Project name", text: $name, leading: Image(systemName: "folder"), limit: 40, style: sheetFieldStyle)
-            FormField("Description", text: $summary, limit: 140, axis: .vertical, style: sheetFieldStyle)
-
-            Text("Icon & color").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(34), spacing: 8), count: 12), alignment: .leading, spacing: 8) {
-                ForEach(symbols, id: \.self) { s in
-                    Button { symbol = s } label: {
-                        ProjectGlyph(symbol: s, color: symbol == s ? color.color : Theme.tertiaryText, size: 28)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(s)
-                }
-                ForEach(ColonyColor.allCases) { c in
-                    Button { color = c } label: {
-                        Circle().fill(c.color).frame(width: 22, height: 22)
-                            .overlay { if c == color { Circle().strokeBorder(Theme.text, lineWidth: 2).frame(width: 28, height: 28) } }
-                            .frame(width: 30, height: 30)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(c.title)
+        DialogFrame(symbol: "folder.badge.plus", title: "New project", description: "Projects group tasks into lists and sync to all your devices through iCloud.") {
+            HStack(alignment: .bottom, spacing: 12) {
+                ProjectGlyph(symbol: symbol, color: color.color, size: 34)
+                    .animation(.snappy(duration: 0.2), value: symbol)
+                    .animation(.snappy(duration: 0.2), value: color)
+                    .accessibilityHidden(true)
+                DialogField(label: "Name") {
+                    DialogTextField(placeholder: "e.g. Website relaunch", text: $name, limit: 40, autofocus: true, onSubmit: create)
+                } accessory: {
+                    Text("\(name.count)/40").font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiaryText)
                 }
             }
 
-            Text("Lists").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
-            FilterRail(options: lists, selection: .constant(Set(lists)), allowsMultiple: true)
-            HStack {
-                TextField("Add a list (e.g. Sprint 1)", text: $newList)
-                    .textFieldStyle(.plain)
-                    .onSubmit(addList)
-                Button("Add", action: addList).buttonStyle(QuietButtonStyle())
+            DialogField(label: "Description", hint: "Optional. Shown under the project title.") {
+                DialogTextEditor(placeholder: "What is this project about?", text: $summary, lines: 2...4)
             }
-            .padding(.horizontal, 12)
-            .frame(height: 40)
-            .background(Theme.field, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            if !lists.isEmpty {
-                Button("Clear lists") { lists = [] }.buttonStyle(.plain).font(.caption).foregroundStyle(Theme.secondaryText)
+
+            DialogField(label: "Icon") {
+                SymbolGrid(symbols: Self.symbols, selection: $symbol, tint: color.color)
             }
+
+            DialogField(label: "Color") {
+                ColorSwatches(selection: $color)
+            }
+
+            DialogField(label: "Lists", hint: "Press Return to add a list, like a sprint, a month or a phase.") {
+                ChipInput(items: $lists, placeholder: "Sprint 1, March, Discovery…")
+            }
+        } footer: {
+            CreateFooter(title: "Create project", canCommit: canCommit, commit: create)
         }
     }
 
-    private func addList() {
-        let value = ColonyText.trimmed(newList)
-        guard !value.isEmpty, !lists.contains(value) else { return }
-        lists.append(value)
-        newList = ""
-    }
-
-    private func create() -> Bool {
-        guard let project = WorkspaceActions(context: context).createProject(name: name, symbol: symbol, color: color, summary: summary, lists: lists) else { return false }
+    private func create() {
+        guard canCommit, let project = WorkspaceActions(context: context).createProject(name: name, symbol: symbol, color: color, summary: summary, lists: lists) else { return }
         app.preferences.expandedProjectIDs.insert(project.uuid.uuidString)
         app.go(.project(project.uuid))
-        return true
+        app.show("Project created", detail: project.name)
+        dismiss()
+    }
+}
+
+/// Grid of SF Symbols in bordered tiles; the selected tile fills with the project colour.
+struct SymbolGrid: View {
+    let symbols: [String]
+    @Binding var selection: String
+    let tint: Color
+
+    var body: some View {
+        // Fixed column count so the 16 symbols always form two even rows.
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
+            ForEach(symbols, id: \.self) { item in
+                let selected = item == selection
+                Button { selection = item } label: {
+                    Image(systemName: item)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(selected ? .white : Theme.icon)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(selected ? tint : Theme.field, in: .rect(cornerRadius: 8, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(selected ? .clear : Theme.strongStroke)
+                        }
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.replacingOccurrences(of: ".fill", with: "").replacingOccurrences(of: ".", with: " "))
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .animation(.snappy(duration: 0.15), value: selection)
+    }
+}
+
+struct ColorSwatches: View {
+    @Binding var selection: ColonyColor
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(ColonyColor.allCases) { item in
+                let selected = item == selection
+                Button { selection = item } label: {
+                    Circle()
+                        .fill(item.color)
+                        .frame(width: 20, height: 20)
+                        .overlay {
+                            if selected {
+                                Image(systemName: "checkmark").font(.system(size: 9, weight: .heavy)).foregroundStyle(.white)
+                            }
+                        }
+                        .padding(3)
+                        .overlay { Circle().strokeBorder(selected ? item.color : .clear, lineWidth: 1.5) }
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .animation(.snappy(duration: 0.15), value: selection)
     }
 }
 
@@ -134,6 +164,7 @@ struct NewProjectSheet: View {
 struct NewTaskSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
+    @Environment(\.dialogDismiss) private var dismiss
     @Query(sort: \Project.sortIndex) private var projects: [Project]
     let projectID: UUID?
     let listID: UUID?
@@ -146,47 +177,70 @@ struct NewTaskSheet: View {
     @State private var selectedProject: UUID?
     @State private var selectedList: UUID?
 
+    private var canCommit: Bool { !ColonyText.trimmed(title).isEmpty }
+
     var body: some View {
-        SheetScaffold(title: "New task", actionTitle: "Create task", canCommit: !ColonyText.trimmed(title).isEmpty, commit: create) {
-            FormField("What needs to be done?", text: $title, leading: Image(systemName: "checklist"), limit: 120, style: sheetFieldStyle)
-            FormField("Notes", text: $notes, axis: .vertical, style: sheetFieldStyle)
-
-            Text("Priority").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
-            GlassSegments(options: TaskPriority.allCases, selection: $priority, height: 34, label: { $0.title })
-
-            Picker("Project", selection: $selectedProject) {
-                Text("None").tag(UUID?.none)
-                ForEach(projects) { Text($0.name).tag(Optional($0.uuid)) }
+        DialogFrame(symbol: "checklist", title: "New task", description: destinationDescription) {
+            DialogField(label: "Title") {
+                DialogTextField(placeholder: "What needs to be done?", text: $title, limit: 120, autofocus: true, onSubmit: create)
             }
-            if let project = projects.first(where: { $0.uuid == selectedProject }), !project.sortedLists.isEmpty {
-                Picker("List", selection: $selectedList) {
-                    Text("None").tag(UUID?.none)
-                    ForEach(project.sortedLists) { Text($0.name).tag(Optional($0.uuid)) }
+            DialogField(label: "Notes") {
+                DialogTextEditor(placeholder: "Add details, links or acceptance criteria", text: $notes)
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                DialogField(label: "Project") {
+                    DialogSelect(selection: $selectedProject, options: [(UUID?.none, "No project", "tray")] + projects.map { (Optional($0.uuid), $0.name, $0.symbol) })
+                }
+                DialogField(label: "List") {
+                    DialogSelect(selection: $selectedList, options: [(UUID?.none, "No list", nil)] + availableLists.map { (Optional($0.uuid), $0.name, nil) })
+                        .disabled(availableLists.isEmpty)
                 }
             }
 
-            Toggle("Due date", isOn: $hasDue.animation())
-            if hasDue {
-                DatePicker("Due", selection: $due)
+            DialogField(label: "Priority") {
+                GlassSegments(options: TaskPriority.allCases, selection: $priority, height: 32, style: segmentStyle, label: { $0.title })
             }
-            if app.preferences.mirrorsToReminders {
-                Label("Will also appear in Apple Reminders", systemImage: "checklist")
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
+
+            VStack(alignment: .leading, spacing: 10) {
+                DialogToggleRow(title: "Due date", description: app.preferences.mirrorsToReminders ? "Also creates an alert in Apple Reminders" : nil, isOn: $hasDue)
+                if hasDue {
+                    DatePicker("Due", selection: $due)
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
+        } footer: {
+            CreateFooter(title: "Create task", canCommit: canCommit, commit: create)
         }
         .onAppear {
             selectedProject = projectID ?? context.list(listID ?? UUID())?.project?.uuid
             selectedList = listID
         }
+        .onChange(of: selectedProject) { _, _ in
+            if !availableLists.contains(where: { $0.uuid == selectedList }) { selectedList = nil }
+        }
     }
 
-    private func create() -> Bool {
+    private var availableLists: [ProjectList] {
+        projects.first { $0.uuid == selectedProject }?.sortedLists ?? []
+    }
+
+    private var destinationDescription: String {
+        guard let project = projects.first(where: { $0.uuid == selectedProject }) else { return "Adds to My tasks." }
+        if let list = availableLists.first(where: { $0.uuid == selectedList }) { return "Adds to \(project.name) › \(list.name)." }
+        return "Adds to \(project.name)."
+    }
+
+    private func create() {
+        guard canCommit else { return }
         let project = selectedProject.flatMap(context.project)
         let list = selectedList.flatMap(context.list)
-        guard let task = WorkspaceActions(context: context).createTask(title: title, notes: notes, priority: priority, dueDate: hasDue ? due : nil, project: project, list: list?.project?.uuid == project?.uuid ? list : nil) else { return false }
+        guard let task = WorkspaceActions(context: context).createTask(title: title, notes: notes, priority: priority, dueDate: hasDue ? due : nil, project: project, list: list?.project?.uuid == project?.uuid ? list : nil) else { return }
         app.syncReminder(for: task)
-        return true
+        app.show("Task created", detail: task.title)
+        dismiss()
     }
 }
 
@@ -195,20 +249,29 @@ struct NewTaskSheet: View {
 struct NewChannelSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
+    @Environment(\.dialogDismiss) private var dismiss
     @State private var name = ""
     @State private var topic = ""
 
+    private var slug: String { ColonyText.channelSlug(name) }
+
     var body: some View {
-        SheetScaffold(title: "New channel", actionTitle: "Create channel", canCommit: !ColonyText.channelSlug(name).isEmpty, commit: create) {
-            FormField("Channel name", text: $name, prompt: "e.g. design-reviews", help: name.isEmpty ? nil : "#\(ColonyText.channelSlug(name))", leading: Image(systemName: "number"), limit: 40, style: sheetFieldStyle)
-            FormField("Topic", text: $topic, limit: 120, style: sheetFieldStyle)
+        DialogFrame(symbol: "number", title: "New channel", description: "A place for notes and conversations about one topic.") {
+            DialogField(label: "Name", hint: slug.isEmpty ? "Lowercase, no spaces." : "Will appear as #\(slug)") {
+                DialogTextField(placeholder: "design-reviews", text: $name, symbol: "number", limit: 40, autofocus: true, onSubmit: create)
+            }
+            DialogField(label: "Topic") {
+                DialogTextField(placeholder: "What's this channel for?", text: $topic, limit: 120, onSubmit: create)
+            }
+        } footer: {
+            CreateFooter(title: "Create channel", canCommit: !slug.isEmpty, commit: create)
         }
     }
 
-    private func create() -> Bool {
-        guard let channel = WorkspaceActions(context: context).createChannel(name: name, topic: topic) else { return false }
+    private func create() {
+        guard !slug.isEmpty, let channel = WorkspaceActions(context: context).createChannel(name: name, topic: topic) else { return }
         app.go(.messages(channel: channel.uuid))
-        return true
+        dismiss()
     }
 }
 
@@ -217,6 +280,7 @@ struct NewChannelSheet: View {
 struct NewContactSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
+    @Environment(\.dialogDismiss) private var dismiss
     @State private var name = ""
     @State private var company = ""
     @State private var jobTitle = ""
@@ -224,24 +288,49 @@ struct NewContactSheet: View {
     @State private var phone = ""
     @State private var stage: DealStage = .lead
 
+    private var emailInvalid: Bool { !email.isEmpty && !email.contains("@") }
+    private var canCommit: Bool { !ColonyText.trimmed(name).isEmpty && !emailInvalid }
+
     var body: some View {
-        SheetScaffold(title: "New contact", actionTitle: "Add contact", canCommit: !ColonyText.trimmed(name).isEmpty, commit: create) {
-            FormField("Full name", text: $name, leading: Image(systemName: "person"), textContentType: .name, style: sheetFieldStyle)
-            FormField("Company", text: $company, leading: Image(systemName: "building.2"), textContentType: .organizationName, style: sheetFieldStyle)
-            FormField("Job title", text: $jobTitle, leading: Image(systemName: "briefcase"), textContentType: .jobTitle, style: sheetFieldStyle)
-            FormField("Email", text: $email, leading: Image(systemName: "envelope"), validate: { $0.isEmpty || $0.contains("@") ? nil : "Enter a valid email" }, textContentType: .emailAddress, keyboardType: .emailAddress, style: sheetFieldStyle)
-            FormField("Phone", text: $phone, leading: Image(systemName: "phone"), textContentType: .telephoneNumber, keyboardType: .phonePad, style: sheetFieldStyle)
-            Picker("Stage", selection: $stage) {
-                ForEach(DealStage.allCases) { Text($0.title).tag($0) }
+        DialogFrame(symbol: "person.crop.circle.badge.plus", title: "New contact", description: "Add a person to your CRM. You can also import from Apple Contacts.") {
+            DialogField(label: "Full name") {
+                DialogTextField(placeholder: "Jane Appleseed", text: $name, symbol: "person", autofocus: true, onSubmit: create)
             }
+            HStack(alignment: .top, spacing: 12) {
+                DialogField(label: "Company") {
+                    DialogTextField(placeholder: "Acme Inc.", text: $company, symbol: "building.2")
+                }
+                DialogField(label: "Job title") {
+                    DialogTextField(placeholder: "Head of Design", text: $jobTitle, symbol: "briefcase")
+                }
+            }
+            HStack(alignment: .top, spacing: 12) {
+                DialogField(label: "Email", hint: emailInvalid ? "Enter a valid email address." : nil) {
+                    DialogTextField(placeholder: "jane@acme.com", text: $email, symbol: "envelope", isInvalid: emailInvalid)
+                }
+                DialogField(label: "Phone") {
+                    DialogTextField(placeholder: "+1 555 0100", text: $phone, symbol: "phone")
+                }
+            }
+            DialogField(label: "Pipeline stage") {
+                DialogSelect(selection: $stage, options: DealStage.allCases.map { ($0, $0.title, "circle.fill") })
+            }
+        } footer: {
+            Button("Import from Contacts…") { app.present(.importContacts) }
+                .buttonStyle(.dialogGhost)
+            Spacer()
+            Button("Cancel") { dismiss() }.buttonStyle(.dialogGhost)
+            Button("Add contact", action: create)
+                .buttonStyle(.dialogPrimary)
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(!canCommit)
         }
     }
 
-    private func create() -> Bool {
-        guard email.isEmpty || email.contains("@") else { return false }
-        guard WorkspaceActions(context: context).createContact(name: name, company: company, jobTitle: jobTitle, email: email, phone: phone, stage: stage) != nil else { return false }
+    private func create() {
+        guard canCommit, WorkspaceActions(context: context).createContact(name: name, company: company, jobTitle: jobTitle, email: email, phone: phone, stage: stage) != nil else { return }
         app.go(.contacts)
-        return true
+        dismiss()
     }
 }
 
@@ -250,7 +339,7 @@ struct NewContactSheet: View {
 struct ImportContactsSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dialogDismiss) private var dismiss
     @Query private var existing: [Contact]
     @State private var candidates: [AppleContactCandidate] = []
     @State private var selection: Set<String> = []
@@ -258,72 +347,85 @@ struct ImportContactsSheet: View {
     @State private var isLoading = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Import from Contacts").font(.title3.weight(.semibold)).foregroundStyle(Theme.text)
-                Spacer()
-                Button("Cancel") { dismiss() }.buttonStyle(QuietButtonStyle()).keyboardShortcut(.cancelAction)
-            }
+        if !app.contacts.canRead {
+            PermissionDialog(kind: .contacts)
+        } else {
+            DialogFrame(symbol: "person.crop.rectangle.stack", title: "Import from Contacts", description: "Choose people from your address book. Nothing in Contacts is changed.") {
+                DialogTextField(placeholder: "Search people or companies", text: $search, symbol: "magnifyingglass", autofocus: true)
 
-            if !app.contacts.canRead {
-                PermissionSheet(
-                    systemImage: "person.crop.circle",
-                    title: "Allow Contacts access",
-                    message: "Colony reads your address book so you can choose who to add. Nothing is changed.",
-                    benefits: [.init(symbol: "person.2", text: "Names, companies and photos"), .init(symbol: "lock", text: "Imported people sync via your iCloud")],
-                    allowTitle: "Allow access",
-                    request: { await app.contacts.requestAccess() },
-                    onGranted: { Task { await load() } }
-                )
-            } else {
-                TextField("Search", text: $search)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 12)
-                    .frame(height: 34)
-                    .background(Theme.field, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                if isLoading {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 200)
-                } else if candidates.isEmpty {
-                    EmptyStateView(symbol: "person.crop.circle.badge.questionmark", title: "No contacts found", message: "Your address book is empty or access is limited.")
-                } else {
-                    List(filtered, selection: $selection) { person in
-                        HStack(spacing: 10) {
-                            AvatarView(name: person.name, color: ColonyColor.indigo.color, imageData: person.imageData, size: 28)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(person.name).font(.subheadline)
-                                if !person.company.isEmpty { Text(person.company).font(.caption).foregroundStyle(.secondary) }
+                Group {
+                    if isLoading {
+                        ProgressView().controlSize(.small).frame(maxWidth: .infinity, minHeight: 240)
+                    } else if candidates.isEmpty {
+                        EmptyStateView(symbol: "person.crop.circle.badge.questionmark", title: "No contacts found", message: "Your address book is empty or access is limited.")
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(filtered) { person in row(person) }
                             }
-                            Spacer()
-                            if importedIDs.contains(person.id) {
-                                Text("Added").font(.caption).foregroundStyle(.secondary)
-                            }
+                            .padding(4)
                         }
-                        .tag(person.id)
+                        .frame(height: 280)
+                        .background(Theme.field, in: .rect(cornerRadius: 10, style: .continuous))
+                        .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.strongStroke) }
                     }
-                    #if os(iOS)
-                    .environment(\.editMode, .constant(.active))
-                    #endif
-                    .frame(minHeight: 260)
                 }
-
-                Button {
-                    importSelected()
-                } label: {
-                    Text(selection.isEmpty ? "Select people to import" : "Import \(selection.count) \(selection.count == 1 ? "person" : "people")")
-                        .frame(maxWidth: .infinity)
+            } footer: {
+                Button(allSelected ? "Deselect all" : "Select all") {
+                    selection = allSelected ? [] : Set(filtered.filter { !importedIDs.contains($0.id) }.map(\.id))
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(selection.isEmpty)
+                .buttonStyle(.dialogGhost)
+                .disabled(filtered.isEmpty)
+                Spacer()
+                Button("Cancel") { dismiss() }.buttonStyle(.dialogGhost)
+                Button(selection.isEmpty ? "Import" : "Import \(selection.count)", action: importSelected)
+                    .buttonStyle(.dialogPrimary)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(selection.isEmpty)
             }
+            .task { await load() }
         }
-        .padding(24)
-        .background(Theme.canvas)
-        .task { await load() }
+    }
+
+    private func row(_ person: AppleContactCandidate) -> some View {
+        let imported = importedIDs.contains(person.id)
+        let selected = selection.contains(person.id)
+        return Button {
+            guard !imported else { return }
+            if selected { selection.remove(person.id) } else { selection.insert(person.id) }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: imported || selected ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 14))
+                    .foregroundStyle(imported ? Theme.tertiaryText : (selected ? Theme.text : Theme.secondaryText))
+                AvatarView(name: person.name, color: ColonyColor.indigo.color, imageData: person.imageData, size: 26)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(person.name).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
+                    if !person.company.isEmpty {
+                        Text(person.company).font(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
+                    }
+                }
+                Spacer()
+                if imported {
+                    Text("Added").font(.system(size: 11, weight: .medium)).foregroundStyle(Theme.tertiaryText)
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 42)
+            .background(selected ? Theme.selection : .clear, in: .rect(cornerRadius: 7, style: .continuous))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(imported)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var importedIDs: Set<String> { Set(existing.compactMap(\.appleContactIdentifier)) }
+
+    private var allSelected: Bool {
+        let selectable = filtered.filter { !importedIDs.contains($0.id) }
+        return !selectable.isEmpty && selectable.allSatisfy { selection.contains($0.id) }
+    }
 
     private var filtered: [AppleContactCandidate] {
         let q = ColonyText.trimmed(search)
@@ -352,25 +454,113 @@ struct ImportContactsSheet: View {
     }
 }
 
+// MARK: - Permission prompts
+
+/// Explains why Colony wants access to an Apple service before the system prompt appears.
+struct PermissionDialog: View {
+    enum Kind { case contacts, reminders }
+    let kind: Kind
+    @Environment(AppModel.self) private var app
+    @Environment(\.dialogDismiss) private var dismiss
+    @State private var isRequesting = false
+    @State private var wasDenied = false
+
+    var body: some View {
+        DialogFrame(symbol: symbol, tint: tint, title: title, description: message) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(benefits.enumerated()), id: \.offset) { index, benefit in
+                    HStack(spacing: 12) {
+                        Image(systemName: benefit.symbol)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.icon)
+                            .frame(width: 20)
+                        Text(benefit.text)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.text)
+                        Spacer()
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .overlay(alignment: .top) {
+                        if index > 0 { Rectangle().fill(Theme.stroke).frame(height: 1) }
+                    }
+                }
+            }
+            .background(Theme.surface, in: .rect(cornerRadius: 10, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.stroke) }
+
+            if wasDenied {
+                Label("Access is off. Turn it on in System Settings › Privacy & Security.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+            }
+        } footer: {
+            Spacer()
+            Button("Not now") { dismiss() }.buttonStyle(.dialogGhost)
+            Button {
+                Task { await request() }
+            } label: {
+                HStack(spacing: 6) {
+                    if isRequesting { ProgressView().controlSize(.mini) }
+                    Text("Allow access")
+                }
+            }
+            .buttonStyle(.dialogPrimary)
+            .keyboardShortcut(.defaultAction)
+            .disabled(isRequesting)
+        }
+    }
+
+    private func request() async {
+        isRequesting = true
+        let granted: Bool
+        switch kind {
+        case .contacts: granted = await app.contacts.requestAccess()
+        case .reminders: granted = await app.reminders.requestAccess()
+        }
+        isRequesting = false
+        guard granted else { wasDenied = true; return }
+        switch kind {
+        case .contacts:
+            app.present(.importContacts)
+        case .reminders:
+            app.preferences.mirrorsToReminders = true
+            app.show("Reminders connected", detail: "Tasks with due dates will alert you")
+            dismiss()
+        }
+    }
+
+    private var symbol: String { kind == .contacts ? "person.crop.circle" : "checklist" }
+    private var tint: Color { kind == .contacts ? ColonyColor.indigo.color : ColonyColor.orange.color }
+    private var title: String { kind == .contacts ? "Connect Contacts" : "Connect Reminders" }
+    private var message: String {
+        kind == .contacts
+            ? "Pick people from your address book to add them to Colony's CRM."
+            : "Colony can create a reminder for each task so you're notified when it's due."
+    }
+    private var benefits: [(symbol: String, text: String)] {
+        kind == .contacts
+            ? [("person.2", "Import names, companies and photos"), ("hand.raised", "Read-only: nothing in Contacts is changed"), ("lock", "Imported people live in your iCloud")]
+            : [("bell.badge", "Due-date alerts on every Apple device"), ("applewatch", "Check tasks off from Apple Watch"), ("lock", "Stays in your iCloud account")]
+    }
+}
+
 // MARK: - Task detail
 
 struct TaskDetailSheet: View {
-    @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dialogDismiss) private var dismiss
     let taskID: UUID
-    @State private var confirmingDelete = false
 
     var body: some View {
         if let task = context.task(taskID) {
-            TaskDetailForm(task: task, confirmingDelete: $confirmingDelete)
-                .confirmSheet(isPresented: $confirmingDelete, inline: true, systemImage: "trash", title: "Delete task?", message: "It will be removed from all your devices.", confirmTitle: "Delete", isDestructive: true) {
-                    app.reminders.removeMirror(for: task)
-                    WorkspaceActions(context: context).delete(task)
-                    dismiss()
-                }
+            TaskDetailForm(task: task)
         } else {
-            EmptyStateView(symbol: "questionmark.circle", title: "Task not found", message: "It may have been deleted on another device.", actionTitle: "Close") { dismiss() }
+            DialogFrame(symbol: "questionmark.circle", title: "Task not found", description: "It may have been deleted on another device.") {
+                EmptyView()
+            } footer: {
+                Button("Close") { dismiss() }.buttonStyle(.dialogPrimary).keyboardShortcut(.defaultAction)
+            }
         }
     }
 }
@@ -378,155 +568,98 @@ struct TaskDetailSheet: View {
 private struct TaskDetailForm: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dialogDismiss) private var dismiss
     @Bindable var task: TaskItem
-    @Binding var confirmingDelete: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                if let project = task.project {
-                    ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 18)
-                    Text(task.list.map { "\(project.name) › \($0.name)" } ?? project.name)
-                        .font(.caption).foregroundStyle(Theme.secondaryText)
+        DialogFrame(symbol: task.status.symbol, tint: task.project?.color.color ?? Theme.text, title: "Task", description: breadcrumb) {
+            DialogField(label: "Title") {
+                DialogTextField(placeholder: "Task title", text: $task.title, limit: 120)
+            }
+
+            DialogField(label: "Status") {
+                GlassSegments(options: TaskStatus.allCases, selection: Binding(get: { task.status }, set: { WorkspaceActions(context: context).setStatus($0, for: task); app.syncReminder(for: task) }), height: 32, style: segmentStyle, label: { $0.title })
+            }
+            DialogField(label: "Priority") {
+                GlassSegments(options: TaskPriority.allCases, selection: $task.priority, height: 32, style: segmentStyle, label: { $0.title })
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                DialogToggleRow(
+                    title: "Due date",
+                    description: task.reminderIdentifier != nil ? "Mirrored in Apple Reminders" : nil,
+                    isOn: Binding(get: { task.dueDate != nil }, set: { task.dueDate = $0 ? (task.dueDate ?? .now.addingTimeInterval(86_400)) : nil })
+                )
+                if let due = task.dueDate {
+                    DatePicker("Due", selection: Binding(get: { due }, set: { task.dueDate = $0 }))
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
                 }
-                Spacer()
-                Button("Delete", systemImage: "trash", role: .destructive) { confirmingDelete = true }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.red)
-                Button("Done") { dismiss() }.buttonStyle(QuietButtonStyle()).keyboardShortcut(.defaultAction)
             }
 
-            TextField("Title", text: $task.title, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.title2.weight(.semibold))
-
-            Text("Status").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
-            GlassSegments(options: TaskStatus.allCases, selection: Binding(get: { task.status }, set: { WorkspaceActions(context: context).setStatus($0, for: task); app.syncReminder(for: task) }), height: 34, label: { $0.title })
-
-            Text("Priority").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
-            GlassSegments(options: TaskPriority.allCases, selection: $task.priority, height: 34, label: { $0.title })
-
-            Toggle("Due date", isOn: Binding(get: { task.dueDate != nil }, set: { task.dueDate = $0 ? (task.dueDate ?? .now.addingTimeInterval(86_400)) : nil }))
-            if let due = task.dueDate {
-                DatePicker("Due", selection: Binding(get: { due }, set: { task.dueDate = $0 }))
+            DialogField(label: "Notes") {
+                DialogTextEditor(placeholder: "Add details", text: $task.notes, lines: 4...10)
             }
-
-            TextField("Notes", text: $task.notes, axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(4...12)
-                .padding(12)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.stroke) }
-
-            if task.reminderIdentifier != nil {
-                Label("Mirrored in Apple Reminders", systemImage: "checklist").font(.caption).foregroundStyle(Theme.secondaryText)
-            }
-            Spacer(minLength: 0)
+        } footer: {
+            Button("Delete", systemImage: "trash") { app.present(.deleteTask(task.uuid)) }
+                .buttonStyle(.dialogGhost)
+                .foregroundStyle(.red)
+            Spacer()
+            Text("Changes save automatically")
+                .font(.system(size: 11.5))
+                .foregroundStyle(Theme.tertiaryText)
+            Button("Done") { dismiss() }
+                .buttonStyle(.dialogPrimary)
+                .keyboardShortcut(.defaultAction)
         }
-        .padding(24)
-        .background(Theme.canvas)
         .onDisappear { app.syncReminder(for: task) }
+    }
+
+    private var breadcrumb: String {
+        guard let project = task.project else { return "My tasks" }
+        return task.list.map { "\(project.name) › \($0.name)" } ?? project.name
     }
 }
 
-// MARK: - Command palette
+// MARK: - Confirmations
 
-struct CommandPalette: View {
+struct DeleteProjectDialog: View {
     @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
-    @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasks: [TaskItem]
-    @Query private var channels: [Channel]
-    @Query private var contacts: [Contact]
-    @State private var query = ""
-    @FocusState private var focused: Bool
-
-    struct Item: Identifiable {
-        let id: String
-        let symbol: String
-        let title: String
-        let subtitle: String
-        let run: () -> Void
-    }
+    @Environment(\.modelContext) private var context
+    let projectID: UUID
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "command").foregroundStyle(Theme.secondaryText)
-                TextField("Type a command or search…", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 16))
-                    .focused($focused)
-                    .onSubmit { results.first?.run() }
-            }
-            .padding(16)
-            .overlay(alignment: .bottom) { SidebarDivider() }
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(results) { item in
-                        Button {
-                            item.run()
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: item.symbol).frame(width: 18).foregroundStyle(Theme.icon)
-                                Text(item.title).foregroundStyle(Theme.text)
-                                Spacer()
-                                Text(item.subtitle).font(.caption).foregroundStyle(Theme.tertiaryText)
-                            }
-                            .font(.system(size: 14))
-                            .padding(.horizontal, 12)
-                            .frame(height: 34)
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(8)
-            }
+        let project = context.project(projectID)
+        ConfirmDialog(
+            symbol: "trash",
+            title: "Delete \(project?.name ?? "project")?",
+            message: "Its lists are removed from every device signed in to your iCloud account. Tasks stay in My tasks.",
+            confirmTitle: "Delete project"
+        ) {
+            guard let project else { return }
+            if case .project(let id) = app.destination, id == project.uuid { app.go(.projects) }
+            if case .list(let id, _) = app.destination, id == project.uuid { app.go(.projects) }
+            WorkspaceActions(context: context).delete(project)
         }
-        .background(Theme.canvas)
-        .onAppear { focused = true }
-        #if os(macOS)
-        .frame(width: 560, height: 420)
-        #endif
     }
+}
 
-    private func go(_ destination: Destination) -> () -> Void {
-        { app.go(destination); dismiss() }
-    }
+struct DeleteTaskDialog: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.modelContext) private var context
+    let taskID: UUID
 
-    private func open(_ sheet: ActiveSheet) -> () -> Void {
-        { dismiss(); Task { try? await Task.sleep(for: .milliseconds(250)); app.sheet = sheet } }
-    }
-
-    private var allItems: [Item] {
-        var items: [Item] = [
-            Item(id: "a-task", symbol: "plus", title: "New task", subtitle: "Action", run: open(.newTask(project: nil, list: nil))),
-            Item(id: "a-project", symbol: "folder.badge.plus", title: "New project", subtitle: "Action", run: open(.newProject)),
-            Item(id: "a-channel", symbol: "number", title: "New channel", subtitle: "Action", run: open(.newChannel)),
-            Item(id: "a-contact", symbol: "person.crop.circle.badge.plus", title: "New contact", subtitle: "Action", run: open(.newContact)),
-            Item(id: "a-import", symbol: "person.crop.rectangle.stack", title: "Import from Apple Contacts", subtitle: "Action", run: open(.importContacts)),
-            Item(id: "n-home", symbol: "house", title: "Home", subtitle: "Go to", run: go(.home)),
-            Item(id: "n-updates", symbol: "bell", title: "Updates", subtitle: "Go to", run: go(.updates)),
-            Item(id: "n-inbox", symbol: "tray", title: "Inbox", subtitle: "Go to", run: go(.messages(channel: nil))),
-            Item(id: "n-mine", symbol: "list.clipboard", title: "My tasks", subtitle: "Go to", run: go(.myTasks)),
-            Item(id: "n-pipeline", symbol: "square.grid.2x2", title: "Pipeline", subtitle: "Go to", run: go(.pipeline)),
-            Item(id: "n-reports", symbol: "chart.pie", title: "Reports", subtitle: "Go to", run: go(.reports)),
-            Item(id: "n-apple", symbol: "puzzlepiece.extension", title: "Apple services", subtitle: "Go to", run: go(.appleServices)),
-            Item(id: "n-settings", symbol: "slider.horizontal.3", title: "Settings", subtitle: "Go to", run: go(.settings))
-        ]
-        items += projects.map { p in Item(id: "p-\(p.uuid)", symbol: p.symbol, title: p.name, subtitle: "Project", run: go(.project(p.uuid))) }
-        items += channels.map { c in Item(id: "c-\(c.uuid)", symbol: "number", title: c.name, subtitle: "Channel", run: go(.messages(channel: c.uuid))) }
-        items += contacts.map { c in Item(id: "k-\(c.uuid)", symbol: "person", title: c.name, subtitle: c.company.isEmpty ? "Contact" : c.company, run: go(.contacts)) }
-        items += tasks.map { t in Item(id: "t-\(t.uuid)", symbol: t.status.symbol, title: t.title, subtitle: t.project?.name ?? "Task", run: open(.task(t.uuid))) }
-        return items
-    }
-
-    private var results: [Item] {
-        let q = ColonyText.trimmed(query)
-        guard !q.isEmpty else { return Array(allItems.prefix(13)) }
-        return allItems.filter { $0.title.localizedCaseInsensitiveContains(q) || $0.subtitle.localizedCaseInsensitiveContains(q) }.prefix(40).map { $0 }
+    var body: some View {
+        let task = context.task(taskID)
+        ConfirmDialog(
+            symbol: "trash",
+            title: "Delete this task?",
+            message: "\u{201C}\(task?.title ?? "Task")\u{201D} will be removed from all your devices.",
+            confirmTitle: "Delete task"
+        ) {
+            guard let task else { return }
+            app.reminders.removeMirror(for: task)
+            WorkspaceActions(context: context).delete(task)
+        }
     }
 }

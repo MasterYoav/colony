@@ -20,8 +20,8 @@ struct ContactsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 ScreenHeader(title: "Contacts", subtitle: "\(contacts.count) people") {
                     Menu {
-                        Button("New contact", systemImage: "person.crop.circle.badge.plus") { app.sheet = .newContact }
-                        Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.sheet = .importContacts }
+                        Button("New contact", systemImage: "person.crop.circle.badge.plus") { app.present(.newContact) }
+                        Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.present(.importContacts) }
                     } label: {
                         Label("Add", systemImage: "plus")
                     }
@@ -41,7 +41,7 @@ struct ContactsView: View {
 
                 if contacts.isEmpty {
                     EmptyStateView(symbol: "person.2", title: "No contacts yet", message: "Import people from Apple Contacts or add them by hand.", actionTitle: "Import from Contacts") {
-                        app.sheet = .importContacts
+                        app.present(.importContacts)
                     }
                 }
 
@@ -207,7 +207,7 @@ struct PipelineView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             ScreenHeader(title: "Pipeline", subtitle: "Drag people between stages") {
-                Button("New contact", systemImage: "plus") { app.sheet = .newContact }
+                Button("New contact", systemImage: "plus") { app.present(.newContact) }
                     .buttonStyle(QuietButtonStyle())
             }
             .padding(.horizontal, 28)

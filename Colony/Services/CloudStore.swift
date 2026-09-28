@@ -12,6 +12,12 @@
 
 import CloudKit
 import CoreData
+#if targetEnvironment(simulator)
+import MachO
+#endif
+#if os(macOS)
+import Security
+#endif
 import Foundation
 import Observation
 import SwiftData
@@ -42,6 +48,17 @@ enum CloudStore {
             return (try! ModelContainer(for: schema, configurations: config), .inMemory)
         }
 
+        // Without the CloudKit entitlement, CloudKit traps (CKContainer init) instead of
+        // throwing, so check first and fall back to an on-device store.
+        guard hasCloudKitEntitlement else {
+            let config = ModelConfiguration("Colony-Local", schema: schema, cloudKitDatabase: .none)
+            do {
+                return (try ModelContainer(for: schema, configurations: config), .localFallback("This build isn't signed for iCloud"))
+            } catch {
+                fatalError("Colony could not open its data store: \(error)")
+            }
+        }
+
         do {
             let config = ModelConfiguration(
                 "Colony",
@@ -58,6 +75,33 @@ enum CloudStore {
             }
         }
     }
+
+    /// Whether this build is signed with the iCloud (CloudKit) entitlement.
+    static var hasCloudKitEntitlement: Bool {
+        let key = "com.apple.developer.icloud-services"
+        #if os(macOS)
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(task, key as CFString, nil) as? [String]
+        else { return false }
+        return value.contains("CloudKit")
+        #elseif targetEnvironment(simulator)
+        // Simulator builds carry their entitlements in the executable's __entitlements section.
+        return simulatorEntitlements.contains(key)
+        #else
+        // Device builds can't run unsigned; the entitlement ships with the provisioning profile.
+        return true
+        #endif
+    }
+
+    #if targetEnvironment(simulator)
+    private static var simulatorEntitlements: String {
+        guard let header = _dyld_get_image_header(0) else { return "" }
+        var size: UInt = 0
+        let raw = UnsafeRawPointer(header).assumingMemoryBound(to: mach_header_64.self)
+        guard let data = getsectiondata(raw, "__TEXT", "__entitlements", &size), size > 0 else { return "" }
+        return String(decoding: UnsafeBufferPointer(start: data, count: Int(size)), as: UTF8.self)
+    }
+    #endif
 
     static func inMemoryContainer() -> ModelContainer {
         let schema = Schema(ColonySchema.models)
