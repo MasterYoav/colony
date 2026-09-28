@@ -8,7 +8,7 @@ projects, tasks, team channels, and a lightweight CRM in one native SwiftUI app 
 
 There's no Colony server and no third-party SDK. Your data lives in your iCloud account, and integrations use Apple's built-in apps.
 
-[![CI](https://github.com/MasterYoav/colony/actions/workflows/swift.yml/badge.svg)](https://github.com/MasterYoav/colony/actions/workflows/swift.yml)
+[![CI](https://github.com/MasterYoav/colony/actions/workflows/swift.yml/badge.svg)](https://github.com/MasterYoav/colony/actions/workflows/Swift.yml)
 [![Swift](https://img.shields.io/badge/Swift-F54A2A?logo=swift&logoColor=white)](https://developer.apple.com/swift/)
 [![Xcode](https://img.shields.io/badge/Xcode-007ACC?logo=Xcode&logoColor=white)](https://developer.apple.com/xcode/)
 [![iOS](https://img.shields.io/badge/iOS-000000?&logo=apple&logoColor=white)](#requirements)
