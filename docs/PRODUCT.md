@@ -23,9 +23,10 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 
 The sidebar follows the reference design:
 
-1. **Icon rail**: Home, Search, Updates, Projects, Messages, Tasks, People, Apple services. At the bottom: appearance, iCloud status, settings, account.
-2. **Panel**: workspace switcher, collapse button, ⌘K command field, Home / Updates / Inbox / My tasks, a **Workspace** section and a **Projects** section. Projects expand to show their lists with open-task counts.
-3. **Collapsed panel**: icon-only column with the same items and project glyphs.
+1. **Header**: workspace switcher and collapse button, sharing the title bar with the window controls on Mac.
+2. **Panel**: ⌘K command field, Home / Updates / Inbox / My tasks, a **Workspace** section and a **Projects** section. Projects expand to show their lists with open-task counts.
+3. **Footer**: account, appearance, iCloud status and settings.
+4. **Collapsed**: icon-only column with the same items, project glyphs and footer.
 
 ## Out of scope for now
 

@@ -46,9 +46,12 @@ enum Theme {
     )
 
     // Metrics
-    static let railWidth: CGFloat = 52
     static let panelWidth: CGFloat = 232
+    #if os(macOS)
+    static let collapsedPanelWidth: CGFloat = 64 // wide enough for the traffic lights
+    #else
     static let collapsedPanelWidth: CGFloat = 52
+    #endif
     static let rowHeight: CGFloat = 30
     static let rowRadius: CGFloat = 8
 

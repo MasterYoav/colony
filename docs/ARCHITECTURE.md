@@ -57,4 +57,4 @@ The pieces are written for iOS. `SwiftPieces/PlatformCompat.swift` maps the few 
 
 ## Platforms
 
-iOS, iPadOS, macOS and visionOS 26.5+. iPhone uses a slide-in drawer for the sidebar. iPad, Mac and Vision Pro show the full rail and panel.
+iOS, iPadOS, macOS and visionOS 26.5+. iPhone uses a slide-in drawer for the sidebar. iPad, Mac and Vision Pro show the full sidebar.

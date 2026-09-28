@@ -2,17 +2,18 @@
 //  Sidebar.swift
 //  Colony
 //
-//  Two-part sidebar modelled on the reference design:
-//  ┌──────┬──────────────────────────┐
-//  │ rail │ workspace ▾        [◧]   │
-//  │  ⌂   │ [⌘ Command          /]   │
-//  │  ⌕   │ ⌂ Home                   │
-//  │  …   │ ── WORKSPACE ───── ⋯ +   │
-//  │      │ ── PROJECTS ────── ⋯ +   │
-//  │  ☀   │    Project ▾             │
-//  │  ◉   │       List          23   │
-//  └──────┴──────────────────────────┘
-//  The panel collapses to an icon-only column (third/fifth state in the reference).
+//  Single sidebar modelled on the reference design:
+//  ┌──────────────────────────┐
+//  │ ● ● ●  workspace ▾  [◧]  │
+//  │ [⌘ Command          /]   │
+//  │ ⌂ Home                   │
+//  │ ── WORKSPACE ───── ⋯ +   │
+//  │ ── PROJECTS ────── ⋯ +   │
+//  │    Project ▾             │
+//  │       List          23   │
+//  │ (YP) Name     ☾  ☁  ⚙   │
+//  └──────────────────────────┘
+//  It collapses to an icon-only column with the same footer stacked vertically.
 //
 
 import SwiftData
@@ -20,14 +21,9 @@ import SwiftUI
 
 struct Sidebar: View {
     @Environment(AppModel.self) private var app
-    var showsRail: Bool = true
 
     var body: some View {
-        HStack(spacing: 0) {
-            if showsRail {
-                SidebarRail()
-                Rectangle().fill(Theme.stroke).frame(width: 1)
-            }
+        Group {
             if app.preferences.isSidebarCollapsed {
                 CollapsedPanel()
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -36,84 +32,28 @@ struct Sidebar: View {
                     .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
+        .frame(maxHeight: .infinity)
         .background(Theme.sidebar)
         .animation(.snappy(duration: 0.25), value: app.preferences.isSidebarCollapsed)
     }
 }
 
-// MARK: - Rail
-
-struct SidebarRail: View {
-    @Environment(AppModel.self) private var app
-    @Query(filter: #Predicate<ActivityEvent> { !$0.isRead }) private var unreadUpdates: [ActivityEvent]
-
-    private let primary: [RailItem] = [.home, .search, .updates, .projects, .messages, .tasks, .people, .appleServices]
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Button { app.go(.home) } label: {
-                Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Theme.text)
-                    .frame(width: 36, height: 36)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Colony home")
-            .padding(.top, railTopInset)
-            .padding(.bottom, 8)
-
-            ForEach(primary) { item in
-                RailButton(
-                    symbol: item.symbol,
-                    title: item.title,
-                    isSelected: item != .search && app.destination.railItem == item,
-                    showsDot: item == .updates && !unreadUpdates.isEmpty
-                ) {
-                    if item == .search {
-                        app.sheet = .commandPalette
-                    } else if let destination = item.destination {
-                        app.go(destination)
-                    }
-                }
-            }
-
-            Spacer(minLength: 12)
-
-            RailButton(symbol: app.preferences.appearance == .light ? "moon" : "sun.max", title: "Toggle appearance", isSelected: false) {
-                app.preferences.appearance = app.preferences.appearance == .light ? .dark : .light
-            }
-            RailButton(symbol: app.iCloud.displayState.symbol, title: app.iCloud.displayState.title, isSelected: false) {
-                app.go(.settings)
-            }
-            RailButton(symbol: RailItem.settings.symbol, title: "Settings", isSelected: app.destination == .settings) {
-                app.go(.settings)
-            }
-
-            Button { app.go(.settings) } label: {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Theme.avatarGradient)
-                    .frame(width: 30, height: 30)
-                    .overlay {
-                        Text(ColonyText.initials(for: app.preferences.displayName))
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                    }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Account: \(app.preferences.displayName)")
-            .padding(.top, 6)
-            .padding(.bottom, 14)
-        }
-        .frame(width: Theme.railWidth)
-        .frame(maxHeight: .infinity)
-        .background(Theme.rail)
+enum SidebarMetrics {
+    /// Height of the row that shares space with the macOS traffic lights.
+    static var titleBarHeight: CGFloat {
+        #if os(macOS)
+        28
+        #else
+        0
+        #endif
     }
 
-    private var railTopInset: CGFloat {
+    /// Leading space the traffic lights occupy on macOS.
+    static var trafficLightsWidth: CGFloat {
         #if os(macOS)
-        34 // clears the traffic lights
+        70
         #else
-        12
+        0
         #endif
     }
 }
@@ -123,6 +63,7 @@ struct RailButton: View {
     let title: String
     let isSelected: Bool
     var showsDot: Bool = false
+    var tint: Color? = nil
     let action: () -> Void
     @State private var isHovering = false
 
@@ -130,7 +71,7 @@ struct RailButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(isSelected ? Theme.text : Theme.icon)
+                .foregroundStyle(tint ?? (isSelected ? Theme.text : Theme.icon))
                 .frame(width: 34, height: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -239,7 +180,7 @@ struct SidebarPanel: View {
             }
             .scrollIndicators(.never)
 
-            SyncFooter()
+            SidebarFooter(axis: .horizontal)
         }
         .frame(width: Theme.panelWidth)
         .background(Theme.sidebar)
@@ -293,18 +234,26 @@ struct SidebarPanel: View {
 
             SidebarToggleButton()
         }
-        .padding(.leading, 14)
+        .padding(.leading, headerLeadingInset)
         .padding(.trailing, 10)
-        .padding(.top, headerTopInset)
-        .frame(height: 52 + headerTopInset, alignment: .center)
+        .frame(height: headerHeight, alignment: .center)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1) }
     }
 
-    private var headerTopInset: CGFloat {
+    /// On macOS the header shares the title-bar row with the traffic lights.
+    private var headerHeight: CGFloat {
         #if os(macOS)
-        22
+        SidebarMetrics.titleBarHeight + 12
         #else
-        0
+        52
+        #endif
+    }
+
+    private var headerLeadingInset: CGFloat {
+        #if os(macOS)
+        SidebarMetrics.trafficLightsWidth + 6
+        #else
+        14
         #endif
     }
 
@@ -349,7 +298,7 @@ struct CollapsedPanel: View {
         VStack(spacing: 0) {
             SidebarToggleButton()
                 .padding(.top, topInset)
-                .frame(height: 52 + topInset)
+                .frame(height: 44 + topInset)
 
             ScrollView {
                 VStack(spacing: 6) {
@@ -387,14 +336,17 @@ struct CollapsedPanel: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollIndicators(.never)
+
+            SidebarFooter(axis: .vertical)
         }
         .frame(width: Theme.collapsedPanelWidth)
         .background(Theme.sidebar)
     }
 
+    /// The column is narrower than the traffic lights, so the toggle sits below them on macOS.
     private var topInset: CGFloat {
         #if os(macOS)
-        22
+        SidebarMetrics.titleBarHeight
         #else
         0
         #endif
@@ -692,30 +644,76 @@ struct SidebarDivider: View {
     }
 }
 
-/// Bottom card that replaces the reference's "Upgrade plan" promo with iCloud sync status.
-struct SyncFooter: View {
+/// Bottom of the sidebar: account, appearance, iCloud status and settings.
+/// Horizontal in the expanded panel, stacked in the collapsed column.
+struct SidebarFooter: View {
     @Environment(AppModel.self) private var app
+    let axis: Axis
 
     var body: some View {
+        Group {
+            if axis == .horizontal {
+                HStack(spacing: 2) {
+                    accountButton(showsName: true)
+                    Spacer(minLength: 4)
+                    controls
+                }
+                .padding(.leading, 10)
+                .padding(.trailing, 8)
+                .padding(.vertical, 10)
+            } else {
+                VStack(spacing: 6) {
+                    controls
+                    accountButton(showsName: false)
+                        .padding(.top, 4)
+                }
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .overlay(alignment: .top) { SidebarDivider() }
+    }
+
+    @ViewBuilder
+    private var controls: some View {
+        RailButton(symbol: app.preferences.appearance == .light ? "moon" : "sun.max", title: "Toggle appearance", isSelected: false) {
+            app.preferences.appearance = app.preferences.appearance == .light ? .dark : .light
+        }
+        RailButton(
+            symbol: app.iCloud.displayState.symbol,
+            title: "iCloud: \(app.iCloud.displayState.title)",
+            isSelected: false,
+            tint: app.iCloud.displayState.isHealthy ? nil : .orange
+        ) {
+            app.go(.settings)
+        }
+        RailButton(symbol: RailItem.settings.symbol, title: "Settings", isSelected: app.destination == .settings) {
+            app.go(.settings)
+        }
+    }
+
+    private func accountButton(showsName: Bool) -> some View {
         Button { app.go(.settings) } label: {
             HStack(spacing: 8) {
-                Image(systemName: app.iCloud.displayState.symbol)
-                    .font(.system(size: 13))
-                    .foregroundStyle(app.iCloud.displayState.isHealthy ? Color.green : Color.orange)
-                Text(app.iCloud.displayState.title)
-                    .font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(Theme.text)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Theme.avatarGradient)
+                    .frame(width: 28, height: 28)
+                    .overlay {
+                        Text(ColonyText.initials(for: app.preferences.displayName))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                if showsName {
+                    Text(app.preferences.displayName)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.text)
+                        .lineLimit(1)
+                }
             }
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .glassSurface(.rect(cornerRadius: 10), style: .standard)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .padding(12)
-        .overlay(alignment: .top) { SidebarDivider() }
-        .accessibilityLabel("iCloud status: \(app.iCloud.displayState.title)")
+        .help(app.preferences.displayName)
+        .accessibilityLabel("Account: \(app.preferences.displayName)")
     }
 }
