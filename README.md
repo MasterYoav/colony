@@ -8,6 +8,9 @@ projects, tasks, team channels, and a lightweight CRM in one native SwiftUI app 
 
 There's no Colony server and no third-party SDK. Your data lives in your iCloud account, and integrations use Apple's built-in apps.
 
+![CI](https://github.com/MasterYoav/colony/actions/workflows/swift.yml/badge.svg)
+
+
 ## Highlights
 
 - **iCloud storage.** SwiftData models are mirrored to your private CloudKit database. Preferences, such as appearance and sidebar layout, sync through iCloud key-value storage.
