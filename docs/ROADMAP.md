@@ -1,84 +1,33 @@
 # Roadmap
 
-This roadmap keeps the project focused. The product is large enough that sequencing matters more than feature count.
+## Done: native redesign
 
-## Phase 0: Foundation
+- SwiftData models synced to the private iCloud database through CloudKit.
+- Preferences synced with iCloud key-value storage.
+- Sidebar rebuilt to match the reference: icon rail, expandable panel, collapsed icon column.
+- Home, Updates, Messages, My tasks / All tasks (list and board), Projects, Pipeline, Contacts, Reports, Apple services, Settings.
+- Apple Contacts import and Apple Reminders mirroring.
+- ⌘K command palette, ⌘N new task, ⌘⇧N new project.
+- Swift Pieces components across the UI.
 
-- Decide license.
-- Decide backend stack.
-- Create architecture decision records.
-- Define database schema for workspaces, users, channels, messages, contacts, and tasks.
-- Define API and realtime event conventions.
-- Define design tokens.
-- Create local development deployment.
+## Next: team workspaces with CloudKit sharing
 
-## Phase 1: Usable Core
+The private database is single-user: it syncs one person's data across their devices. To let a team share a workspace:
 
-- Workspace creation.
-- Email auth.
-- Google and GitHub login.
-- Passkey registration and sign-in.
-- User invitations.
-- Channels.
-- Messages.
-- Threads.
-- Reactions.
-- Basic file attachments.
-- Contacts.
-- Tasks.
-- User theme preferences.
+- Move shared records into a custom zone and share it with `CKShare` (Share with iCloud, participants, permissions).
+- SwiftData doesn't expose CloudKit sharing yet, so this step needs either `NSPersistentCloudKitContainer` with a shared store or direct CloudKit record sync for the shared zone.
+- Show participants and presence using `CKShare.Participant` data.
 
-## Phase 2: Team Workflow
+## Later
 
-- Projects.
-- Boards and lists.
-- Saved views.
-- Mentions.
-- Notifications.
-- Message search.
-- Object links inside messages.
-- CRM company and deal records.
-- Activity timeline across CRM and work objects.
-- Role-based permissions.
+- Spotlight indexing (`CoreSpotlight`) and App Intents / Shortcuts ("Add a task to Launch").
+- Widgets (due today, pipeline) and Live Activities for in-progress tasks.
+- Calendar view using EventKit events alongside task due dates.
+- Local notifications for tasks not mirrored to Reminders.
+- Deploy the CloudKit schema to production before the first TestFlight build.
 
-## Phase 3: Business Identity
+## Not planned
 
-- Microsoft Entra ID login.
-- Google Workspace controls.
-- Generic OIDC.
-- Generic SAML.
-- Workspace SSO enforcement.
-- 2FA enforcement.
-- Session/device management.
-- Security audit log.
-
-## Phase 4: Self-Hosted Production
-
-- Docker Compose production template.
-- Backup and restore docs.
-- Upgrade docs.
-- Admin setup screen.
-- Health checks.
-- Metrics endpoint.
-- Email configuration test tools.
-- Object storage configuration test tools.
-
-## Phase 5: Polish and Scale
-
-- Advanced theming.
-- Keyboard command menu.
-- Import/export.
-- Webhooks.
-- Automation rules.
-- Search service.
-- Mobile push notification architecture.
-- AI features if they can run with user-controlled providers.
-
-## Non-Goals Until Later
-
-- Full Discord voice channels.
-- Large app marketplace.
-- Advanced BI/reporting.
-- Public community discovery.
-- Federated chat.
-- Complex enterprise retention and legal hold.
+- Third-party sign-in (Google, GitHub, OIDC, SAML). Identity is the iCloud account.
+- Self-hosted servers. Storage is CloudKit.
+- Voice/video channels, app marketplace, federated chat.
