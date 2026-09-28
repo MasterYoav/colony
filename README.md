@@ -10,10 +10,8 @@ There's no Colony server and no third-party SDK. Your data lives in your iCloud 
 
 [![CI](https://github.com/MasterYoav/colony/actions/workflows/swift.yml/badge.svg)](https://github.com/MasterYoav/colony/actions/workflows/swift.yml)
 [![Swift](https://img.shields.io/badge/Swift-F54A2A?logo=swift&logoColor=white)](https://developer.apple.com/swift/)
-[![Xcode](https://img.shields.io/badge/Xcode-007ACC?logo=Xcode&logoColor=white)](https://developer.apple.com/xcode/)
 [![iOS](https://img.shields.io/badge/iOS-000000?&logo=apple&logoColor=white)](#requirements)
 [![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=F0F0F0)](#requirements)
-[![iCloud](https://img.shields.io/badge/iCloud-3693F3?logo=icloud&logoColor=fff)](docs/ARCHITECTURE.md)
 
 </div>
 
