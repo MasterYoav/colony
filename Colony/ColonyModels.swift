@@ -36,58 +36,44 @@ enum ColonySection: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    var eyebrow: String {
+}
+
+enum WorkspaceSettingsTab: String, CaseIterable, Codable, Identifiable {
+    case appearance
+    case authentication
+    case security
+    case members
+    case hosting
+
+    var id: String { rawValue }
+
+    var title: String {
         switch self {
-        case .home: "Operating system"
-        case .messages: "Team communication"
-        case .work: "Task planning"
-        case .crm: "Relationships"
-        case .settings: "Control center"
+        case .appearance: "Appearance"
+        case .authentication: "Auth"
+        case .security: "Security"
+        case .members: "Members"
+        case .hosting: "Hosting"
         }
     }
 
-    var headline: String {
+    var sidebarTitle: String {
         switch self {
-        case .home: "A private workspace for the whole company."
-        case .messages: "Every conversation stays connected to the work."
-        case .work: "Plan work in focused task groups without losing context."
-        case .crm: "Track people, companies, and deals beside the team."
-        case .settings: "Self-hosted control with modern identity."
+        case .appearance: "Appearance"
+        case .authentication: "Authentication"
+        case .security: "Security"
+        case .members: "Members"
+        case .hosting: "Self-hosting"
         }
     }
 
-    var summary: String {
+    var systemImage: String {
         switch self {
-        case .home:
-            "Colony brings messages, tasks, CRM records, and workspace settings into one calm interface."
-        case .messages:
-            "Channels, threads, mentions, files, and record links become the shared memory for the team."
-        case .work:
-            "Grouped task tables keep owners, statuses, dates, and execution context easy to scan."
-        case .crm:
-            "Contacts, companies, deals, and activity history are first-class workspace objects."
-        case .settings:
-            "Admins can manage SSO, passkeys, theming, members, and self-hosted infrastructure."
-        }
-    }
-
-    var primaryAction: String {
-        switch self {
-        case .home: "New update"
-        case .messages: "New channel"
-        case .work: "New task"
-        case .crm: "New contact"
-        case .settings: "Invite member"
-        }
-    }
-
-    var primaryActionImage: String {
-        switch self {
-        case .home: "plus"
-        case .messages: "number"
-        case .work: "checkmark.circle"
-        case .crm: "person.badge.plus"
-        case .settings: "person.badge.plus"
+        case .appearance: "paintpalette"
+        case .authentication: "lock.shield"
+        case .security: "checkmark.shield"
+        case .members: "person.2"
+        case .hosting: "server.rack"
         }
     }
 }
@@ -320,10 +306,16 @@ enum AuthProviderStatus: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+enum ColonyChannelKind: String, Codable {
+    case channel
+    case directMessage
+}
+
 struct ColonyChannel: Codable, Identifiable, Hashable {
     let id: UUID
     let name: String
     let description: String
+    let kind: ColonyChannelKind
     var unreadCount: Int
     var messages: [ColonyMessage]
 
@@ -331,14 +323,38 @@ struct ColonyChannel: Codable, Identifiable, Hashable {
         id: UUID = UUID(),
         name: String,
         description: String,
+        kind: ColonyChannelKind = .channel,
         unreadCount: Int,
         messages: [ColonyMessage]
     ) {
         self.id = id
         self.name = name
         self.description = description
+        self.kind = kind
         self.unreadCount = unreadCount
         self.messages = messages
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case description
+        case kind
+        case unreadCount
+        case messages
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.init(
+            id: try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID(),
+            name: try container.decode(String.self, forKey: .name),
+            description: try container.decode(String.self, forKey: .description),
+            kind: try container.decodeIfPresent(ColonyChannelKind.self, forKey: .kind) ?? .channel,
+            unreadCount: try container.decode(Int.self, forKey: .unreadCount),
+            messages: try container.decode([ColonyMessage].self, forKey: .messages)
+        )
     }
 
     static func == (lhs: ColonyChannel, rhs: ColonyChannel) -> Bool {

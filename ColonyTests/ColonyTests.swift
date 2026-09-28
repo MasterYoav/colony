@@ -15,13 +15,14 @@ struct ColonyTests {
     @Test func sampleWorkspaceStartsWithExpectedMetrics() {
         let store = WorkspaceStore.sample()
 
-        #expect(store.activeChannelCount == 3)
+        #expect(store.activeChannelCount == 5)
         #expect(store.openTaskCount == 4)
         #expect(store.crmRecordCount == 4)
         #expect(store.ssoProviderCount == 3)
         #expect(store.members.count == 3)
         #expect(store.pendingInvites.count == 1)
         #expect(store.enabledAuthProviderCount == 3)
+        #expect(store.channels.filter { $0.kind == .directMessage }.count == 2)
     }
 
     @Test func sendMessageAppendsToSelectedChannelAndClearsDraft() throws {
@@ -55,13 +56,36 @@ struct ColonyTests {
         var store = WorkspaceStore.sample()
         let initialTaskCount = store.tasks.count
 
-        store.createTask(title: "Design passkey setup", owner: "Maya", priority: "High", status: .active)
+        store.createTask(
+            title: "Design passkey setup",
+            owner: "Maya",
+            priority: "High",
+            category: "Infrastructure",
+            dueDate: "Sep 24, 2025",
+            status: .active
+        )
 
         #expect(store.tasks.count == initialTaskCount + 1)
         #expect(store.tasks.last?.title == "Design passkey setup")
+        #expect(store.tasks.last?.category == "Infrastructure")
+        #expect(store.tasks.last?.dueDate == "Sep 24, 2025")
         #expect(store.tasks.last?.status == .active)
+        #expect(store.selectedTask?.title == "Design passkey setup")
         #expect(store.selectedSection == .work)
         #expect(store.updates.first?.title == "Task created")
+    }
+
+    @Test func createTaskGroupAddsEmptyGroupAndRecordsActivity() {
+        var store = WorkspaceStore.sample()
+        let initialGroupCount = store.taskGroups.count
+
+        store.createTaskGroup(name: "Launch QA")
+
+        #expect(store.taskGroups.count == initialGroupCount + 1)
+        #expect(store.taskGroups.contains("Launch QA"))
+        #expect(store.taskCategories.contains("Launch QA"))
+        #expect(store.selectedSection == .work)
+        #expect(store.updates.first?.title == "Task group created")
     }
 
     @Test func createContactAddsContactWithInitialsAndRecordsActivity() {
@@ -72,6 +96,7 @@ struct ColonyTests {
 
         #expect(store.contacts.count == initialContactCount + 1)
         #expect(store.contacts.last?.initials == "LS")
+        #expect(store.selectedContact?.name == "Lior Stein")
         #expect(store.selectedSection == .crm)
         #expect(store.updates.first?.title == "Contact created")
     }
@@ -114,6 +139,7 @@ struct ColonyTests {
         store.securityPolicy.requiresSSOForBusinessUsers = true
         store.appearancePreferences.density = .compact
         store.appearancePreferences.usesHighContrastAccents = true
+        store.selectedSettingsTab = .security
 
         let microsoftIndex = try #require(store.authProviders.firstIndex { $0.kind == .microsoft })
         store.authProviders[microsoftIndex].status = .enabled
@@ -126,6 +152,7 @@ struct ColonyTests {
         #expect(decodedStore.authProviders[microsoftIndex].status == .enabled)
         #expect(decodedStore.appearancePreferences.density == .compact)
         #expect(decodedStore.appearancePreferences.usesHighContrastAccents)
+        #expect(decodedStore.selectedSettingsTab == .security)
     }
 
     @Test func appearancePreferencesDefaultWhenDecodingOlderWorkspaceJSON() throws {
@@ -133,12 +160,20 @@ struct ColonyTests {
         let data = try JSONEncoder().encode(store)
         var payload = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
         payload.removeValue(forKey: "appearancePreferences")
+        payload.removeValue(forKey: "selectedTaskID")
+        payload.removeValue(forKey: "selectedContactID")
+        payload.removeValue(forKey: "selectedSettingsTab")
+        payload.removeValue(forKey: "taskGroups")
 
         let olderData = try JSONSerialization.data(withJSONObject: payload)
         let decodedStore = try JSONDecoder().decode(WorkspaceStore.self, from: olderData)
 
         #expect(decodedStore.appearancePreferences == .default)
         #expect(decodedStore.profilePreferences == .default)
+        #expect(decodedStore.selectedTask?.id == store.tasks.first?.id)
+        #expect(decodedStore.selectedContact?.id == store.contacts.first?.id)
+        #expect(decodedStore.selectedSettingsTab == .appearance)
+        #expect(decodedStore.taskGroups == store.taskGroups)
         #expect(decodedStore.channels.count == store.channels.count)
     }
 
@@ -152,5 +187,6 @@ struct ColonyTests {
 
         #expect(decodedStore == store)
         #expect(decodedStore.activeChannel.name == "design-systems")
+        #expect(decodedStore.selectedTask?.title == "Persist workspace state")
     }
 }

@@ -1,4 +1,3 @@
-//
 //  SidebarView.swift
 //  Colony
 //
@@ -143,22 +142,48 @@ private struct ProfileMenu: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                Spacer()
+
+                Circle()
+                    .fill(.green)
+                    .frame(width: 9, height: 9)
+                    .accessibilityLabel("Online")
             }
 
             VStack(alignment: .leading, spacing: 8) {
+                Text("Profile")
+                    .font(.subheadline.weight(.semibold))
+
+                TextField("Display name", text: $profile.displayName)
+                    .textFieldStyle(.roundedBorder)
+
+                Picker("Role", selection: $profile.role) {
+                    ForEach(WorkspaceRole.allCases) { role in
+                        Text(role.title).tag(role)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Profile picture")
                     .font(.subheadline.weight(.semibold))
 
                 HStack(spacing: 8) {
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        Label("Photos", systemImage: "photo")
+                        ProfileMenuActionLabel(title: "Photos", systemImage: "photo")
                     }
+                    .buttonStyle(.plain)
 
                     Button {
                         isFilePickerOpen = true
                     } label: {
-                        Label("Files", systemImage: "folder")
+                        ProfileMenuActionLabel(title: "Files", systemImage: "folder")
                     }
+                    .buttonStyle(.plain)
                 }
 
                 TextField("Text or emoji", text: $profile.avatarText)
@@ -192,12 +217,35 @@ private struct ProfileMenu: View {
 
             Divider()
 
-            Button("Switch account", systemImage: "person.2") {}
+            Button {
+            } label: {
+                Label("Switch account", systemImage: "person.2")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.borderless)
 
-            Button("Log out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {}
+            Button(role: .destructive) {
+            } label: {
+                Label("Log out", systemImage: "rectangle.portrait.and.arrow.right")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.borderless)
         }
         .padding(16)
-        .frame(width: 280)
+        .frame(width: 300)
+    }
+}
+
+private struct ProfileMenuActionLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

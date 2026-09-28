@@ -34,6 +34,25 @@ enum SampleData {
                 ColonyMessage(author: "Ari", time: "11:42", body: "Northstar asked for Microsoft Entra ID, SAML, and enforced passkeys.", authorColor: .green),
                 ColonyMessage(author: "Yoav", time: "11:45", body: "That belongs in the business identity milestone. Let's keep the adapter shape ready now.", authorColor: .blue)
             ]
+        ),
+        ColonyChannel(
+            name: "Maya Chen",
+            description: "Direct message with Maya",
+            kind: .directMessage,
+            unreadCount: 1,
+            messages: [
+                ColonyMessage(author: "Maya", time: "12:08", body: "Can you review the task board spacing before we add more CRM workflow?", authorColor: .indigo),
+                ColonyMessage(author: "Yoav", time: "12:12", body: "Yes. I want the board to feel closer to Monday and Plane, less like a split inspector.", authorColor: .blue)
+            ]
+        ),
+        ColonyChannel(
+            name: "Ari Levy",
+            description: "Direct message with Ari",
+            kind: .directMessage,
+            unreadCount: 0,
+            messages: [
+                ColonyMessage(author: "Ari", time: "12:22", body: "I added notes for the Docker Compose deployment path.", authorColor: .green)
+            ]
         )
     ]
 

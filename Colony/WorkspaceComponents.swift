@@ -52,16 +52,55 @@ struct MetricCard: View {
 
 struct ChannelRow: View {
     let channel: ColonyChannel
+    var isSelected = false
+    var accentColor: Color = .blue
+
+    private var latestMessage: ColonyMessage? {
+        channel.messages.last
+    }
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "number")
-                .foregroundStyle(.secondary)
+            ZStack(alignment: .bottomTrailing) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? accentColor.gradient : Color.secondary.opacity(0.18).gradient)
+                    .frame(width: 34, height: 34)
+                    .overlay {
+                        if channel.kind == .directMessage {
+                            Text(channelInitials)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(isSelected ? .white : .secondary)
+                        } else {
+                            Image(systemName: "number")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(isSelected ? .white : .secondary)
+                        }
+                    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(channel.name)
-                    .font(.body.weight(.medium))
-                Text(channel.description)
+                if channel.unreadCount > 0 {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 9, height: 9)
+                        .overlay {
+                            Circle().stroke(.background, lineWidth: 1.5)
+                        }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(channel.name)
+                        .font(.subheadline.weight(channel.unreadCount > 0 ? .semibold : .medium))
+                        .lineLimit(1)
+
+                    if channel.name == "founders" {
+                        Image(systemName: "lock.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text(latestMessageSummary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -73,11 +112,30 @@ struct ChannelRow: View {
                 Text("\(channel.unreadCount)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(.blue, in: Capsule())
+                    .frame(minWidth: 22, minHeight: 22)
+                    .background(accentColor, in: Capsule())
             }
         }
+        .padding(.vertical, 4)
+    }
+
+    private var latestMessageSummary: String {
+        guard let latestMessage else {
+            return channel.description
+        }
+
+        return "\(latestMessage.author): \(latestMessage.body)"
+    }
+
+    private var channelInitials: String {
+        let initials = channel.name
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap(\.first)
+            .map(String.init)
+            .joined()
+
+        return initials.isEmpty ? "?" : initials.uppercased()
     }
 }
 

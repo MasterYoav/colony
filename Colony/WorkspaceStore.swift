@@ -11,9 +11,13 @@ import SwiftUI
 struct WorkspaceStore: Codable, Equatable {
     var selectedSection: ColonySection?
     var selectedChannelID: ColonyChannel.ID?
+    var selectedTaskID: ColonyTask.ID?
+    var selectedContactID: ColonyContact.ID?
+    var selectedSettingsTab: WorkspaceSettingsTab
     var selectedTheme: ColonyTheme
     var messageText: String
     var channels: [ColonyChannel]
+    var taskGroups: [String]
     var tasks: [ColonyTask]
     var contacts: [ColonyContact]
     var updates: [ColonyUpdate]
@@ -27,9 +31,13 @@ struct WorkspaceStore: Codable, Equatable {
     init(
         selectedSection: ColonySection? = .home,
         selectedChannelID: ColonyChannel.ID? = nil,
+        selectedTaskID: ColonyTask.ID? = nil,
+        selectedContactID: ColonyContact.ID? = nil,
+        selectedSettingsTab: WorkspaceSettingsTab = .appearance,
         selectedTheme: ColonyTheme = .system,
         messageText: String = "",
         channels: [ColonyChannel],
+        taskGroups: [String]? = nil,
         tasks: [ColonyTask],
         contacts: [ColonyContact],
         updates: [ColonyUpdate],
@@ -42,9 +50,13 @@ struct WorkspaceStore: Codable, Equatable {
     ) {
         self.selectedSection = selectedSection
         self.selectedChannelID = selectedChannelID ?? channels.first?.id
+        self.selectedTaskID = selectedTaskID ?? tasks.first?.id
+        self.selectedContactID = selectedContactID ?? contacts.first?.id
+        self.selectedSettingsTab = selectedSettingsTab
         self.selectedTheme = selectedTheme
         self.messageText = messageText
         self.channels = channels
+        self.taskGroups = taskGroups ?? Self.defaultTaskGroups(from: tasks)
         self.tasks = tasks
         self.contacts = contacts
         self.updates = updates
@@ -65,6 +77,24 @@ struct WorkspaceStore: Codable, Equatable {
         return channel
     }
 
+    var selectedTask: ColonyTask? {
+        if let selectedTaskID,
+           let task = tasks.first(where: { $0.id == selectedTaskID }) {
+            return task
+        }
+
+        return tasks.first
+    }
+
+    var selectedContact: ColonyContact? {
+        if let selectedContactID,
+           let contact = contacts.first(where: { $0.id == selectedContactID }) {
+            return contact
+        }
+
+        return contacts.first
+    }
+
     var activeChannelCount: Int {
         channels.count
     }
@@ -74,7 +104,8 @@ struct WorkspaceStore: Codable, Equatable {
     }
 
     var taskCategories: [String] {
-        Array(Set(tasks.map(\.category))).sorted()
+        let categories = taskGroups + tasks.map(\.category)
+        return Array(Set(categories)).sorted()
     }
 
     var crmRecordCount: Int {
@@ -140,6 +171,7 @@ struct WorkspaceStore: Codable, Equatable {
         let channel = ColonyChannel(
             name: normalizedName,
             description: trimmedDescription,
+            kind: .channel,
             unreadCount: 0,
             messages: [
                 ColonyMessage(
@@ -161,21 +193,54 @@ struct WorkspaceStore: Codable, Equatable {
         )
     }
 
-    mutating func createTask(title: String, owner: String, priority: String, status: TaskStatus) {
+    mutating func createTaskGroup(name: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty,
+              !taskGroups.contains(where: { $0.localizedCaseInsensitiveCompare(trimmedName) == .orderedSame }) else {
+            return
+        }
+
+        taskGroups.append(trimmedName)
+        selectedSection = .work
+        addSystemUpdate(
+            title: "Task group created",
+            detail: "\(trimmedName) is ready for planning.",
+            systemImage: "rectangle.3.group"
+        )
+    }
+
+    mutating func createTask(
+        title: String,
+        owner: String,
+        priority: String,
+        category: String = "General",
+        dueDate: String = "Sep 17, 2025",
+        status: TaskStatus
+    ) {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOwner = owner.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDueDate = dueDate.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedCategory = trimmedCategory.isEmpty ? "General" : trimmedCategory
         guard !trimmedTitle.isEmpty, !trimmedOwner.isEmpty else {
             return
         }
 
-        tasks.append(
-            ColonyTask(
-                title: trimmedTitle,
-                owner: trimmedOwner,
-                priority: priority,
-                status: status
-            )
+        if !taskGroups.contains(where: { $0.localizedCaseInsensitiveCompare(normalizedCategory) == .orderedSame }) {
+            taskGroups.append(normalizedCategory)
+        }
+
+        let task = ColonyTask(
+            title: trimmedTitle,
+            owner: trimmedOwner,
+            priority: priority,
+            category: normalizedCategory,
+            dueDate: trimmedDueDate.isEmpty ? "Sep 17, 2025" : trimmedDueDate,
+            status: status
         )
+
+        tasks.append(task)
+        selectedTaskID = task.id
         selectedSection = .work
         addSystemUpdate(
             title: "Task created",
@@ -192,15 +257,16 @@ struct WorkspaceStore: Codable, Equatable {
             return
         }
 
-        contacts.append(
-            ColonyContact(
-                name: trimmedName,
-                company: trimmedCompany,
-                stage: trimmedStage,
-                initials: Self.initials(for: trimmedName),
-                color: selectedTheme.colorToken
-            )
+        let contact = ColonyContact(
+            name: trimmedName,
+            company: trimmedCompany,
+            stage: trimmedStage,
+            initials: Self.initials(for: trimmedName),
+            color: selectedTheme.colorToken
         )
+
+        contacts.append(contact)
+        selectedContactID = contact.id
         selectedSection = .crm
         addSystemUpdate(
             title: "Contact created",
@@ -305,9 +371,13 @@ extension WorkspaceStore {
     private enum CodingKeys: String, CodingKey {
         case selectedSection
         case selectedChannelID
+        case selectedTaskID
+        case selectedContactID
+        case selectedSettingsTab
         case selectedTheme
         case messageText
         case channels
+        case taskGroups
         case tasks
         case contacts
         case updates
@@ -325,9 +395,13 @@ extension WorkspaceStore {
         try self.init(
             selectedSection: container.decodeIfPresent(ColonySection.self, forKey: .selectedSection),
             selectedChannelID: container.decodeIfPresent(ColonyChannel.ID.self, forKey: .selectedChannelID),
+            selectedTaskID: container.decodeIfPresent(ColonyTask.ID.self, forKey: .selectedTaskID),
+            selectedContactID: container.decodeIfPresent(ColonyContact.ID.self, forKey: .selectedContactID),
+            selectedSettingsTab: container.decodeIfPresent(WorkspaceSettingsTab.self, forKey: .selectedSettingsTab) ?? .appearance,
             selectedTheme: container.decodeIfPresent(ColonyTheme.self, forKey: .selectedTheme) ?? .system,
             messageText: container.decodeIfPresent(String.self, forKey: .messageText) ?? "",
             channels: container.decode([ColonyChannel].self, forKey: .channels),
+            taskGroups: container.decodeIfPresent([String].self, forKey: .taskGroups),
             tasks: container.decode([ColonyTask].self, forKey: .tasks),
             contacts: container.decode([ColonyContact].self, forKey: .contacts),
             updates: container.decode([ColonyUpdate].self, forKey: .updates),
@@ -338,5 +412,10 @@ extension WorkspaceStore {
             appearancePreferences: container.decodeIfPresent(AppearancePreferences.self, forKey: .appearancePreferences) ?? .default,
             profilePreferences: container.decodeIfPresent(ProfilePreferences.self, forKey: .profilePreferences) ?? .default
         )
+    }
+
+    private static func defaultTaskGroups(from tasks: [ColonyTask]) -> [String] {
+        let categories = tasks.map(\.category)
+        return Array(Set(categories)).sorted()
     }
 }
