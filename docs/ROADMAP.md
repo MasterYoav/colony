@@ -5,7 +5,7 @@
 - SwiftData models synced to the private iCloud database through CloudKit.
 - Preferences synced with iCloud key-value storage.
 - Sidebar rebuilt to match the reference: single panel with footer controls, collapsible to an icon column.
-- Home, Updates, Messages, My tasks / All tasks (list and board), Projects, Pipeline, Contacts, Reports, Apple services, Settings.
+- Home, Updates, Messages, Tasks (list and board), Projects, CRM (customers table grouped by stage + pipeline board), Reports, Apple services, Settings.
 - Apple Contacts import and Apple Reminders mirroring.
 - ⌘K command palette, ⌘N new task, ⌘⇧N new project.
 - Swift Pieces components across the UI.

@@ -16,7 +16,7 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 - **List**: a sub-group inside a project (sprints, months, phases). Lists appear as expandable children in the sidebar.
 - **Task**: status, priority, due date and notes. Can be mirrored to Apple Reminders.
 - **Channel / Message**: threaded notes and conversations.
-- **Contact**: a person in the CRM with a pipeline stage. Can be imported from Apple Contacts.
+- **Customer**: a person in the CRM with a deal stage and an optional deal value. Can be imported from Apple Contacts.
 - **Activity**: the Updates feed of what changed.
 
 ## Navigation
@@ -24,7 +24,7 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 The sidebar follows the reference design:
 
 1. **Header**: workspace switcher and collapse button, sharing the title bar with the window controls on Mac.
-2. **Panel**: ⌘K command field, Home / Updates / Inbox / My tasks, a **Workspace** section and a **Projects** section. Projects expand to show their lists with open-task counts.
+2. **Panel**: ⌘K command field, one reorderable list (Home, Updates, Inbox, Tasks, Projects, CRM, Reports) and a **Projects** section. Projects expand to show their lists with open-task counts.
 3. **Footer**: account, appearance, iCloud status and settings.
 4. **Collapsed**: icon-only column with the same items, project glyphs and footer.
 
