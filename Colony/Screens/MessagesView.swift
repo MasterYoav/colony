@@ -50,9 +50,16 @@ struct MessagesView: View {
                 .foregroundStyle(Theme.secondaryText)
                 .accessibilityLabel("New channel")
             }
-            .padding(.horizontal, 16)
+            .padding(.leading, max(16, SidebarMetrics.titleBarLeading(collapsed: app.preferences.isSidebarCollapsed)))
+            .padding(.trailing, 12)
+            #if os(macOS)
+            // Same line as the traffic lights and the sidebar toggle (centre y 16).
+            .frame(height: 32)
+            .padding(.bottom, 8)
+            #else
             .padding(.top, 22)
             .padding(.bottom, 10)
+            #endif
 
             ScrollView {
                 VStack(spacing: 2) {
@@ -163,12 +170,17 @@ struct ChannelThread: View {
 
 struct MessageBubble: View {
     @Environment(\.modelContext) private var context
+    @Environment(AppModel.self) private var app
     let message: Message
     @State private var isPinned = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            AvatarView(name: message.authorName, color: message.isMine ? ColonyColor.blue.color : ColonyColor.purple.color, size: 32)
+            if message.isMine {
+                ProfileAvatar(size: 32)
+            } else {
+                AvatarView(name: message.authorName, color: ColonyColor.purple.color, size: 32)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(message.authorName).appFont(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)

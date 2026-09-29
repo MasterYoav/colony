@@ -51,6 +51,17 @@ struct Sidebar: View {
 }
 
 enum SidebarMetrics {
+    /// With the sidebar collapsed on macOS, its toggle sits in the title bar just past the
+    /// collapsed column (x 84…114). Content next to it starts at x 79, so anything placed
+    /// in the title-bar row must start this far in to clear the toggle (plus a 10pt gap).
+    static func titleBarLeading(collapsed: Bool) -> CGFloat {
+        #if os(macOS)
+        collapsed ? (Theme.collapsedPanelWidth + 6 + 30) - (Theme.collapsedPanelWidth + 1) + 10 : 0
+        #else
+        0
+        #endif
+    }
+
     /// Height of the row that shares space with the macOS traffic lights.
     static var titleBarHeight: CGFloat {
         #if os(macOS)
@@ -272,8 +283,8 @@ struct SidebarPanel: View {
 
     private var workspaceSwitcher: some View {
         Menu {
-            Button("Workspace settings", systemImage: "gearshape") { app.go(.settings) }
-            Button("Apple services", systemImage: "puzzlepiece.extension") { app.go(.appleServices) }
+            Button("Workspace settings", systemImage: "gearshape") { app.openSettings(.general) }
+            Button("Apple services", systemImage: "puzzlepiece.extension") { app.openSettings(.iCloud) }
             Divider()
             Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
             Button("New channel", systemImage: "number") { app.present(.newChannel) }
@@ -884,7 +895,7 @@ struct SidebarFooter: View {
                 isSelected: false,
                 tint: cloud.isHealthy ? nil : .orange
             ) {
-                app.go(.settings)
+                app.openSettings(.iCloud)
             }
             RailButton(symbol: RailItem.settings.symbol, title: "Settings", isSelected: app.destination == .settings) {
                 app.go(.settings)
@@ -908,16 +919,9 @@ struct SidebarFooter: View {
     }
 
     private func accountButton(showsName: Bool) -> some View {
-        Button { app.go(.settings) } label: {
+        Button { app.openSettings(.profile) } label: {
             HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Theme.avatarGradient)
-                    .frame(width: 28, height: 28)
-                    .overlay {
-                        Text(ColonyText.initials(for: app.preferences.displayName))
-                            .appFont(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                    }
+                ProfileAvatar(size: 28, squircle: true)
                 if showsName {
                     Text(app.preferences.displayName)
                         .appFont(.system(size: 13, weight: .medium))

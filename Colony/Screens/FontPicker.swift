@@ -9,42 +9,35 @@
 
 import SwiftUI
 
-struct FontPickerRow: View {
+/// Pop-up button showing the chosen family in its own face; opens a searchable list.
+struct FontPopUpButton: View {
     let title: String
-    let detail: String
     let sample: String
     @Binding var family: String
     @State private var isOpen = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).appFont(.subheadline.weight(.medium)).foregroundStyle(Theme.text)
-                Text(detail).appFont(.caption).foregroundStyle(Theme.secondaryText)
+        Button { isOpen.toggle() } label: {
+            HStack(spacing: 8) {
+                Text(displayName)
+                    .font(previewFont(family, size: 13))
+                    .foregroundStyle(isMissing ? Theme.secondaryText : Theme.text)
+                    .lineLimit(1)
+                Spacer(minLength: 6)
+                Image(systemName: "chevron.up.chevron.down")
+                    .appFont(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(Theme.secondaryText)
             }
-            Spacer(minLength: 12)
-            Button { isOpen.toggle() } label: {
-                HStack(spacing: 8) {
-                    Text(displayName)
-                        .font(previewFont(family, size: 13))
-                        .foregroundStyle(isMissing ? Theme.secondaryText : Theme.text)
-                        .lineLimit(1)
-                    Spacer(minLength: 6)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .appFont(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.tertiaryText)
-                }
-                .padding(.horizontal, 10)
-                .frame(width: 220, height: 32)
-                .background(Theme.field, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(isOpen ? Theme.secondaryText.opacity(0.6) : Theme.strongStroke) }
-                .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(title): \(displayName)")
-            .popover(isPresented: $isOpen, arrowEdge: .bottom) {
-                FontList(selection: $family, sample: sample) { isOpen = false }
-            }
+            .padding(.horizontal, 9)
+            .frame(width: 200, height: 24)
+            .background(Theme.field, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.strongStroke, lineWidth: 0.5) }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title): \(displayName)")
+        .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+            FontList(selection: $family, sample: sample) { isOpen = false }
         }
     }
 

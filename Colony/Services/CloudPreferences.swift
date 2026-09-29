@@ -49,6 +49,8 @@ final class CloudPreferences {
         static let sidebarWorkspace = "sidebarWorkspaceItems"
         static let uiFont = "uiFontFamily"
         static let dataFont = "dataFontFamily"
+        static let avatarImage = "avatarImage"
+        static let avatarColor = "avatarColor"
     }
 
     private let store: NSUbiquitousKeyValueStore?
@@ -69,6 +71,11 @@ final class CloudPreferences {
     /// system font. Roams via iCloud; a family missing on a device falls back to system.
     var uiFontFamily: String { didSet { write(uiFontFamily, Key.uiFont) } }
     var dataFontFamily: String { didSet { write(dataFontFamily, Key.dataFont) } }
+    /// Profile photo as a small square JPEG (≤ 320 px, a few tens of KB), so it fits
+    /// comfortably in iCloud key-value storage and appears on every device. `nil` = monogram.
+    var avatarImageData: Data? { didSet { writeOptional(avatarImageData, Key.avatarImage) } }
+    /// Monogram background when there's no photo.
+    var avatarColor: ColonyColor { didSet { write(avatarColor.rawValue, Key.avatarColor) } }
 
     init(useICloud: Bool = true, defaults: UserDefaults = .standard) {
         self.store = useICloud ? NSUbiquitousKeyValueStore.default : nil
@@ -89,6 +96,8 @@ final class CloudPreferences {
         sidebarWorkspaceItems = read(Key.sidebarWorkspace) ?? []
         uiFontFamily = read(Key.uiFont) ?? ""
         dataFontFamily = read(Key.dataFont) ?? ""
+        avatarImageData = read(Key.avatarImage)
+        avatarColor = ColonyColor(rawValue: read(Key.avatarColor) ?? "") ?? .purple
 
         if let store {
             observer = NotificationCenter.default.addObserver(
@@ -114,11 +123,23 @@ final class CloudPreferences {
         if let value = store.array(forKey: Key.sidebarWorkspace) as? [String], value != sidebarWorkspaceItems { sidebarWorkspaceItems = value }
         if let value = store.string(forKey: Key.uiFont), value != uiFontFamily { uiFontFamily = value }
         if let value = store.string(forKey: Key.dataFont), value != dataFontFamily { dataFontFamily = value }
+        let photo = store.data(forKey: Key.avatarImage)
+        if photo != avatarImageData { avatarImageData = photo }
+        if let raw = store.string(forKey: Key.avatarColor), let value = ColonyColor(rawValue: raw), value != avatarColor { avatarColor = value }
     }
 
     private func write(_ value: Any, _ key: String) {
         local.set(value, forKey: key)
         store?.set(value, forKey: key)
+    }
+
+    private func writeOptional(_ value: Any?, _ key: String) {
+        if let value {
+            write(value, key)
+        } else {
+            local.removeObject(forKey: key)
+            store?.removeObject(forKey: key)
+        }
     }
 
     private static var defaultDisplayName: String {

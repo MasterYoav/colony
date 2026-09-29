@@ -21,7 +21,6 @@ enum Destination: Hashable, Codable {
     case reports
     case project(UUID)
     case list(project: UUID, list: UUID)
-    case appleServices
     case settings
 
     /// The rail icon that lights up for this destination.
@@ -34,14 +33,13 @@ enum Destination: Hashable, Codable {
         case .projects, .project, .list: .projects
         case .crm: .people
         case .reports: .home
-        case .appleServices: .appleServices
         case .settings: .settings
         }
     }
 }
 
 enum RailItem: String, CaseIterable, Identifiable {
-    case home, search, updates, projects, messages, tasks, people, appleServices, settings
+    case home, search, updates, projects, messages, tasks, people, settings
 
     var id: String { rawValue }
 
@@ -54,7 +52,6 @@ enum RailItem: String, CaseIterable, Identifiable {
         case .messages: "Messages"
         case .tasks: "Tasks"
         case .people: "People"
-        case .appleServices: "Apple services"
         case .settings: "Settings"
         }
     }
@@ -68,7 +65,6 @@ enum RailItem: String, CaseIterable, Identifiable {
         case .messages: "bubble.left"
         case .tasks: "list.clipboard"
         case .people: "person.2"
-        case .appleServices: "puzzlepiece.extension"
         case .settings: "slider.horizontal.3"
         }
     }
@@ -82,7 +78,6 @@ enum RailItem: String, CaseIterable, Identifiable {
         case .messages: .messages(channel: nil)
         case .tasks: .tasks
         case .people: .crm
-        case .appleServices: .appleServices
         case .settings: .settings
         }
     }
@@ -148,6 +143,10 @@ final class AppModel {
     var crmTab: CRMTab = .customers
     /// Customer to open in the CRM detail panel (set when jumping from ⌘K).
     var crmSelection: UUID?
+    /// The settings page on screen, with browser-style history for the back/forward pill.
+    private(set) var settingsSection: SettingsSection = .profile
+    private var settingsBackStack: [SettingsSection] = []
+    private var settingsForwardStack: [SettingsSection] = []
     /// The dialog on screen (new project, task detail, confirmations…). Only one at a time.
     var sheet: ActiveSheet?
     var isCommandPalettePresented = false
@@ -166,6 +165,32 @@ final class AppModel {
 
     func go(_ destination: Destination) {
         withMotion(.snappy(duration: 0.22)) { self.destination = destination }
+    }
+
+    // MARK: Settings navigation
+
+    /// Opens Settings on `section`, recording the page left behind for Back.
+    func openSettings(_ section: SettingsSection) {
+        if destination != .settings { go(.settings) }
+        guard section != settingsSection else { return }
+        settingsBackStack.append(settingsSection)
+        settingsForwardStack.removeAll()
+        settingsSection = section
+    }
+
+    var canGoBackInSettings: Bool { !settingsBackStack.isEmpty }
+    var canGoForwardInSettings: Bool { !settingsForwardStack.isEmpty }
+
+    func settingsBack() {
+        guard let previous = settingsBackStack.popLast() else { return }
+        settingsForwardStack.append(settingsSection)
+        settingsSection = previous
+    }
+
+    func settingsForward() {
+        guard let next = settingsForwardStack.popLast() else { return }
+        settingsBackStack.append(settingsSection)
+        settingsSection = next
     }
 
     /// The one way to open or close the sidebar, so every entry point (toggle button,

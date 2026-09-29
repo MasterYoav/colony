@@ -112,7 +112,6 @@ struct DestinationView: View {
                 }
             case .crm: CRMView()
             case .reports: ReportsView()
-            case .appleServices: AppleServicesView()
             case .settings: SettingsView()
             }
         }

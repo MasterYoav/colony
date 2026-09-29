@@ -255,8 +255,10 @@ struct CommandPalette: View {
             Item(id: "n-crm", group: .navigation, symbol: "person.2", title: "CRM · Customers", run: { close(); app.crmTab = .customers; app.go(.crm) }),
             Item(id: "n-pipeline", group: .navigation, symbol: "square.grid.2x2", title: "CRM · Pipeline", run: { close(); app.crmTab = .pipeline; app.go(.crm) }),
             Item(id: "n-reports", group: .navigation, symbol: "chart.pie", title: "Reports", run: go(.reports)),
-            Item(id: "n-apple", group: .navigation, symbol: "puzzlepiece.extension", title: "Apple services", run: go(.appleServices)),
-            Item(id: "n-settings", group: .navigation, symbol: "slider.horizontal.3", title: "Settings", run: go(.settings))
+            Item(id: "n-settings", group: .navigation, symbol: "slider.horizontal.3", title: "Settings", run: { close(); app.openSettings(.profile) }),
+            Item(id: "n-settings-appearance", group: .navigation, symbol: "circle.lefthalf.filled", title: "Settings › Appearance", run: { close(); app.openSettings(.appearance) }),
+            Item(id: "n-settings-icloud", group: .navigation, symbol: "icloud", title: "Settings › iCloud", run: { close(); app.openSettings(.iCloud) }),
+            Item(id: "n-settings-reminders", group: .navigation, symbol: "checklist", title: "Settings › Reminders", run: { close(); app.openSettings(.reminders) }),
         ]
         if let current = currentProject {
             items.insert(Item(id: "a-project-settings", group: .actions, symbol: "slider.horizontal.3", title: "Project settings", subtitle: current.name, run: open(.projectSettings(current.uuid))), at: 2)

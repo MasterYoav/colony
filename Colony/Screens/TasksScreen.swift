@@ -49,10 +49,21 @@ struct TasksScreen: View {
 
     enum Layout: String, CaseIterable { case list = "List", board = "Board" }
 
+    private var isMac: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 28)
+                // Collapsed sidebar: its toggle floats just above-left of the title, so give
+                // the glyph and title some room. Animates with the sidebar.
+                .padding(.leading, app.preferences.isSidebarCollapsed && isMac ? 22 : 0)
                 .padding(.top, 24)
                 .padding(.bottom, 12)
 
