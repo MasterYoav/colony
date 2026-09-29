@@ -200,4 +200,33 @@ struct ColonyTests {
         #expect(reloaded.expandedProjectIDs == ["a", "b"])
         #expect(reloaded.displayName == "Yoav")
     }
+
+    @Test func oldSidebarLayoutsMigrateToMergedItems() throws {
+        let defaults = try #require(UserDefaults(suiteName: "colony-tests-\(UUID())"))
+        let prefs = CloudPreferences(useICloud: false, defaults: defaults)
+        // A layout synced by an older version: two groups, My tasks + Tasks, Pipeline + Contacts.
+        prefs.sidebarPinnedItems = ["inbox", "home", "myTasks"]
+        prefs.sidebarWorkspaceItems = ["tasks", "contacts", "pipeline", "reports", "projects"]
+        let layout = SidebarLayout(preferences: prefs)
+        #expect(layout.items == [.inbox, .home, .updates, .tasks, .crm, .reports, .projects])
+
+        layout.move(.crm, before: .inbox)
+        #expect(layout.items.first == .crm)
+        #expect(prefs.sidebarWorkspaceItems.isEmpty)
+
+        layout.reset()
+        #expect(layout.items == SidebarNavItem.defaultOrder)
+        #expect(!layout.isCustomized)
+    }
+
+    @Test func dealValueIsNeverNegative() throws {
+        let actions = WorkspaceActions(context: makeContext())
+        let contact = try #require(actions.createContact(name: "Dana", stage: .proposal))
+        actions.setDealValue(12_500, for: contact)
+        #expect(contact.dealValue == 12_500)
+        actions.setDealValue(-5, for: contact)
+        #expect(contact.dealValue == 0)
+        #expect(DealStage.proposal.isOpen)
+        #expect(!DealStage.won.isOpen && !DealStage.lost.isOpen)
+    }
 }

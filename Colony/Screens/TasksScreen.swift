@@ -2,7 +2,7 @@
 //  TasksScreen.swift
 //  Colony
 //
-//  One screen serves My tasks, All tasks, a project, and a project list.
+//  One screen serves Tasks (everything), a project, and a project list.
 //  Rows are Swift Pieces `TaskRow`s (swipe to snooze/delete, animated check) with a
 //  context menu for pointer users.
 //
@@ -11,15 +11,13 @@ import SwiftData
 import SwiftUI
 
 enum TaskScope {
-    case mine
     case all
     case project(Project)
     case list(Project, ProjectList)
 
     var title: String {
         switch self {
-        case .mine: "My tasks"
-        case .all: "All tasks"
+        case .all: "Tasks"
         case .project(let p): p.name
         case .list(_, let l): l.name
         }
@@ -157,7 +155,6 @@ struct TasksScreen: View {
 
     private var scoped: [TaskItem] {
         switch scope {
-        case .mine: allTasks.filter(\.assignedToMe)
         case .all: allTasks
         case .project(let p): allTasks.filter { $0.project?.uuid == p.uuid }
         case .list(_, let l): allTasks.filter { $0.list?.uuid == l.uuid }

@@ -29,7 +29,7 @@ struct HomeView: View {
 
                 HStack(alignment: .top, spacing: 16) {
                     Card {
-                        sectionTitle("Due soon", action: "My tasks") { app.go(.myTasks) }
+                        sectionTitle("Due soon", action: "All tasks") { app.go(.tasks) }
                         let due = openTasks.filter { $0.dueDate != nil }.sorted { $0.dueDate! < $1.dueDate! }.prefix(6)
                         if due.isEmpty {
                             Text("Nothing due. Enjoy the calm.")

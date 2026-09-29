@@ -15,11 +15,9 @@ enum Destination: Hashable, Codable {
     case home
     case updates
     case messages(channel: UUID?)
-    case myTasks
+    case tasks
     case projects
-    case allTasks
-    case pipeline
-    case contacts
+    case crm
     case reports
     case project(UUID)
     case list(project: UUID, list: UUID)
@@ -32,9 +30,9 @@ enum Destination: Hashable, Codable {
         case .home: .home
         case .updates: .updates
         case .messages: .messages
-        case .myTasks, .allTasks: .tasks
+        case .tasks: .tasks
         case .projects, .project, .list: .projects
-        case .pipeline, .contacts: .people
+        case .crm: .people
         case .reports: .home
         case .appleServices: .appleServices
         case .settings: .settings
@@ -82,8 +80,8 @@ enum RailItem: String, CaseIterable, Identifiable {
         case .updates: .updates
         case .projects: .projects
         case .messages: .messages(channel: nil)
-        case .tasks: .myTasks
-        case .people: .contacts
+        case .tasks: .tasks
+        case .people: .crm
         case .appleServices: .appleServices
         case .settings: .settings
         }
@@ -146,6 +144,10 @@ struct ToastMessage: Equatable {
 @Observable
 final class AppModel {
     var destination: Destination = .home
+    /// Which CRM view is showing (table or pipeline board); kept across visits.
+    var crmTab: CRMTab = .customers
+    /// Customer to open in the CRM detail panel (set when jumping from ⌘K).
+    var crmSelection: UUID?
     /// The dialog on screen (new project, task detail, confirmations…). Only one at a time.
     var sheet: ActiveSheet?
     var isCommandPalettePresented = false

@@ -394,7 +394,7 @@ struct NewContactSheet: View {
     private var canCommit: Bool { !ColonyText.trimmed(name).isEmpty && !emailInvalid }
 
     var body: some View {
-        DialogFrame(symbol: "person.crop.circle.badge.plus", title: "New contact", description: "Add a person to your CRM. You can also import from Apple Contacts.") {
+        DialogFrame(symbol: "person.crop.circle.badge.plus", title: "New customer", description: "Add a person to your CRM. You can also import from Apple Contacts.") {
             DialogField(label: "Full name") {
                 DialogTextField(placeholder: "Jane Appleseed", text: $name, symbol: "person", autofocus: true, onSubmit: create)
             }
@@ -422,7 +422,7 @@ struct NewContactSheet: View {
                 .buttonStyle(.dialogGhost)
             Spacer()
             Button("Cancel") { dismiss() }.buttonStyle(.dialogGhost)
-            Button("Add contact", action: create)
+            Button("Add customer", action: create)
                 .buttonStyle(.dialogPrimary)
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!canCommit)
@@ -431,7 +431,7 @@ struct NewContactSheet: View {
 
     private func create() {
         guard canCommit, WorkspaceActions(context: context).createContact(name: name, company: company, jobTitle: jobTitle, email: email, phone: phone, stage: stage) != nil else { return }
-        app.go(.contacts)
+        app.go(.crm)
         dismiss()
     }
 }
@@ -551,7 +551,7 @@ struct ImportContactsSheet: View {
             }
         }
         app.show("Imported \(count) \(count == 1 ? "person" : "people")", detail: "From Apple Contacts")
-        app.go(.contacts)
+        app.go(.crm)
         dismiss()
     }
 }
@@ -768,19 +768,21 @@ struct DeleteTaskDialog: View {
 
 struct DeleteContactDialog: View {
     @Environment(\.modelContext) private var context
+    @Environment(AppModel.self) private var app
     let contactID: UUID
 
     var body: some View {
         let contact = context.contact(contactID)
         ConfirmDialog(
             symbol: "trash",
-            title: "Delete \(contact?.name ?? "contact")?",
+            title: "Delete \(contact?.name ?? "customer")?",
             message: contact?.appleContactIdentifier == nil
                 ? "They'll be removed from Colony on all your devices."
                 : "They'll be removed from Colony on all your devices. Your Apple Contacts card isn't changed.",
-            confirmTitle: "Delete contact"
+            confirmTitle: "Delete customer"
         ) {
             guard let contact else { return }
+            if app.crmSelection == contact.uuid { app.crmSelection = nil }
             WorkspaceActions(context: context).delete(contact)
         }
     }

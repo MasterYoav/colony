@@ -96,8 +96,7 @@ struct DestinationView: View {
             case .home: HomeView()
             case .updates: UpdatesView()
             case .messages(let channelID): MessagesView(channelID: channelID)
-            case .myTasks: TasksScreen(scope: .mine)
-            case .allTasks: TasksScreen(scope: .all)
+            case .tasks: TasksScreen(scope: .all)
             case .projects: ProjectsView()
             case .project(let id):
                 if let project = context.project(id) {
@@ -111,8 +110,7 @@ struct DestinationView: View {
                 } else {
                     missing
                 }
-            case .pipeline: PipelineView()
-            case .contacts: ContactsView()
+            case .crm: CRMView()
             case .reports: ReportsView()
             case .appleServices: AppleServicesView()
             case .settings: SettingsView()

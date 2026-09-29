@@ -183,8 +183,13 @@ struct WorkspaceActions {
         contact.appleContactIdentifier = appleIdentifier
         contact.imageData = imageData
         context.insert(contact)
-        log("Contact added", company.isEmpty ? name : "\(name) · \(company)", symbol: "person.crop.circle.badge.plus", color: .indigo)
+        log("Customer added", company.isEmpty ? name : "\(name) · \(company)", symbol: "person.crop.circle.badge.plus", color: .indigo)
         return contact
+    }
+
+    /// Sets the expected deal size; negative values are clamped to zero.
+    func setDealValue(_ value: Double, for contact: Contact) {
+        contact.dealValue = max(0, value)
     }
 
     func setStage(_ stage: DealStage, for contact: Contact) {

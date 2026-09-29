@@ -191,6 +191,8 @@ final class Contact {
     var colorRaw: String = ColonyColor.indigo.rawValue
     var isFavorite: Bool = false
     var createdAt: Date = Date.now
+    /// Expected deal size in the user's currency; 0 means not set.
+    var dealValue: Double = 0
     /// `CNContact.identifier` when the record was imported from Apple Contacts.
     var appleContactIdentifier: String?
     @Attribute(.externalStorage) var imageData: Data?
@@ -305,6 +307,20 @@ enum DealStage: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
+
+    var symbol: String {
+        switch self {
+        case .lead: "circle.dashed"
+        case .qualified: "circle.lefthalf.filled"
+        case .proposal: "doc.text.fill"
+        case .negotiation: "arrow.left.arrow.right.circle.fill"
+        case .won: "checkmark.circle.fill"
+        case .lost: "xmark.circle.fill"
+        }
+    }
+
+    /// Won and lost deals are closed; everything else is still in the pipeline.
+    var isOpen: Bool { self != .won && self != .lost }
 
     var color: ColonyColor {
         switch self {

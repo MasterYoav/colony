@@ -113,10 +113,8 @@ struct SidebarPanel: View {
     @Query(sort: \Project.sortIndex) private var projects: [Project]
     @Query(filter: #Predicate<ActivityEvent> { !$0.isRead }) private var unreadUpdates: [ActivityEvent]
     @Query private var channels: [Channel]
-    @Query private var contacts: [Contact]
-    @Query(filter: #Predicate<TaskItem> { $0.statusRaw != "done" && $0.assignedToMe }) private var myOpenTasks: [TaskItem]
+    @Query(filter: #Predicate<TaskItem> { $0.statusRaw != "done" }) private var openTasks: [TaskItem]
 
-    @State private var isWorkspaceExpanded = true
     @State private var isProjectsExpanded = true
     @State private var isProjectsRowExpanded = false
     /// The project whose sidebar row is being renamed in place.
@@ -135,30 +133,13 @@ struct SidebarPanel: View {
                         .padding(.bottom, 6)
 
                     VStack(spacing: 2) {
-                        ForEach(layout.pinned) { item in
-                            navRow(item, in: .pinned)
+                        ForEach(layout.items) { item in
+                            navRow(item)
                         }
-                        SidebarDropTail(height: layout.pinned.isEmpty ? 28 : 8, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
+                        SidebarDropTail(height: 8, accepts: acceptsNav) { drop($0, before: nil) }
                     }
                     .padding(.horizontal, 8)
                     .padding(.bottom, 4)
-
-                    SidebarDivider()
-
-                    SidebarSection(title: "Workspace", isExpanded: $isWorkspaceExpanded, onAdd: { app.present(.newProject) }, menu: {
-                        Button("New channel", systemImage: "number") { app.present(.newChannel) }
-                        Button("New contact", systemImage: "person.crop.circle.badge.plus") { app.present(.newContact) }
-                        Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.present(app.contacts.canRead ? .importContacts : .connectContacts) }
-                        if layout.isCustomized {
-                            Divider()
-                            Button("Reset sidebar layout", systemImage: "arrow.counterclockwise") { layout.reset() }
-                        }
-                    }) {
-                        ForEach(layout.workspace) { item in
-                            navRow(item, in: .workspace)
-                        }
-                        SidebarDropTail(height: layout.workspace.isEmpty ? 28 : 8, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
-                    }
 
                     SidebarDivider()
 
@@ -200,13 +181,13 @@ struct SidebarPanel: View {
     // MARK: Rows
 
     @ViewBuilder
-    private func navRow(_ item: SidebarNavItem, in group: SidebarGroup) -> some View {
+    private func navRow(_ item: SidebarNavItem) -> some View {
         SidebarRow(symbol: item.symbol, title: item.title, count: count(for: item), isSelected: item.isSelected(app.destination), trailing: trailing(for: item)) {
             app.go(item.destination)
         }
         .sidebarDraggable(.nav(item), symbol: item.symbol, title: item.title)
-        .sidebarDropTarget(accepts: acceptsNav) { drop($0, in: group, before: item) }
-        .contextMenu { moveMenu(item, from: group) }
+        .sidebarDropTarget(accepts: acceptsNav) { drop($0, before: item) }
+        .contextMenu { navMenu(item) }
 
         if item == .projects, isProjectsRowExpanded {
             ForEach(projects.prefix(5)) { project in
@@ -218,14 +199,19 @@ struct SidebarPanel: View {
     }
 
     @ViewBuilder
-    private func moveMenu(_ item: SidebarNavItem, from group: SidebarGroup) -> some View {
-        if group == .pinned {
-            Button("Move to Workspace", systemImage: "arrow.down") { layout.move(item, to: .workspace, before: nil) }
-        } else {
-            Button("Move to top", systemImage: "arrow.up") { layout.move(item, to: .pinned, before: nil) }
+    private func navMenu(_ item: SidebarNavItem) -> some View {
+        switch item {
+        case .tasks: Button("New task", systemImage: "plus") { app.present(.newTask(project: nil, list: nil)) }
+        case .crm:
+            Button("New customer", systemImage: "person.crop.circle.badge.plus") { app.present(.newContact) }
+            Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.present(app.contacts.canRead ? .importContacts : .connectContacts) }
+        case .inbox: Button("New channel", systemImage: "number") { app.present(.newChannel) }
+        case .projects: Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
+        default: EmptyView()
         }
         if layout.isCustomized {
-            Button("Reset sidebar layout", systemImage: "arrow.counterclockwise") { layout.reset() }
+            Divider()
+            Button("Reset sidebar order", systemImage: "arrow.counterclockwise") { layout.reset() }
         }
     }
 
@@ -233,14 +219,14 @@ struct SidebarPanel: View {
         switch item {
         case .updates: unreadUpdates.count
         case .inbox: unreadMessages
-        case .contacts: contacts.count
+        case .tasks: openTasks.count
         default: nil
         }
     }
 
     private func trailing(for item: SidebarNavItem) -> SidebarTrailing {
         switch item {
-        case .myTasks, .tasks: .add { app.present(.newTask(project: nil, list: nil)) }
+        case .tasks: .add { app.present(.newTask(project: nil, list: nil)) }
         case .projects: .chevron(isProjectsRowExpanded) { withMotion(.snappy(duration: 0.2)) { isProjectsRowExpanded.toggle() } }
         default: .none
         }
@@ -258,9 +244,9 @@ struct SidebarPanel: View {
         return false
     }
 
-    private func drop(_ payload: SidebarDragPayload, in group: SidebarGroup, before target: SidebarNavItem?) {
+    private func drop(_ payload: SidebarDragPayload, before target: SidebarNavItem?) {
         guard case .nav(let item) = payload else { return }
-        layout.move(item, to: group, before: target)
+        layout.move(item, before: target)
     }
 
     private func dropProject(_ payload: SidebarDragPayload, before target: Project?) {
@@ -433,13 +419,8 @@ struct CollapsedPanel: View {
             VStack(spacing: 6) {
                 RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
                     .padding(.top, 2)
-                ForEach(layout.pinned) { item in navIcon(item, in: .pinned) }
-                SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
-
-                SidebarDivider().padding(.vertical, 4)
-
-                ForEach(layout.workspace) { item in navIcon(item, in: .workspace) }
-                SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
+                ForEach(layout.items) { item in navIcon(item) }
+                SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, before: nil) }
 
                 SidebarDivider().padding(.vertical, 4)
             }
@@ -482,10 +463,10 @@ struct CollapsedPanel: View {
         .background(Theme.sidebar)
     }
 
-    private func navIcon(_ item: SidebarNavItem, in group: SidebarGroup) -> some View {
+    private func navIcon(_ item: SidebarNavItem) -> some View {
         RailButton(symbol: item.symbol, title: item.title, isSelected: item.isSelected(app.destination)) { app.go(item.destination) }
             .sidebarDraggable(.nav(item), symbol: item.symbol, title: item.title)
-            .sidebarDropTarget(accepts: acceptsNav) { drop($0, in: group, before: item) }
+            .sidebarDropTarget(accepts: acceptsNav) { drop($0, before: item) }
     }
 
     private func acceptsNav(_ payload: SidebarDragPayload) -> Bool {
@@ -498,9 +479,9 @@ struct CollapsedPanel: View {
         return false
     }
 
-    private func drop(_ payload: SidebarDragPayload, in group: SidebarGroup, before target: SidebarNavItem?) {
+    private func drop(_ payload: SidebarDragPayload, before target: SidebarNavItem?) {
         guard case .nav(let item) = payload else { return }
-        layout.move(item, to: group, before: target)
+        layout.move(item, before: target)
     }
 
     /// Title-bar row height on macOS; the toggle sits just below the traffic lights.

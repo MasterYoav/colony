@@ -2,8 +2,7 @@
 //  SidebarLayout.swift
 //  Colony
 //
-//  User-arranged sidebar. Navigation items can be dragged within and between the top
-//  group and the Workspace section, and projects can be dragged into a new order.
+//  User-arranged sidebar. Navigation items and projects can be dragged into a new order.
 //  The item layout roams through iCloud key-value storage; project order is stored on
 //  the projects themselves (SwiftData + CloudKit), so every device shows the same sidebar.
 //
@@ -13,7 +12,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum SidebarNavItem: String, CaseIterable, Identifiable {
-    case home, updates, inbox, myTasks, projects, tasks, pipeline, contacts, reports
+    case home, updates, inbox, tasks, projects, crm, reports
 
     var id: String { rawValue }
 
@@ -22,11 +21,9 @@ enum SidebarNavItem: String, CaseIterable, Identifiable {
         case .home: "Home"
         case .updates: "Updates"
         case .inbox: "Inbox"
-        case .myTasks: "My tasks"
-        case .projects: "Projects"
         case .tasks: "Tasks"
-        case .pipeline: "Pipeline"
-        case .contacts: "Contacts"
+        case .projects: "Projects"
+        case .crm: "CRM"
         case .reports: "Reports"
         }
     }
@@ -36,11 +33,9 @@ enum SidebarNavItem: String, CaseIterable, Identifiable {
         case .home: "house"
         case .updates: "bell"
         case .inbox: "tray"
-        case .myTasks: "list.clipboard"
-        case .projects: "square.stack.3d.up"
         case .tasks: "checklist"
-        case .pipeline: "square.grid.2x2"
-        case .contacts: "person.2"
+        case .projects: "square.stack.3d.up"
+        case .crm: "person.2"
         case .reports: "chart.pie"
         }
     }
@@ -50,11 +45,9 @@ enum SidebarNavItem: String, CaseIterable, Identifiable {
         case .home: .home
         case .updates: .updates
         case .inbox: .messages(channel: nil)
-        case .myTasks: .myTasks
+        case .tasks: .tasks
         case .projects: .projects
-        case .tasks: .allTasks
-        case .pipeline: .pipeline
-        case .contacts: .contacts
+        case .crm: .crm
         case .reports: .reports
         }
     }
@@ -66,55 +59,49 @@ enum SidebarNavItem: String, CaseIterable, Identifiable {
         }
     }
 
-    static let defaultPinned: [SidebarNavItem] = [.home, .updates, .inbox, .myTasks]
-    static let defaultWorkspace: [SidebarNavItem] = [.projects, .tasks, .pipeline, .contacts, .reports]
+    /// Items from older layouts map onto the merged ones, so a synced order survives.
+    init?(stored raw: String) {
+        switch raw {
+        case "myTasks": self = .tasks
+        case "pipeline", "contacts": self = .crm
+        default: self.init(rawValue: raw)
+        }
+    }
+
+    static let defaultOrder: [SidebarNavItem] = [.home, .updates, .inbox, .tasks, .projects, .crm, .reports]
 }
 
-enum SidebarGroup: String {
-    case pinned, workspace
-}
-
-/// Reads and rewrites the user's arrangement stored in `CloudPreferences`.
+/// Reads and rewrites the user's order of the sidebar's navigation items, stored in
+/// `CloudPreferences` (iCloud key-value storage) so every device shows the same list.
 @MainActor
 struct SidebarLayout {
     let preferences: CloudPreferences
 
-    var pinned: [SidebarNavItem] { resolved.pinned }
-    var workspace: [SidebarNavItem] { resolved.workspace }
-
-    /// Stored order, cleaned up: unknown values dropped, duplicates removed and any item
-    /// added in a newer version placed in its default group, so old layouts keep working.
-    private var resolved: (pinned: [SidebarNavItem], workspace: [SidebarNavItem]) {
-        let storedPinned = preferences.sidebarPinnedItems.compactMap(SidebarNavItem.init)
-        let storedWorkspace = preferences.sidebarWorkspaceItems.compactMap(SidebarNavItem.init)
-        guard !storedPinned.isEmpty || !storedWorkspace.isEmpty else {
-            return (SidebarNavItem.defaultPinned, SidebarNavItem.defaultWorkspace)
-        }
+    /// Stored order, cleaned up: legacy items merged, unknown values and duplicates
+    /// dropped, and anything added in a newer version appended in its default place.
+    var items: [SidebarNavItem] {
+        let stored = (preferences.sidebarPinnedItems + preferences.sidebarWorkspaceItems).compactMap(SidebarNavItem.init(stored:))
+        guard !stored.isEmpty else { return SidebarNavItem.defaultOrder }
         var seen = Set<SidebarNavItem>()
-        var pinned = storedPinned.filter { seen.insert($0).inserted }
-        var workspace = storedWorkspace.filter { seen.insert($0).inserted }
-        for item in SidebarNavItem.allCases where !seen.contains(item) {
-            if SidebarNavItem.defaultPinned.contains(item) { pinned.append(item) } else { workspace.append(item) }
+        var result = stored.filter { seen.insert($0).inserted }
+        for item in SidebarNavItem.defaultOrder where !seen.contains(item) {
+            // Insert after its default predecessor when possible.
+            let index = SidebarNavItem.defaultOrder.firstIndex(of: item)!
+            let before = SidebarNavItem.defaultOrder[..<index].last { result.contains($0) }
+            result.insert(item, at: before.flatMap { result.firstIndex(of: $0).map { $0 + 1 } } ?? 0)
         }
-        return (pinned, workspace)
+        return result
     }
 
-    /// Moves `item` into `group`, just before `target` (or at the end when `target` is nil).
-    func move(_ item: SidebarNavItem, to group: SidebarGroup, before target: SidebarNavItem?) {
+    /// Moves `item` just before `target` (or to the end when `target` is nil).
+    func move(_ item: SidebarNavItem, before target: SidebarNavItem?) {
         guard item != target else { return }
-        var pinned = self.pinned.filter { $0 != item }
-        var workspace = self.workspace.filter { $0 != item }
-        func insert(into list: inout [SidebarNavItem]) {
-            let index = target.flatMap { list.firstIndex(of: $0) } ?? list.endIndex
-            list.insert(item, at: index)
-        }
-        switch group {
-        case .pinned: insert(into: &pinned)
-        case .workspace: insert(into: &workspace)
-        }
+        var list = items.filter { $0 != item }
+        let index = target.flatMap { list.firstIndex(of: $0) } ?? list.endIndex
+        list.insert(item, at: index)
         withMotion(.snappy(duration: 0.22)) {
-            preferences.sidebarPinnedItems = pinned.map(\.rawValue)
-            preferences.sidebarWorkspaceItems = workspace.map(\.rawValue)
+            preferences.sidebarPinnedItems = list.map(\.rawValue)
+            preferences.sidebarWorkspaceItems = []
         }
     }
 
@@ -125,9 +112,7 @@ struct SidebarLayout {
         }
     }
 
-    var isCustomized: Bool {
-        pinned != SidebarNavItem.defaultPinned || workspace != SidebarNavItem.defaultWorkspace
-    }
+    var isCustomized: Bool { items != SidebarNavItem.defaultOrder }
 }
 
 /// What travels during a drag: a nav item or a project, encoded as plain text so it

@@ -250,11 +250,10 @@ struct CommandPalette: View {
             Item(id: "n-home", group: .navigation, symbol: "house", title: "Home", run: go(.home)),
             Item(id: "n-updates", group: .navigation, symbol: "bell", title: "Updates", run: go(.updates)),
             Item(id: "n-inbox", group: .navigation, symbol: "tray", title: "Inbox", run: go(.messages(channel: nil))),
-            Item(id: "n-mine", group: .navigation, symbol: "list.clipboard", title: "My tasks", run: go(.myTasks)),
-            Item(id: "n-all", group: .navigation, symbol: "checklist", title: "All tasks", run: go(.allTasks)),
+            Item(id: "n-tasks", group: .navigation, symbol: "checklist", title: "Tasks", run: go(.tasks)),
             Item(id: "n-projects", group: .navigation, symbol: "square.stack.3d.up", title: "Projects", run: go(.projects)),
-            Item(id: "n-pipeline", group: .navigation, symbol: "square.grid.2x2", title: "Pipeline", run: go(.pipeline)),
-            Item(id: "n-contacts", group: .navigation, symbol: "person.2", title: "Contacts", run: go(.contacts)),
+            Item(id: "n-crm", group: .navigation, symbol: "person.2", title: "CRM · Customers", run: { close(); app.crmTab = .customers; app.go(.crm) }),
+            Item(id: "n-pipeline", group: .navigation, symbol: "square.grid.2x2", title: "CRM · Pipeline", run: { close(); app.crmTab = .pipeline; app.go(.crm) }),
             Item(id: "n-reports", group: .navigation, symbol: "chart.pie", title: "Reports", run: go(.reports)),
             Item(id: "n-apple", group: .navigation, symbol: "puzzlepiece.extension", title: "Apple services", run: go(.appleServices)),
             Item(id: "n-settings", group: .navigation, symbol: "slider.horizontal.3", title: "Settings", run: go(.settings))
@@ -272,7 +271,7 @@ struct CommandPalette: View {
             Item(id: "c-\(c.uuid)", group: .channels, symbol: "number", title: c.name, subtitle: c.topic.isEmpty ? nil : c.topic, run: go(.messages(channel: c.uuid)))
         }
         items += contacts.map { c in
-            Item(id: "k-\(c.uuid)", group: .people, symbol: "person.crop.circle", title: c.name, subtitle: c.company.isEmpty ? nil : c.company, run: go(.contacts))
+            Item(id: "k-\(c.uuid)", group: .people, symbol: "person.crop.circle", title: c.name, subtitle: c.company.isEmpty ? nil : c.company, run: { close(); app.crmTab = .customers; app.crmSelection = c.uuid; app.go(.crm) })
         }
         return items
     }
