@@ -47,6 +47,11 @@ enum Theme {
 
     // Metrics
     static let panelWidth: CGFloat = 232
+
+    /// The expanded sidebar widens with larger text (up to 1.4×) so labels keep fitting.
+    static func panelWidth(for size: DynamicTypeSize) -> CGFloat {
+        (panelWidth * min(TextScale.factor(for: min(size, .accessibility2)), 1.4)).rounded()
+    }
     /// Sidebar open/close: a smooth, non-bouncy width change.
     static let sidebarAnimation: Animation = .smooth(duration: 0.32)
     #if os(macOS)
@@ -182,7 +187,7 @@ struct QuietButtonStyle: ButtonStyle {
             .appFont(.subheadline.weight(.medium))
             .foregroundStyle(Theme.text)
             .padding(.horizontal, 12)
-            .frame(height: 30)
+            .frame(minHeight: 30)
             .background(configuration.isPressed ? Theme.selection : Theme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.stroke)

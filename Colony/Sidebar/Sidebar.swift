@@ -21,6 +21,7 @@ import SwiftUI
 
 struct Sidebar: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let collapsed = app.preferences.isSidebarCollapsed
@@ -38,7 +39,7 @@ struct Sidebar: View {
                 .allowsHitTesting(collapsed)
                 .accessibilityHidden(!collapsed)
         }
-        .frame(width: collapsed ? Theme.collapsedPanelWidth : Theme.panelWidth, alignment: .leading)
+        .frame(width: collapsed ? Theme.collapsedPanelWidth : Theme.panelWidth(for: typeSize), alignment: .leading)
         .frame(maxHeight: .infinity)
         .clipped()
         .background(Theme.sidebar)
@@ -107,6 +108,7 @@ struct RailButton: View {
 
 struct SidebarPanel: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
     @Query(sort: \Project.sortIndex) private var projects: [Project]
     @Query(filter: #Predicate<ActivityEvent> { !$0.isRead }) private var unreadUpdates: [ActivityEvent]
@@ -189,7 +191,7 @@ struct SidebarPanel: View {
 
             SidebarFooter(axis: .horizontal)
         }
-        .frame(width: Theme.panelWidth)
+        .frame(width: Theme.panelWidth(for: typeSize))
         .background(Theme.sidebar)
     }
 
@@ -237,7 +239,7 @@ struct SidebarPanel: View {
     private func trailing(for item: SidebarNavItem) -> SidebarTrailing {
         switch item {
         case .myTasks, .tasks: .add { app.present(.newTask(project: nil, list: nil)) }
-        case .projects: .chevron(isProjectsRowExpanded) { withAnimation(.snappy(duration: 0.2)) { isProjectsRowExpanded.toggle() } }
+        case .projects: .chevron(isProjectsRowExpanded) { withMotion(.snappy(duration: 0.2)) { isProjectsRowExpanded.toggle() } }
         default: .none
         }
     }
@@ -261,7 +263,7 @@ struct SidebarPanel: View {
 
     private func dropProject(_ payload: SidebarDragPayload, before target: Project?) {
         guard case .project(let id) = payload, let project = context.project(id) else { return }
-        withAnimation(.snappy(duration: 0.22)) {
+        withMotion(.snappy(duration: 0.22)) {
             WorkspaceActions(context: context).move(project, before: target)
         }
     }
@@ -276,7 +278,7 @@ struct SidebarPanel: View {
         }
         .padding(.leading, headerLeadingInset)
         .padding(.trailing, 8)
-        .frame(height: headerHeight, alignment: .center)
+        .frame(minHeight: headerHeight, alignment: .center)
         .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1) }
     }
 
@@ -399,7 +401,7 @@ struct CollapsedPanel: View {
                         .sidebarDraggable(.project(project.uuid), symbol: project.symbol, title: project.name)
                         .sidebarDropTarget(accepts: acceptsProject) { payload in
                             guard case .project(let id) = payload, let moved = context.project(id) else { return }
-                            withAnimation(.snappy(duration: 0.22)) { WorkspaceActions(context: context).move(moved, before: project) }
+                            withMotion(.snappy(duration: 0.22)) { WorkspaceActions(context: context).move(moved, before: project) }
                         }
                     }
                 }
@@ -490,7 +492,7 @@ struct WorkspaceSwitcherLabel: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 6)
-        .frame(height: 34)
+        .frame(minHeight: 34)
         .frame(maxWidth: .infinity)
         .background {
             RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
@@ -513,7 +515,7 @@ struct CommandField: View {
                 content(showsHint: false)
             }
             .padding(.horizontal, 9)
-            .frame(height: 28)
+            .frame(minHeight: 28)
             .frame(maxWidth: .infinity)
             .background(Theme.field, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
@@ -565,10 +567,12 @@ struct SidebarRow<Glyph: View>: View {
     let action: () -> Void
     @State private var isHovering = false
 
+    @ScaledMetric(relativeTo: .body) private var glyphWidth: CGFloat = 18
+
     var body: some View {
         HStack(spacing: 10) {
             glyph
-                .frame(width: 18)
+                .frame(width: glyphWidth)
             Text(title)
                 .appFont(.system(size: 13.5, weight: isSelected ? .medium : .regular))
                 .foregroundStyle(Theme.text)
@@ -577,7 +581,8 @@ struct SidebarRow<Glyph: View>: View {
             trailingView
         }
         .padding(.horizontal, 8)
-        .frame(height: Theme.rowHeight)
+        .padding(.vertical, 1)
+        .frame(minHeight: Theme.rowHeight)
         .background {
             RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
                 .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
@@ -674,7 +679,7 @@ struct SidebarChildRow: View {
         }
         .padding(.leading, 36)
         .padding(.trailing, 8)
-        .frame(height: Theme.rowHeight)
+        .frame(minHeight: Theme.rowHeight)
         .background {
             RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
                 .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
@@ -714,7 +719,7 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
                 Button {
-                    withAnimation(.snappy(duration: 0.2)) { isExpanded.toggle() }
+                    withMotion(.snappy(duration: 0.2)) { isExpanded.toggle() }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "chevron.down")
@@ -723,6 +728,8 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
                         Text(title.uppercased())
                             .appFont(.system(size: 11, weight: .semibold))
                             .kerning(0.4)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                     }
                     .foregroundStyle(Theme.secondaryText)
                     .contentShape(.rect)

@@ -35,7 +35,7 @@ struct ContactsView: View {
                     TextField("Search people or companies", text: $search).textFieldStyle(.plain)
                 }
                 .padding(.horizontal, 12)
-                .frame(height: 36)
+                .frame(minHeight: 36)
                 .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.stroke) }
 
@@ -91,7 +91,7 @@ struct ContactsView: View {
                     .transition(.move(edge: .trailing))
             }
         }
-        .animation(.snappy, value: selectedID)
+        .motion(.snappy, value: selectedID)
         .navigationTitle("Contacts")
     }
 
@@ -110,7 +110,7 @@ struct StageChip: View {
             .appFont(.caption.weight(.medium))
             .foregroundStyle(stage.color.color)
             .padding(.horizontal, 8)
-            .frame(height: 22)
+            .frame(minHeight: 22)
             .background(stage.color.color.opacity(0.14), in: Capsule())
     }
 }
@@ -194,7 +194,7 @@ struct ContactInspector: View {
                 Text(title).appFont(.caption2)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 50)
+            .frame(minHeight: 50)
             .foregroundStyle(url == nil ? Theme.tertiaryText : Theme.text)
             .glassSurface(.rect(cornerRadius: 12), interactive: url != nil)
         }
@@ -277,7 +277,7 @@ struct PipelineView: View {
         .dropDestination(for: String.self) { ids, _ in
             let uuids = Set(ids.compactMap(UUID.init(uuidString:)))
             for contact in contacts where uuids.contains(contact.uuid) {
-                withAnimation(.snappy) { WorkspaceActions(context: context).setStage(stage, for: contact) }
+                withMotion(.snappy) { WorkspaceActions(context: context).setStage(stage, for: contact) }
             }
             return true
         }

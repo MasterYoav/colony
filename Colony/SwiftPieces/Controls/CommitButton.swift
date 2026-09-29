@@ -155,7 +155,7 @@ public struct CommitButton: View {
                 }
             }
             .foregroundStyle(ink)
-            .frame(height: style.height)
+            .frame(minHeight: style.height)
             .frame(width: collapsed ? style.height : nil)
             .padding(.horizontal, collapsed ? 0 : 28)
             .background(fill, in: Capsule())

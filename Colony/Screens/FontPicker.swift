@@ -94,7 +94,7 @@ private struct FontList: View {
                     .onKeyPress(.upArrow) { move(-1); return .handled }
             }
             .padding(.horizontal, 12)
-            .frame(height: 40)
+            .frame(minHeight: 40)
             .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1) }
 
             ScrollViewReader { proxy in
@@ -119,7 +119,7 @@ private struct FontList: View {
                     proxy.scrollTo(selection, anchor: .center)
                 }
                 .onChange(of: highlighted) { _, new in
-                    if let new { withAnimation(.snappy(duration: 0.12)) { proxy.scrollTo(new) } }
+                    if let new { withMotion(.snappy(duration: 0.12)) { proxy.scrollTo(new) } }
                 }
             }
         }

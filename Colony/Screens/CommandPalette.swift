@@ -91,7 +91,7 @@ struct CommandPalette: View {
                 .overlay { RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Theme.stroke) }
         }
         .padding(.horizontal, 16)
-        .frame(height: 52)
+        .frame(minHeight: 52)
     }
 
     private var resultsList: some View {
@@ -123,7 +123,7 @@ struct CommandPalette: View {
             .frame(height: 340)
             .onChange(of: highlighted) { _, id in
                 guard let id else { return }
-                withAnimation(.snappy(duration: 0.12)) { proxy.scrollTo(id, anchor: nil) }
+                withMotion(.snappy(duration: 0.12)) { proxy.scrollTo(id, anchor: nil) }
             }
         }
     }
@@ -166,7 +166,7 @@ struct CommandPalette: View {
                 }
             }
             .padding(.horizontal, 10)
-            .frame(height: 36)
+            .frame(minHeight: 36)
             .background(isOn ? Theme.selection : .clear, in: .rect(cornerRadius: 8, style: .continuous))
             .contentShape(.rect)
         }
@@ -193,7 +193,7 @@ struct CommandPalette: View {
                 .foregroundStyle(Theme.tertiaryText)
         }
         .padding(.horizontal, 14)
-        .frame(height: 38)
+        .frame(minHeight: 38)
         .background(Theme.surface.opacity(0.5))
     }
 
@@ -211,7 +211,7 @@ struct CommandPalette: View {
     }
 
     private func close() {
-        withAnimation(.snappy(duration: 0.15)) { app.isCommandPalettePresented = false }
+        withMotion(.snappy(duration: 0.15)) { app.isCommandPalettePresented = false }
     }
 
     private func go(_ destination: Destination) -> () -> Void {
@@ -219,7 +219,7 @@ struct CommandPalette: View {
     }
 
     private func open(_ dialog: ActiveSheet) -> () -> Void {
-        { withAnimation(.snappy(duration: 0.18)) { app.present(dialog) } }
+        { withMotion(.snappy(duration: 0.18)) { app.present(dialog) } }
     }
 
     // MARK: Data
@@ -320,7 +320,7 @@ struct CommandPaletteHost: ViewModifier {
                     Color.black.opacity(0.35)
                         .ignoresSafeArea()
                         .contentShape(.rect)
-                        .onTapGesture { withAnimation(.snappy(duration: 0.15)) { app.isCommandPalettePresented = false } }
+                        .onTapGesture { withMotion(.snappy(duration: 0.15)) { app.isCommandPalettePresented = false } }
                         .transition(.opacity)
                         .accessibilityHidden(true)
                     CommandPalette()
@@ -329,7 +329,7 @@ struct CommandPaletteHost: ViewModifier {
                         .transition(reduceMotion ? .opacity : .scale(scale: 0.97, anchor: .top).combined(with: .opacity))
                 }
             }
-            .animation(.snappy(duration: 0.18), value: app.isCommandPalettePresented)
+            .motion(.snappy(duration: 0.18), value: app.isCommandPalettePresented)
         }
     }
 }

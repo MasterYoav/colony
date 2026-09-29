@@ -58,8 +58,8 @@ struct NewProjectSheet: View {
         DialogFrame(symbol: "folder.badge.plus", title: "New project", description: "Projects group tasks into lists and sync to all your devices through iCloud.") {
             HStack(alignment: .bottom, spacing: 12) {
                 ProjectGlyph(symbol: symbol, color: color.color, size: 34)
-                    .animation(.snappy(duration: 0.2), value: symbol)
-                    .animation(.snappy(duration: 0.2), value: color)
+                    .motion(.snappy(duration: 0.2), value: symbol)
+                    .motion(.snappy(duration: 0.2), value: color)
                     .accessibilityHidden(true)
                 DialogField(label: "Name") {
                     DialogTextField(placeholder: "e.g. Website relaunch", text: $name, limit: 40, autofocus: true, onSubmit: create)
@@ -113,7 +113,7 @@ struct SymbolGrid: View {
                         .appFont(.system(size: 14, weight: .medium))
                         .foregroundStyle(selected ? .white : Theme.icon)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                         .background(selected ? tint : Theme.field, in: .rect(cornerRadius: 8, style: .continuous))
                         .overlay {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -126,7 +126,7 @@ struct SymbolGrid: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
-        .animation(.snappy(duration: 0.15), value: selection)
+        .motion(.snappy(duration: 0.15), value: selection)
     }
 }
 
@@ -155,7 +155,7 @@ struct ColorSwatches: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
-        .animation(.snappy(duration: 0.15), value: selection)
+        .motion(.snappy(duration: 0.15), value: selection)
     }
 }
 
@@ -411,7 +411,7 @@ struct ImportContactsSheet: View {
                 }
             }
             .padding(.horizontal, 8)
-            .frame(height: 42)
+            .frame(minHeight: 42)
             .background(selected ? Theme.selection : .clear, in: .rect(cornerRadius: 7, style: .continuous))
             .contentShape(.rect)
         }

@@ -131,7 +131,7 @@ struct TasksScreen: View {
                 .onSubmit(addQuickTask)
         }
         .padding(.horizontal, 14)
-        .frame(height: 42)
+        .frame(minHeight: 42)
         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(quickFocused ? Theme.strongStroke : Theme.stroke) }
         .padding(.bottom, 4)
@@ -280,7 +280,7 @@ struct PriorityChip: View {
             .appFont(.caption.weight(.medium))
             .foregroundStyle(priority.color)
             .padding(.horizontal, 8)
-            .frame(height: 22)
+            .frame(minHeight: 22)
             .background(priority.color.opacity(0.14), in: Capsule())
     }
 }
@@ -324,7 +324,7 @@ struct BoardView: View {
                     if items.isEmpty {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .strokeBorder(Theme.stroke, style: StrokeStyle(lineWidth: 1, dash: [4]))
-                            .frame(height: 64)
+                            .frame(minHeight: 64)
                             .overlay { Text("Drop here").appFont(.caption).foregroundStyle(Theme.tertiaryText) }
                     }
                 }
@@ -338,7 +338,7 @@ struct BoardView: View {
         .dropDestination(for: String.self) { ids, _ in
             for id in ids.compactMap(UUID.init(uuidString:)) {
                 if let task = context.task(id) {
-                    withAnimation(.snappy) { WorkspaceActions(context: context).setStatus(status, for: task) }
+                    withMotion(.snappy) { WorkspaceActions(context: context).setStatus(status, for: task) }
                     app.syncReminder(for: task)
                 }
             }

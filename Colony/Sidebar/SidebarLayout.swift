@@ -112,14 +112,14 @@ struct SidebarLayout {
         case .pinned: insert(into: &pinned)
         case .workspace: insert(into: &workspace)
         }
-        withAnimation(.snappy(duration: 0.22)) {
+        withMotion(.snappy(duration: 0.22)) {
             preferences.sidebarPinnedItems = pinned.map(\.rawValue)
             preferences.sidebarWorkspaceItems = workspace.map(\.rawValue)
         }
     }
 
     func reset() {
-        withAnimation(.snappy(duration: 0.22)) {
+        withMotion(.snappy(duration: 0.22)) {
             preferences.sidebarPinnedItems = []
             preferences.sidebarWorkspaceItems = []
         }
@@ -200,7 +200,7 @@ private struct SidebarDropTarget: ViewModifier {
                 perform(payload)
                 return true
             } isTargeted: { targeted in
-                withAnimation(.snappy(duration: 0.12)) { isTargeted = targeted }
+                withMotion(.snappy(duration: 0.12)) { isTargeted = targeted }
             }
     }
 }

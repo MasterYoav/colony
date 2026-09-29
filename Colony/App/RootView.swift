@@ -65,7 +65,7 @@ struct RootView: View {
                     .toolbar {
                         ToolbarItem(placement: .navigation) {
                             Button("Menu", systemImage: "sidebar.left") {
-                                withAnimation(.snappy) { isDrawerOpen = true }
+                                withMotion(.snappy) { isDrawerOpen = true }
                             }
                         }
                     }
@@ -74,7 +74,7 @@ struct RootView: View {
             if isDrawerOpen {
                 Color.black.opacity(0.4)
                     .ignoresSafeArea()
-                    .onTapGesture { withAnimation(.snappy) { isDrawerOpen = false } }
+                    .onTapGesture { withMotion(.snappy) { isDrawerOpen = false } }
                     .transition(.opacity)
                 Sidebar()
                     .frame(maxHeight: .infinity)
@@ -82,7 +82,7 @@ struct RootView: View {
                     .transition(.move(edge: .leading))
             }
         }
-        .onChange(of: app.destination) { withAnimation(.snappy) { isDrawerOpen = false } }
+        .onChange(of: app.destination) { withMotion(.snappy) { isDrawerOpen = false } }
     }
 }
 

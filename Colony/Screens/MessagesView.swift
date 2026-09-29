@@ -99,7 +99,7 @@ struct ChannelThread: View {
                 .help("Share transcript")
             }
             .padding(.horizontal, 22)
-            .frame(height: 64)
+            .frame(minHeight: 64)
             .overlay(alignment: .bottom) { SidebarDivider() }
 
             ScrollViewReader { proxy in
@@ -189,7 +189,7 @@ struct MessageBubble: View {
         .fontRole(.data)
         .contextMenu {
             Button("Delete message", systemImage: "trash", role: .destructive) {
-                withAnimation(.snappy(duration: 0.2)) { WorkspaceActions(context: context).delete(message) }
+                withMotion(.snappy(duration: 0.2)) { WorkspaceActions(context: context).delete(message) }
             }
         }
         .onAppear { isPinned = message.isPinned }

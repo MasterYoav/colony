@@ -80,7 +80,7 @@ private struct DialogOverlay<Item: Identifiable, Dialog: View>: ViewModifier {
                             .accessibilityAddTraits(.isModal)
                     }
                 }
-                .animation(.snappy(duration: 0.22), value: item?.id)
+                .motion(.snappy(duration: 0.22), value: item?.id)
             }
     }
 }
@@ -209,7 +209,7 @@ struct DialogButtonStyle: ButtonStyle {
             .appFont(.system(size: 13, weight: .medium))
             .foregroundStyle(foreground)
             .padding(.horizontal, 14)
-            .frame(height: 32)
+            .frame(minHeight: 32)
             .background(background(pressed: configuration.isPressed), in: .rect(cornerRadius: 8, style: .continuous))
             .overlay {
                 if kind == .secondary {
@@ -218,7 +218,7 @@ struct DialogButtonStyle: ButtonStyle {
             }
             .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(.snappy(duration: 0.12), value: configuration.isPressed)
+            .motion(.snappy(duration: 0.12), value: configuration.isPressed)
             .contentShape(.rect)
             .onHover { isHovering = $0 }
     }
@@ -329,7 +329,7 @@ struct DialogInputChrome: ViewModifier {
                     .padding(-1.5)
                     .opacity(isFocused || isInvalid ? 1 : 0)
             }
-            .animation(.smooth(duration: 0.15), value: isFocused)
+            .motion(.smooth(duration: 0.15), value: isFocused)
     }
 }
 
@@ -502,7 +502,7 @@ struct ChipInput: View {
                         .appFont(.system(size: 12.5, weight: .medium))
                         .foregroundStyle(Theme.text)
                     Button {
-                        withAnimation(.snappy(duration: 0.18)) { items.removeAll { $0 == item } }
+                        withMotion(.snappy(duration: 0.18)) { items.removeAll { $0 == item } }
                     } label: {
                         Image(systemName: "xmark")
                             .appFont(.system(size: 8.5, weight: .bold))
@@ -515,7 +515,7 @@ struct ChipInput: View {
                 }
                 .padding(.leading, 8)
                 .padding(.trailing, 4)
-                .frame(height: 24)
+                .frame(minHeight: 24)
                 .background(Theme.selection, in: .rect(cornerRadius: 6, style: .continuous))
                 .overlay { RoundedRectangle(cornerRadius: 6, style: .continuous).strokeBorder(Theme.strongStroke) }
                 .transition(.scale(scale: 0.8).combined(with: .opacity))
@@ -526,11 +526,11 @@ struct ChipInput: View {
                 .foregroundStyle(Theme.text)
                 .focused($focused)
                 .frame(minWidth: 90)
-                .frame(height: 24)
+                .frame(minHeight: 24)
                 .onSubmit(commit)
                 .onKeyPress(.delete) {
                     guard draft.isEmpty, !items.isEmpty else { return .ignored }
-                    withAnimation(.snappy(duration: 0.18)) { _ = items.removeLast() }
+                    withMotion(.snappy(duration: 0.18)) { _ = items.removeLast() }
                     return .handled
                 }
         }
@@ -543,7 +543,7 @@ struct ChipInput: View {
     private func commit() {
         let value = ColonyText.trimmed(draft)
         guard !value.isEmpty, !items.contains(value) else { draft = ""; return }
-        withAnimation(.snappy(duration: 0.18)) { items.append(value) }
+        withMotion(.snappy(duration: 0.18)) { items.append(value) }
         draft = ""
         focused = true
     }

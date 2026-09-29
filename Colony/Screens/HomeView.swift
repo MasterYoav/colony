@@ -137,7 +137,7 @@ struct CompactTaskRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Button {
-                withAnimation(.snappy) { WorkspaceActions(context: context).toggleDone(task) }
+                withMotion(.snappy) { WorkspaceActions(context: context).toggleDone(task) }
                 app.syncReminder(for: task)
             } label: {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")

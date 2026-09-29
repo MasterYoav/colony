@@ -135,7 +135,7 @@ public struct FilterRail: View {
             }
             .foregroundStyle(style.onIndicator)
             .padding(.horizontal, 14)
-            .frame(height: style.chipHeight)
+            .frame(minHeight: style.chipHeight)
             .background(style.indicator, in: Capsule())
             .frame(minHeight: 44)
             .contentShape(.rect)
@@ -197,7 +197,7 @@ public struct FilterRail: View {
                 }
                 .foregroundStyle(foreground)
                 .padding(.horizontal, 16)
-                .frame(height: style.chipHeight)
+                .frame(minHeight: style.chipHeight)
                 .background {
                     Capsule().fill(style.chip)
                     if isSelected {

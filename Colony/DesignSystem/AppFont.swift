@@ -17,6 +17,12 @@
 //  The choice roams through iCloud, but fonts are local: a family that isn't installed
 //  on this device falls back to the system font.
 //
+//  Larger Text: text styles follow Dynamic Type natively, and fixed sizes
+//  (`.system(size: 13)`) are scaled here by the same ratio, so every label in the app grows
+//  with the user's text size setting. App chrome (the UI role) stops growing at
+//  accessibility size 2 so the sidebar and toolbars stay usable; content (the Data role)
+//  scales all the way. Where the platform has no Dynamic Type (macOS) nothing changes.
+//
 
 import SwiftUI
 #if canImport(AppKit)
@@ -77,8 +83,9 @@ public struct AppFont: Sendable {
 
     // MARK: Resolution
 
-    /// The SwiftUI font for this description, in `family` when one is given.
-    public func resolved(family: String?) -> Font {
+    /// The SwiftUI font for this description, in `family` when one is given. Fixed sizes
+    /// are multiplied by `scale` (the Dynamic Type ratio); text styles scale by themselves.
+    public func resolved(family: String?, scale: CGFloat = 1) -> Font {
         let keepsSystem = design != nil && design != .default
         var font: Font
         if let family, !keepsSystem {
@@ -87,7 +94,7 @@ public struct AppFont: Sendable {
                 font = .custom(family, size: Self.pointSize(for: style), relativeTo: style)
                 if let implied = Self.impliedWeight(for: style), weight == nil { font = font.weight(implied) }
             case .size(let size):
-                font = .custom(family, fixedSize: size)
+                font = .custom(family, fixedSize: (size * scale).rounded())
             }
             if let weight { font = font.weight(weight) }
         } else {
@@ -96,7 +103,7 @@ public struct AppFont: Sendable {
                 font = .system(style, design: design ?? .default)
                 if let weight { font = font.weight(weight) }
             case .size(let size):
-                font = .system(size: size, weight: weight ?? .regular, design: design ?? .default)
+                font = .system(size: (size * scale).rounded(), weight: weight ?? .regular, design: design ?? .default)
             }
         }
         if monospacedDigits { font = font.monospacedDigit() }
@@ -211,8 +218,38 @@ private struct AppFontModifier: ViewModifier {
     let role: FontRole?
     @Environment(\.appTypefaces) private var typefaces
     @Environment(\.fontRole) private var inheritedRole
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     func body(content: Content) -> some View {
-        content.font(font.resolved(family: typefaces.family(for: role ?? inheritedRole)))
+        let role = role ?? inheritedRole
+        let size = role == .ui ? min(typeSize, .accessibility2) : typeSize
+        content.font(font.resolved(family: typefaces.family(for: role), scale: TextScale.factor(for: size)))
+    }
+}
+
+/// Ratio of body text at each Dynamic Type size to body at the default (Large) size,
+/// from Apple's type ramp (17pt body on iOS).
+public enum TextScale {
+    public static func factor(for size: DynamicTypeSize) -> CGFloat {
+        #if os(macOS)
+        return 1
+        #else
+        let body: CGFloat = switch size {
+        case .xSmall: 14
+        case .small: 15
+        case .medium: 16
+        case .large: 17
+        case .xLarge: 19
+        case .xxLarge: 21
+        case .xxxLarge: 23
+        case .accessibility1: 28
+        case .accessibility2: 33
+        case .accessibility3: 40
+        case .accessibility4: 47
+        case .accessibility5: 53
+        @unknown default: 17
+        }
+        return body / 17
+        #endif
     }
 }

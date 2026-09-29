@@ -161,19 +161,19 @@ final class AppModel {
     }
 
     func go(_ destination: Destination) {
-        withAnimation(.snappy(duration: 0.22)) { self.destination = destination }
+        withMotion(.snappy(duration: 0.22)) { self.destination = destination }
     }
 
     /// The one way to open or close the sidebar, so every entry point (toggle button,
     /// ⌃⌘S, command palette) animates the width the same way.
     func toggleSidebar() {
-        withAnimation(Theme.sidebarAnimation) {
+        withMotion(Theme.sidebarAnimation) {
             preferences.isSidebarCollapsed.toggle()
         }
     }
 
     func toggleCommandPalette() {
-        withAnimation(.snappy(duration: 0.18)) {
+        withMotion(.snappy(duration: 0.18)) {
             if isCommandPalettePresented {
                 isCommandPalettePresented = false
             } else {
@@ -200,7 +200,7 @@ final class AppModel {
 
     func toggleExpanded(_ project: Project) {
         let key = project.uuid.uuidString
-        withAnimation(.snappy(duration: 0.2)) {
+        withMotion(.snappy(duration: 0.2)) {
             if preferences.expandedProjectIDs.contains(key) {
                 preferences.expandedProjectIDs.remove(key)
             } else {
