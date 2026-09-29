@@ -44,7 +44,7 @@ struct ColonyApp: App {
                 Button("Command Center…") { app.toggleCommandPalette() }
                     .keyboardShortcut("k", modifiers: .command)
                 Button(app.preferences.isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar") {
-                    withAnimation(.snappy(duration: 0.25)) { app.preferences.isSidebarCollapsed.toggle() }
+                    app.toggleSidebar()
                 }
                 .keyboardShortcut("s", modifiers: [.command, .control])
             }

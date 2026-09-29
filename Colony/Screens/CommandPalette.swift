@@ -236,8 +236,8 @@ struct CommandPalette: View {
                 close()
             }),
             Item(id: "a-sidebar", group: .actions, symbol: "sidebar.left", title: app.preferences.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar", shortcut: "⌃⌘S", run: {
-                app.preferences.isSidebarCollapsed.toggle()
                 close()
+                app.toggleSidebar()
             }),
             Item(id: "n-home", group: .navigation, symbol: "house", title: "Home", run: go(.home)),
             Item(id: "n-updates", group: .navigation, symbol: "bell", title: "Updates", run: go(.updates)),

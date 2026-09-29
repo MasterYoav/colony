@@ -47,6 +47,8 @@ enum Theme {
 
     // Metrics
     static let panelWidth: CGFloat = 232
+    /// Sidebar open/close: a smooth, non-bouncy width change.
+    static let sidebarAnimation: Animation = .smooth(duration: 0.32)
     #if os(macOS)
     /// Traffic lights span x 8…70 (close at 8, zoom 54 + 16), so a 78pt column puts
     /// them exactly in the middle: 8pt on each side.

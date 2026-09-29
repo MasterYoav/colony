@@ -181,7 +181,10 @@ struct CollapsedSidebarToggle: View {
             // Traffic lights are 16pt tall at y 8, so their centre is y 16; the toggle is 30pt.
             .padding(.top, 16 - 15)
             .padding(.leading, Theme.collapsedPanelWidth + 6)
-            .transition(.opacity)
+            .transition(.asymmetric(
+                insertion: .opacity.animation(.easeOut(duration: 0.16).delay(0.14)),
+                removal: .opacity.animation(.easeIn(duration: 0.1))
+            ))
     }
 }
 #endif

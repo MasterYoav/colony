@@ -162,6 +162,14 @@ final class AppModel {
         withAnimation(.snappy(duration: 0.22)) { self.destination = destination }
     }
 
+    /// The one way to open or close the sidebar, so every entry point (toggle button,
+    /// ⌃⌘S, command palette) animates the width the same way.
+    func toggleSidebar() {
+        withAnimation(Theme.sidebarAnimation) {
+            preferences.isSidebarCollapsed.toggle()
+        }
+    }
+
     func toggleCommandPalette() {
         withAnimation(.snappy(duration: 0.18)) {
             if isCommandPalettePresented {

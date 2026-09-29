@@ -23,18 +23,29 @@ struct Sidebar: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        Group {
-            if app.preferences.isSidebarCollapsed {
-                CollapsedPanel()
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-            } else {
-                SidebarPanel()
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-            }
+        let collapsed = app.preferences.isSidebarCollapsed
+        // Both panels stay mounted; the column's width animates between them and they
+        // crossfade, so opening and closing is one continuous motion rather than a swap.
+        // The fades are staggered: the outgoing panel is gone before the incoming one
+        // appears, so the two icon columns never show on top of each other.
+        ZStack(alignment: .topLeading) {
+            SidebarPanel()
+                .animation(fade(showing: !collapsed)) { $0.opacity(collapsed ? 0 : 1) }
+                .allowsHitTesting(!collapsed)
+                .accessibilityHidden(collapsed)
+            CollapsedPanel()
+                .animation(fade(showing: collapsed)) { $0.opacity(collapsed ? 1 : 0) }
+                .allowsHitTesting(collapsed)
+                .accessibilityHidden(!collapsed)
         }
+        .frame(width: collapsed ? Theme.collapsedPanelWidth : Theme.panelWidth, alignment: .leading)
         .frame(maxHeight: .infinity)
+        .clipped()
         .background(Theme.sidebar)
-        .animation(.snappy(duration: 0.25), value: app.preferences.isSidebarCollapsed)
+    }
+
+    private func fade(showing: Bool) -> Animation {
+        showing ? .easeOut(duration: 0.16).delay(0.14) : .easeIn(duration: 0.1)
     }
 }
 
@@ -112,8 +123,8 @@ struct SidebarPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+            // Everything above Projects is fixed; only the project list scrolls.
+            VStack(alignment: .leading, spacing: 0) {
                     workspaceSwitcher
                         .padding(.horizontal, 8)
                         .padding(.top, 8)
@@ -147,7 +158,7 @@ struct SidebarPanel: View {
 
                     SidebarDivider()
 
-                    SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, onAdd: { app.present(.newProject) }, menu: {
+                    SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, scrollsContent: true, onAdd: { app.present(.newProject) }, menu: {
                         Button("Expand all", systemImage: "chevron.down") {
                             app.preferences.expandedProjectIDs = Set(projects.map(\.uuid.uuidString))
                         }
@@ -172,10 +183,9 @@ struct SidebarPanel: View {
                             SidebarDropTail(accepts: acceptsProject) { dropProject($0, before: nil) }
                         }
                     }
-                    .padding(.bottom, 16)
-                }
+                    .frame(maxHeight: .infinity, alignment: .top)
             }
-            .scrollIndicators(.never)
+            .frame(maxHeight: .infinity, alignment: .top)
 
             SidebarFooter(axis: .horizontal)
         }
@@ -355,20 +365,25 @@ struct CollapsedPanel: View {
                 .frame(height: 44)
             #endif
 
+            VStack(spacing: 6) {
+                RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
+                    .padding(.top, 2)
+                ForEach(layout.pinned) { item in navIcon(item, in: .pinned) }
+                SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
+
+                SidebarDivider().padding(.vertical, 4)
+
+                ForEach(layout.workspace) { item in navIcon(item, in: .workspace) }
+                SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
+
+                SidebarDivider().padding(.vertical, 4)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 4)
+
+            // As in the expanded panel, only the projects scroll.
             ScrollView {
                 VStack(spacing: 6) {
-                    RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
-                        .padding(.top, 2)
-                    ForEach(layout.pinned) { item in navIcon(item, in: .pinned) }
-                    SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .pinned, before: nil) }
-
-                    SidebarDivider().padding(.vertical, 4)
-
-                    ForEach(layout.workspace) { item in navIcon(item, in: .workspace) }
-                    SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, in: .workspace, before: nil) }
-
-                    SidebarDivider().padding(.vertical, 4)
-
                     ForEach(projects) { project in
                         Button { app.go(.project(project.uuid)) } label: {
                             ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 18)
@@ -390,8 +405,11 @@ struct CollapsedPanel: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 4)
+                .padding(.bottom, 8)
             }
             .scrollIndicators(.never)
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(maxHeight: .infinity)
 
             SidebarFooter(axis: .vertical)
         }
@@ -434,22 +452,20 @@ struct CollapsedPanel: View {
 
 struct SidebarToggleButton: View {
     @Environment(AppModel.self) private var app
+    @State private var isHovering = false
 
     var body: some View {
         Button {
-            app.preferences.isSidebarCollapsed.toggle()
+            app.toggleSidebar()
         } label: {
             Image(systemName: "sidebar.left")
                 .appFont(.system(size: 14))
-                .foregroundStyle(app.preferences.isSidebarCollapsed ? Theme.text : Theme.secondaryText)
+                .foregroundStyle(isHovering ? Theme.text : Theme.secondaryText)
                 .frame(width: 30, height: 30)
-                .background {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(app.preferences.isSidebarCollapsed ? Theme.selection : .clear)
-                }
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
         .help(app.preferences.isSidebarCollapsed ? "Expand sidebar (⌃⌘S)" : "Collapse sidebar (⌃⌘S)")
         .accessibilityLabel(app.preferences.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar")
     }
@@ -688,6 +704,8 @@ struct CountBadge: View {
 struct SidebarSection<Content: View, MenuContent: View>: View {
     let title: String
     @Binding var isExpanded: Bool
+    /// The header stays put and only the rows scroll (used by Projects, the one list that grows).
+    var scrollsContent = false
     let onAdd: () -> Void
     @ViewBuilder var menu: () -> MenuContent
     @ViewBuilder var content: () -> Content
@@ -745,10 +763,21 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
             .padding(.bottom, 6)
 
             if isExpanded {
-                VStack(alignment: .leading, spacing: 2, content: content)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 10)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                if scrollsContent {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 2, content: content)
+                            .padding(.horizontal, 8)
+                            .padding(.bottom, 16)
+                    }
+                    .scrollIndicators(.automatic)
+                    .scrollBounceBehavior(.basedOnSize)
+                    .transition(.opacity)
+                } else {
+                    VStack(alignment: .leading, spacing: 2, content: content)
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
         }
         .clipped()
@@ -793,19 +822,37 @@ struct SidebarFooter: View {
 
     @ViewBuilder
     private var controls: some View {
+        let cloud = app.iCloud.displayState
         RailButton(symbol: app.preferences.appearance == .light ? "moon" : "sun.max", title: "Toggle appearance", isSelected: false) {
             app.preferences.appearance = app.preferences.appearance == .light ? .dark : .light
         }
-        RailButton(
-            symbol: app.iCloud.displayState.symbol,
-            title: "iCloud: \(app.iCloud.displayState.title)",
-            isSelected: false,
-            tint: app.iCloud.displayState.isHealthy ? nil : .orange
-        ) {
-            app.go(.settings)
-        }
-        RailButton(symbol: RailItem.settings.symbol, title: "Settings", isSelected: app.destination == .settings) {
-            app.go(.settings)
+        if axis == .horizontal {
+            RailButton(
+                symbol: cloud.symbol,
+                title: "iCloud: \(cloud.title)",
+                isSelected: false,
+                tint: cloud.isHealthy ? nil : .orange
+            ) {
+                app.go(.settings)
+            }
+            RailButton(symbol: RailItem.settings.symbol, title: "Settings", isSelected: app.destination == .settings) {
+                app.go(.settings)
+            }
+        } else {
+            // Collapsed: no separate iCloud button; sync status rides on Settings as a small cloud.
+            RailButton(symbol: RailItem.settings.symbol, title: "Settings · iCloud: \(cloud.title)", isSelected: app.destination == .settings) {
+                app.go(.settings)
+            }
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: cloud.isHealthy ? "icloud.fill" : "exclamationmark.icloud.fill")
+                    .appFont(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(cloud.isHealthy ? Color.green : Color.orange)
+                    .shadow(color: Theme.sidebar, radius: 0.5)
+                    .shadow(color: Theme.sidebar, radius: 0.5)
+                    .offset(x: 1, y: -1)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
         }
     }
 
