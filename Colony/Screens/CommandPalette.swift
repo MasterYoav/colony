@@ -214,6 +214,14 @@ struct CommandPalette: View {
         withMotion(.snappy(duration: 0.15)) { app.isCommandPalettePresented = false }
     }
 
+    /// The project on screen (its page or one of its lists), for project actions.
+    private var currentProject: Project? {
+        switch app.destination {
+        case .project(let id), .list(let id, _): projects.first { $0.uuid == id }
+        default: nil
+        }
+    }
+
     private func go(_ destination: Destination) -> () -> Void {
         { close(); app.go(destination) }
     }
@@ -251,6 +259,9 @@ struct CommandPalette: View {
             Item(id: "n-apple", group: .navigation, symbol: "puzzlepiece.extension", title: "Apple services", run: go(.appleServices)),
             Item(id: "n-settings", group: .navigation, symbol: "slider.horizontal.3", title: "Settings", run: go(.settings))
         ]
+        if let current = currentProject {
+            items.insert(Item(id: "a-project-settings", group: .actions, symbol: "slider.horizontal.3", title: "Project settings", subtitle: current.name, run: open(.projectSettings(current.uuid))), at: 2)
+        }
         items += projects.map { p in
             Item(id: "p-\(p.uuid)", group: .projects, symbol: p.symbol, tint: p.color.color, title: p.name, subtitle: p.openTaskCount > 0 ? "\(p.openTaskCount) open" : nil, run: go(.project(p.uuid)))
         }

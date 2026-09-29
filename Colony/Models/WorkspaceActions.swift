@@ -10,6 +10,13 @@
 import Foundation
 import SwiftData
 
+/// A list row in Project Settings: an existing list (with its id) or a new one.
+struct ListDraft: Identifiable, Hashable {
+    var id: UUID?
+    var name: String
+    let key = UUID()
+}
+
 @MainActor
 struct WorkspaceActions {
     let context: ModelContext
@@ -28,6 +35,45 @@ struct WorkspaceActions {
         }
         log("Project created", "\(name) is ready for planning.", symbol: "folder.badge.plus", color: color)
         return project
+    }
+
+    /// Renames a project. Returns false (and changes nothing) for an empty name.
+    @discardableResult
+    func rename(_ project: Project, to name: String) -> Bool {
+        let name = ColonyText.trimmed(name)
+        guard !name.isEmpty else { return false }
+        guard name != project.name else { return true }
+        let old = project.name
+        project.name = name
+        log("Project renamed", "\(old) → \(name)", symbol: "pencil", color: project.color)
+        return true
+    }
+
+    /// Applies Project Settings: details plus the list edits (rename, add, remove, order).
+    /// Tasks in a removed list stay in the project.
+    @discardableResult
+    func update(_ project: Project, name: String, symbol: String, color: ColonyColor, summary: String, lists: [ListDraft]) -> Bool {
+        guard rename(project, to: name) else { return false }
+        project.symbol = symbol
+        project.colorRaw = color.rawValue
+        project.summary = ColonyText.trimmed(summary)
+
+        let kept = lists.filter { !ColonyText.trimmed($0.name).isEmpty }
+        let keptIDs = Set(kept.compactMap(\.id))
+        for list in project.sortedLists where !keptIDs.contains(list.uuid) {
+            context.delete(list)
+        }
+        for (index, draft) in kept.enumerated() {
+            let name = ColonyText.trimmed(draft.name)
+            if let id = draft.id, let list = project.sortedLists.first(where: { $0.uuid == id }) {
+                if list.name != name { list.name = name }
+                if list.sortIndex != index { list.sortIndex = index }
+            } else {
+                context.insert(ProjectList(name: name, project: project, sortIndex: index))
+            }
+        }
+        save()
+        return true
     }
 
     @discardableResult

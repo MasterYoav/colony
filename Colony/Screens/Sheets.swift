@@ -38,31 +38,51 @@ private struct CreateFooter: View {
     }
 }
 
-// MARK: - New project
+// MARK: - Project form (create + settings)
 
-struct NewProjectSheet: View {
+/// One form for creating a project and for Project Settings, so both look and behave
+/// the same. Settings adds list editing (rename, reorder, remove) and a Delete action.
+struct ProjectFormSheet: View {
+    enum Mode: Equatable { case create, edit(UUID) }
+
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
     @Environment(\.dialogDismiss) private var dismiss
+    let mode: Mode
+
     @State private var name = ""
     @State private var summary = ""
     @State private var color: ColonyColor = .blue
     @State private var symbol = "folder.fill"
-    @State private var lists: [String] = []
+    @State private var newLists: [String] = []
+    @State private var lists: [ListDraft] = []
+    @State private var loaded = false
 
     static let symbols = ["folder.fill", "calendar", "doc.text.fill", "square.grid.2x2.fill", "chart.bar.fill", "creditcard.fill", "star.fill", "bolt.fill", "paintbrush.fill", "hammer.fill", "globe", "heart.fill", "flag.fill", "cart.fill", "megaphone.fill", "book.fill"]
 
-    private var canCommit: Bool { !ColonyText.trimmed(name).isEmpty }
+    private var project: Project? {
+        if case .edit(let id) = mode { return context.project(id) }
+        return nil
+    }
+
+    private var isEditing: Bool { mode != .create }
+    private var canCommit: Bool { !ColonyText.trimmed(name).isEmpty && (!isEditing || project != nil) }
 
     var body: some View {
-        DialogFrame(symbol: "folder.badge.plus", title: "New project", description: "Projects group tasks into lists and sync to all your devices through iCloud.") {
+        DialogFrame(
+            symbol: isEditing ? "slider.horizontal.3" : "folder.badge.plus",
+            title: isEditing ? "Project settings" : "New project",
+            description: isEditing
+                ? "Changes sync to all your devices through iCloud."
+                : "Projects group tasks into lists and sync to all your devices through iCloud."
+        ) {
             HStack(alignment: .bottom, spacing: 12) {
                 ProjectGlyph(symbol: symbol, color: color.color, size: 34)
                     .motion(.snappy(duration: 0.2), value: symbol)
                     .motion(.snappy(duration: 0.2), value: color)
                     .accessibilityHidden(true)
                 DialogField(label: "Name") {
-                    DialogTextField(placeholder: "e.g. Website relaunch", text: $name, limit: 40, autofocus: true, onSubmit: create)
+                    DialogTextField(placeholder: "e.g. Website relaunch", text: $name, limit: 40, autofocus: true, onSubmit: commit)
                 } accessory: {
                     Text("\(name.count)/40").appFont(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.tertiaryText)
                 }
@@ -80,20 +100,102 @@ struct NewProjectSheet: View {
                 ColorSwatches(selection: $color)
             }
 
-            DialogField(label: "Lists", hint: "Press Return to add a list, like a sprint, a month or a phase.") {
-                ChipInput(items: $lists, placeholder: "Sprint 1, March, Discovery…")
+            if isEditing {
+                DialogField(label: "Lists", hint: "Rename, reorder or remove lists. Tasks in a removed list stay in the project.") {
+                    ListEditor(lists: $lists)
+                }
+            } else {
+                DialogField(label: "Lists", hint: "Press Return to add a list, like a sprint, a month or a phase.") {
+                    ChipInput(items: $newLists, placeholder: "Sprint 1, March, Discovery…")
+                }
             }
         } footer: {
-            CreateFooter(title: "Create project", canCommit: canCommit, commit: create)
+            if isEditing, let project {
+                Button("Delete…", role: .destructive) {
+                    app.present(.deleteProject(project.uuid))
+                }
+                .buttonStyle(.dialogGhostDestructive)
+            }
+            CreateFooter(title: isEditing ? "Save changes" : "Create project", canCommit: canCommit, commit: commit)
+        }
+        .onAppear(perform: load)
+    }
+
+    private func load() {
+        guard !loaded, let project else { return }
+        loaded = true
+        name = project.name
+        summary = project.summary
+        color = project.color
+        symbol = project.symbol
+        lists = project.sortedLists.map { ListDraft(id: $0.uuid, name: $0.name) }
+    }
+
+    private func commit() {
+        guard canCommit else { return }
+        let actions = WorkspaceActions(context: context)
+        if let project {
+            guard actions.update(project, name: name, symbol: symbol, color: color, summary: summary, lists: lists) else { return }
+            app.show("Project updated", detail: project.name)
+        } else {
+            guard let project = actions.createProject(name: name, symbol: symbol, color: color, summary: summary, lists: newLists) else { return }
+            app.preferences.expandedProjectIDs.insert(project.uuid.uuidString)
+            app.go(.project(project.uuid))
+            app.show("Project created", detail: project.name)
+        }
+        dismiss()
+    }
+}
+
+/// Editable rows for a project's lists: rename in place, move up/down, remove, add.
+struct ListEditor: View {
+    @Binding var lists: [ListDraft]
+    @State private var draft = ""
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ForEach($lists, id: \.key) { $list in
+                let index = lists.firstIndex(where: { $0.key == list.key }) ?? 0
+                HStack(spacing: 6) {
+                    DialogTextField(placeholder: "List name", text: $list.name, symbol: "list.bullet", limit: 40)
+                    iconButton("chevron.up", "Move \(list.name) up", disabled: index == 0) { move(index, by: -1) }
+                    iconButton("chevron.down", "Move \(list.name) down", disabled: index == lists.count - 1) { move(index, by: 1) }
+                    iconButton("trash", "Remove \(list.name)", tint: .red) {
+                        withMotion(.snappy(duration: 0.18)) { lists.removeAll { $0.key == list.key } }
+                    }
+                }
+            }
+            DialogTextField(placeholder: lists.isEmpty ? "Add a list and press Return" : "Add another list", text: $draft, symbol: "plus", limit: 40, onSubmit: add)
         }
     }
 
-    private func create() {
-        guard canCommit, let project = WorkspaceActions(context: context).createProject(name: name, symbol: symbol, color: color, summary: summary, lists: lists) else { return }
-        app.preferences.expandedProjectIDs.insert(project.uuid.uuidString)
-        app.go(.project(project.uuid))
-        app.show("Project created", detail: project.name)
-        dismiss()
+    private func add() {
+        let name = ColonyText.trimmed(draft)
+        guard !name.isEmpty else { return }
+        withMotion(.snappy(duration: 0.18)) { lists.append(ListDraft(id: nil, name: name)) }
+        draft = ""
+    }
+
+    private func move(_ index: Int, by delta: Int) {
+        let target = index + delta
+        guard lists.indices.contains(target) else { return }
+        withMotion(.snappy(duration: 0.18)) { lists.swapAt(index, target) }
+    }
+
+    private func iconButton(_ symbol: String, _ label: String, disabled: Bool = false, tint: Color? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .appFont(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(disabled ? Theme.tertiaryText : (tint ?? Theme.icon))
+                .frame(width: 30, height: 32)
+                .background(Theme.field, in: .rect(cornerRadius: 8, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.strongStroke) }
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .help(label)
+        .accessibilityLabel(label)
     }
 }
 

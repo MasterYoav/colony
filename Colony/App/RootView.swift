@@ -134,7 +134,8 @@ struct SheetHost: View {
 
     var body: some View {
         switch sheet {
-        case .newProject: NewProjectSheet()
+        case .newProject: ProjectFormSheet(mode: .create)
+        case .projectSettings(let id): ProjectFormSheet(mode: .edit(id))
         case .newTask(let project, let list): NewTaskSheet(projectID: project, listID: list)
         case .newChannel: NewChannelSheet()
         case .newContact: NewContactSheet()

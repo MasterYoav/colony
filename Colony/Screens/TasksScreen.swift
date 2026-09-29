@@ -87,6 +87,17 @@ struct TasksScreen: View {
                 Spacer()
                 GlassSegments(options: Layout.allCases, selection: $layout, height: 32, label: { $0.rawValue }, systemImage: { $0 == .list ? "list.bullet" : "rectangle.split.3x1" })
                     .frame(width: 190)
+                if let project = scope.project {
+                    Button { app.present(.projectSettings(project.uuid)) } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .appFont(.system(size: 13, weight: .medium))
+                            .frame(width: 32, height: 32)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(QuietButtonStyle())
+                    .help("Project settings")
+                    .accessibilityLabel("Project settings")
+                }
                 Button("New task", systemImage: "plus") {
                     app.present(.newTask(project: scope.project?.uuid, list: scope.list?.uuid))
                 }

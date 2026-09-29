@@ -199,7 +199,7 @@ struct DialogCloseButton: View {
 
 /// shadcn-style buttons: primary (solid), secondary (outline), ghost and destructive.
 struct DialogButtonStyle: ButtonStyle {
-    enum Kind { case primary, secondary, ghost, destructive }
+    enum Kind { case primary, secondary, ghost, destructive, ghostDestructive }
     var kind: Kind = .secondary
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
@@ -228,6 +228,7 @@ struct DialogButtonStyle: ButtonStyle {
         case .primary: Theme.canvas
         case .destructive: .white
         case .secondary, .ghost: Theme.text
+        case .ghostDestructive: Color.red
         }
     }
 
@@ -237,6 +238,7 @@ struct DialogButtonStyle: ButtonStyle {
         case .destructive: Color.red.opacity(pressed ? 0.75 : (isHovering ? 0.88 : 1))
         case .secondary: pressed ? Theme.selection : (isHovering ? Theme.hover : Theme.surface)
         case .ghost: pressed ? Theme.selection : (isHovering ? Theme.hover : .clear)
+        case .ghostDestructive: Color.red.opacity(pressed ? 0.16 : (isHovering ? 0.1 : 0))
         }
     }
 }
@@ -246,6 +248,8 @@ extension ButtonStyle where Self == DialogButtonStyle {
     static var dialogSecondary: DialogButtonStyle { DialogButtonStyle(kind: .secondary) }
     static var dialogGhost: DialogButtonStyle { DialogButtonStyle(kind: .ghost) }
     static var dialogDestructive: DialogButtonStyle { DialogButtonStyle(kind: .destructive) }
+    /// Quiet red text button for a secondary destructive action (e.g. Delete in a settings dialog).
+    static var dialogGhostDestructive: DialogButtonStyle { DialogButtonStyle(kind: .ghostDestructive) }
 }
 
 /// Keyboard hint shown on the leading side of a footer ("⏎ to create").

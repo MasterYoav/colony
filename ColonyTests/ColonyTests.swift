@@ -42,6 +42,56 @@ struct ColonyTests {
         #expect(events.contains { $0.title == "Project created" })
     }
 
+    @Test func renameTrimsRejectsBlankAndLogs() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
+        let project = try #require(actions.createProject(name: "Launch", symbol: "calendar", color: .blue))
+
+        #expect(actions.rename(project, to: "   ") == false)
+        #expect(project.name == "Launch")
+
+        #expect(actions.rename(project, to: "  Launch v2 "))
+        #expect(project.name == "Launch v2")
+        let events = try context.fetch(FetchDescriptor<ActivityEvent>())
+        #expect(events.contains { $0.title == "Project renamed" && $0.detail == "Launch → Launch v2" })
+    }
+
+    @Test func projectSettingsEditsDetailsAndLists() throws {
+        let context = makeContext()
+        let actions = WorkspaceActions(context: context)
+        let project = try #require(actions.createProject(name: "Sales", symbol: "doc", color: .purple, lists: ["Demos", "Deals", "Old"]))
+        let lists = project.sortedLists
+        let old = try #require(lists.last)
+        let task = try #require(actions.createTask(title: "Follow up", list: old))
+
+        // Rename "Demos", swap order with "Deals", remove "Old", add "Renewals".
+        let drafts = [
+            ListDraft(id: lists[1].uuid, name: "Deals"),
+            ListDraft(id: lists[0].uuid, name: "Live demos"),
+            ListDraft(id: nil, name: "Renewals"),
+            ListDraft(id: nil, name: "   "),
+        ]
+        #expect(actions.update(project, name: "Sales team", symbol: "star.fill", color: .green, summary: "  Q4 ", lists: drafts))
+
+        #expect(project.name == "Sales team")
+        #expect(project.symbol == "star.fill")
+        #expect(project.color == .green)
+        #expect(project.summary == "Q4")
+        #expect(project.sortedLists.map(\.name) == ["Deals", "Live demos", "Renewals"])
+        // A task in a removed list stays in the project.
+        #expect(task.project?.uuid == project.uuid)
+        #expect(task.list == nil)
+    }
+
+    @Test func projectSettingsRejectsBlankName() throws {
+        let actions = WorkspaceActions(context: makeContext())
+        let project = try #require(actions.createProject(name: "Ops", symbol: "doc", color: .blue, lists: ["A"]))
+        #expect(actions.update(project, name: " ", symbol: "star.fill", color: .red, summary: "", lists: []) == false)
+        #expect(project.name == "Ops")
+        #expect(project.symbol == "doc")
+        #expect(project.sortedLists.count == 1)
+    }
+
     @Test func blankNamesAreRejected() {
         let actions = WorkspaceActions(context: makeContext())
         #expect(actions.createProject(name: "   ", symbol: "folder", color: .blue) == nil)

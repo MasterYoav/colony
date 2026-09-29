@@ -92,6 +92,7 @@ enum RailItem: String, CaseIterable, Identifiable {
 
 enum ActiveSheet: Identifiable, Hashable {
     case newProject
+    case projectSettings(UUID)
     case newTask(project: UUID?, list: UUID?)
     case newChannel
     case newContact
@@ -106,6 +107,7 @@ enum ActiveSheet: Identifiable, Hashable {
     var id: String {
         switch self {
         case .newProject: "newProject"
+        case .projectSettings(let id): "projectSettings-\(id)"
         case .newTask(let p, let l): "newTask-\(p?.uuidString ?? "")-\(l?.uuidString ?? "")"
         case .newChannel: "newChannel"
         case .newContact: "newContact"
@@ -125,7 +127,7 @@ enum ActiveSheet: Identifiable, Hashable {
         case .deleteProject, .deleteTask, .deleteContact: 420
         case .connectReminders, .connectContacts: 420
         case .newChannel: 460
-        case .newProject: 520
+        case .newProject, .projectSettings: 520
         case .newTask, .newContact, .importContacts: 540
         case .task: 580
         }

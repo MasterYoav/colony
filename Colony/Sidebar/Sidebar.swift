@@ -119,6 +119,8 @@ struct SidebarPanel: View {
     @State private var isWorkspaceExpanded = true
     @State private var isProjectsExpanded = true
     @State private var isProjectsRowExpanded = false
+    /// The project whose sidebar row is being renamed in place.
+    @State private var renamingID: UUID?
 
     private var layout: SidebarLayout { SidebarLayout(preferences: app.preferences) }
 
@@ -318,6 +320,17 @@ struct SidebarPanel: View {
     @ViewBuilder
     private func projectRows(_ project: Project) -> some View {
         let expanded = app.isExpanded(project)
+        if renamingID == project.uuid {
+            InlineRenameRow(
+                glyph: ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 17),
+                initial: project.name
+            ) { newName in
+                if let newName, WorkspaceActions(context: context).rename(project, to: newName) {
+                    WorkspaceActions(context: context).save()
+                }
+                renamingID = nil
+            }
+        } else {
         SidebarRow(
             glyph: ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 17),
             title: project.name,
@@ -330,11 +343,14 @@ struct SidebarPanel: View {
         .sidebarDropTarget(accepts: acceptsProject) { dropProject($0, before: project) }
         .contextMenu {
             Button("New task", systemImage: "plus") { app.present(.newTask(project: project.uuid, list: nil)) }
-            Button(expanded ? "Collapse" : "Expand", systemImage: expanded ? "chevron.up" : "chevron.down") { app.toggleExpanded(project) }
+            Button("Rename", systemImage: "pencil") { renamingID = project.uuid }
+            Button("Project Settings…", systemImage: "slider.horizontal.3") { app.present(.projectSettings(project.uuid)) }
             Divider()
             Button("Delete project…", systemImage: "trash", role: .destructive) {
                 app.present(.deleteProject(project.uuid))
             }
+        }
+
         }
 
         if expanded {
@@ -344,6 +360,53 @@ struct SidebarPanel: View {
                 }
             }
         }
+    }
+}
+
+/// A sidebar row in rename mode: the title becomes a field. Return saves, Esc or
+/// clicking elsewhere cancels (`nil`), matching Finder.
+struct InlineRenameRow<Glyph: View>: View {
+    let glyph: Glyph
+    let initial: String
+    let onDone: (String?) -> Void
+    @State private var text = ""
+    @State private var finished = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            glyph.frame(width: 18)
+            TextField("Project name", text: $text)
+                .textFieldStyle(.plain)
+                .appFont(.system(size: 13.5))
+                .foregroundStyle(Theme.text)
+                .focused($focused)
+                .onSubmit { finish(text) }
+                .onKeyPress(.escape) { finish(nil); return .handled }
+                .onChange(of: text) { _, new in if new.count > 40 { text = String(new.prefix(40)) } }
+        }
+        .padding(.horizontal, 8)
+        .frame(minHeight: Theme.rowHeight)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
+                .fill(Theme.field)
+                .strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.5)
+        }
+        .onAppear {
+            text = initial
+            Task { await DialogTextField.claimFocus { focused = true } isFocused: { focused } }
+        }
+        .onChange(of: focused) { _, isFocused in
+            // Clicking away keeps what was typed, like Finder.
+            if !isFocused { finish(text) }
+        }
+        .accessibilityLabel("Rename project")
+    }
+
+    private func finish(_ value: String?) {
+        guard !finished else { return }
+        finished = true
+        onDone(value)
     }
 }
 
