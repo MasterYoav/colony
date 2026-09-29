@@ -162,6 +162,7 @@ struct ChannelThread: View {
 }
 
 struct MessageBubble: View {
+    @Environment(\.modelContext) private var context
     let message: Message
     @State private var isPinned = false
 
@@ -186,6 +187,11 @@ struct MessageBubble: View {
                 .accessibilityLabel(isPinned ? "Unpin message" : "Pin message")
         }
         .fontRole(.data)
+        .contextMenu {
+            Button("Delete message", systemImage: "trash", role: .destructive) {
+                withAnimation(.snappy(duration: 0.2)) { WorkspaceActions(context: context).delete(message) }
+            }
+        }
         .onAppear { isPinned = message.isPinned }
         .onChange(of: isPinned) { message.isPinned = isPinned }
     }

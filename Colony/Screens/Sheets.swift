@@ -663,3 +663,23 @@ struct DeleteTaskDialog: View {
         }
     }
 }
+
+struct DeleteContactDialog: View {
+    @Environment(\.modelContext) private var context
+    let contactID: UUID
+
+    var body: some View {
+        let contact = context.contact(contactID)
+        ConfirmDialog(
+            symbol: "trash",
+            title: "Delete \(contact?.name ?? "contact")?",
+            message: contact?.appleContactIdentifier == nil
+                ? "They'll be removed from Colony on all your devices."
+                : "They'll be removed from Colony on all your devices. Your Apple Contacts card isn't changed.",
+            confirmTitle: "Delete contact"
+        ) {
+            guard let contact else { return }
+            WorkspaceActions(context: context).delete(contact)
+        }
+    }
+}

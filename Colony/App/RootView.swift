@@ -142,6 +142,7 @@ struct SheetHost: View {
         case .task(let id): TaskDetailSheet(taskID: id)
         case .deleteProject(let id): DeleteProjectDialog(projectID: id)
         case .deleteTask(let id): DeleteTaskDialog(taskID: id)
+        case .deleteContact(let id): DeleteContactDialog(contactID: id)
         case .connectReminders: PermissionDialog(kind: .reminders)
         case .connectContacts: PermissionDialog(kind: .contacts)
         }

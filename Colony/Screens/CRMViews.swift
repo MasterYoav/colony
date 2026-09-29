@@ -70,6 +70,12 @@ struct ContactsView: View {
                                 .contentShape(.rect)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button("Delete contact…", systemImage: "trash", role: .destructive) {
+                                    if selectedID == contact.uuid { selectedID = nil }
+                                    app.present(.deleteContact(contact.uuid))
+                                }
+                            }
                         }
                     }
                 }
@@ -112,6 +118,7 @@ struct StageChip: View {
 struct ContactInspector: View {
     @Environment(\.modelContext) private var context
     @Environment(\.openURL) private var openURL
+    @Environment(AppModel.self) private var app
     @Bindable var contact: Contact
 
     var body: some View {
@@ -162,6 +169,12 @@ struct ContactInspector: View {
                         .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.stroke) }
                 }
+
+                Button("Delete contact…", systemImage: "trash", role: .destructive) {
+                    app.present(.deleteContact(contact.uuid))
+                }
+                .buttonStyle(QuietButtonStyle())
+                .foregroundStyle(.red)
             }
             .padding(20)
         }

@@ -1,0 +1,10 @@
+title: Colony
+description: Private workspace for Apple devices
+theme: jekyll-theme-primer
+# Only the public pages are built; the developer docs in this folder stay on GitHub.
+include: []
+exclude:
+  - ARCHITECTURE.md
+  - PRODUCT.md
+  - ROADMAP.md
+  - THEMING.md

@@ -117,6 +117,10 @@ struct WorkspaceActions {
         channel.lastReadAt = .now
     }
 
+    func delete(_ message: Message) {
+        context.delete(message)
+    }
+
     // MARK: CRM
 
     @discardableResult
@@ -141,6 +145,11 @@ struct WorkspaceActions {
         guard contact.stage != stage else { return }
         contact.stage = stage
         log("Deal moved", "\(contact.name) → \(stage.title)", symbol: "arrow.triangle.branch", color: stage.color)
+    }
+
+    /// Removes the contact from Colony only; the person in Apple Contacts is never touched.
+    func delete(_ contact: Contact) {
+        context.delete(contact)
     }
 
     // MARK: Updates

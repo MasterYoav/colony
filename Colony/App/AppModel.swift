@@ -99,6 +99,7 @@ enum ActiveSheet: Identifiable, Hashable {
     case task(UUID)
     case deleteProject(UUID)
     case deleteTask(UUID)
+    case deleteContact(UUID)
     case connectReminders
     case connectContacts
 
@@ -112,6 +113,7 @@ enum ActiveSheet: Identifiable, Hashable {
         case .task(let id): "task-\(id)"
         case .deleteProject(let id): "deleteProject-\(id)"
         case .deleteTask(let id): "deleteTask-\(id)"
+        case .deleteContact(let id): "deleteContact-\(id)"
         case .connectReminders: "connectReminders"
         case .connectContacts: "connectContacts"
         }
@@ -120,7 +122,7 @@ enum ActiveSheet: Identifiable, Hashable {
     /// Dialog width on Mac, iPad and Vision Pro. iPhone uses a full-width sheet.
     var dialogWidth: CGFloat {
         switch self {
-        case .deleteProject, .deleteTask: 420
+        case .deleteProject, .deleteTask, .deleteContact: 420
         case .connectReminders, .connectContacts: 420
         case .newChannel: 460
         case .newProject: 520
@@ -225,6 +227,10 @@ extension ModelContext {
 
     func task(_ id: UUID) -> TaskItem? {
         try? fetch(FetchDescriptor<TaskItem>(predicate: #Predicate { $0.uuid == id })).first
+    }
+
+    func contact(_ id: UUID) -> Contact? {
+        try? fetch(FetchDescriptor<Contact>(predicate: #Predicate { $0.uuid == id })).first
     }
 
     func channel(_ id: UUID) -> Channel? {

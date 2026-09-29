@@ -68,6 +68,28 @@ struct SettingsView: View {
                         .appFont(.caption)
                         .foregroundStyle(Theme.secondaryText)
                 }
+
+                Card {
+                    Text("About").appFont(.headline).foregroundStyle(Theme.text)
+                    Text("Colony collects no data about you. Nothing leaves your devices except to your own iCloud.")
+                        .appFont(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                    HStack(spacing: 8) {
+                        Link(destination: ColonyLinks.privacy) {
+                            Label("Privacy policy", systemImage: "hand.raised")
+                        }
+                        Link(destination: ColonyLinks.accessibility) {
+                            Label("Accessibility", systemImage: "accessibility")
+                        }
+                        Link(destination: ColonyLinks.support) {
+                            Label("Support", systemImage: "questionmark.circle")
+                        }
+                    }
+                    .buttonStyle(QuietButtonStyle())
+                    Text("Version \(ColonyLinks.version)")
+                        .appFont(.caption)
+                        .foregroundStyle(Theme.tertiaryText)
+                }
             }
             .padding(28)
             .frame(maxWidth: 720, alignment: .leading)
