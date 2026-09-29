@@ -10,28 +10,55 @@
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
 #endif
 
 enum Theme {
     // Surfaces
-    static let canvas = adaptive(light: 0xF6F6F7, dark: 0x0B0B0D)
-    static let sidebar = adaptive(light: 0xFBFBFC, dark: 0x0F1012)
+    static let canvas = color(Tones.canvas)
+    static let sidebar = color(Tones.sidebar)
     static let rail = adaptive(light: 0xF3F3F5, dark: 0x0F1012)
-    static let surface = adaptive(light: 0xFFFFFF, dark: 0x15161A)
-    static let raised = adaptive(light: 0xFFFFFF, dark: 0x1B1C20)
+    static let surface = color(Tones.surface)
+    static let raised = color(Tones.raised)
     static let selection = adaptive(light: 0xE9E9EC, dark: 0x1F2024)
     static let hover = adaptive(light: 0xF0F0F2, dark: 0x18191C)
     static let field = adaptive(light: 0xFFFFFF, dark: 0x131417)
 
-    // Lines
-    static let stroke = adaptive(light: 0xE4E4E7, dark: 0x222327)
-    static let strongStroke = adaptive(light: 0xD4D4D8, dark: 0x2C2D32)
+    // Lines. With Increase Contrast they become clearly visible edges.
+    static let stroke = color(Tones.stroke)
+    static let strongStroke = color(Tones.strongStroke)
 
-    // Text
-    static let text = adaptive(light: 0x17181B, dark: 0xECECEE)
-    static let secondaryText = adaptive(light: 0x6B6D74, dark: 0x8E9096)
-    static let tertiaryText = adaptive(light: 0x9A9CA2, dark: 0x5F6167)
-    static let icon = adaptive(light: 0x4A4C52, dark: 0xB7B8BD)
+    // Text. Primary and secondary meet WCAG AA (4.5:1) on every surface. Tertiary is for
+    // incidental text (timestamps, shortcut hints, placeholders); with Increase Contrast
+    // it's raised to AA as well. ThemeContrastTests checks these ratios.
+    static let text = color(Tones.text)
+    static let secondaryText = color(Tones.secondaryText)
+    static let tertiaryText = color(Tones.tertiaryText)
+    static let icon = color(Tones.icon)
+
+    /// Raw hex values, per appearance, for tokens that change under Increase Contrast.
+    struct Tone: Sendable {
+        let light: UInt32, dark: UInt32, highLight: UInt32, highDark: UInt32
+    }
+
+    enum Tones {
+        static let canvas = Tone(light: 0xF6F6F7, dark: 0x0B0B0D, highLight: 0xF6F6F7, highDark: 0x0B0B0D)
+        static let sidebar = Tone(light: 0xFBFBFC, dark: 0x0F1012, highLight: 0xFBFBFC, highDark: 0x0F1012)
+        static let surface = Tone(light: 0xFFFFFF, dark: 0x15161A, highLight: 0xFFFFFF, highDark: 0x15161A)
+        static let raised = Tone(light: 0xFFFFFF, dark: 0x1B1C20, highLight: 0xFFFFFF, highDark: 0x1B1C20)
+
+        static let stroke = Tone(light: 0xE4E4E7, dark: 0x222327, highLight: 0x8A8C92, highDark: 0x6A6C72)
+        static let strongStroke = Tone(light: 0xD4D4D8, dark: 0x2C2D32, highLight: 0x6B6D74, highDark: 0x8E9096)
+        static let text = Tone(light: 0x17181B, dark: 0xECECEE, highLight: 0x000000, highDark: 0xFFFFFF)
+        static let secondaryText = Tone(light: 0x6B6D74, dark: 0x8E9096, highLight: 0x3F4146, highDark: 0xC4C5CA)
+        static let tertiaryText = Tone(light: 0x9A9CA2, dark: 0x5F6167, highLight: 0x5E6066, highDark: 0x9B9DA3)
+        static let icon = Tone(light: 0x4A4C52, dark: 0xB7B8BD, highLight: 0x2A2B2F, highDark: 0xDADBDF)
+    }
+
+    static func color(_ tone: Tone) -> Color {
+        adaptive(light: tone.light, dark: tone.dark, highLight: tone.highLight, highDark: tone.highDark)
+    }
 
     // Brand
     static let brandGradient = LinearGradient(
@@ -64,9 +91,21 @@ enum Theme {
     static let rowHeight: CGFloat = 30
     static let rowRadius: CGFloat = 8
 
-    static func adaptive(light: UInt32, dark: UInt32) -> Color {
+    /// macOS: the live window appearance carries Increase Contrast, but reading the setting
+    /// directly is what makes it reliable in every drawing context.
+    nonisolated static var systemIncreasesContrast: Bool {
+        #if os(macOS)
+        NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        #else
+        false
+        #endif
+    }
+
+    static func adaptive(light: UInt32, dark: UInt32, highLight: UInt32? = nil, highDark: UInt32? = nil) -> Color {
         Color(uiColor: UIColor { traits in
-            let hex = traits.userInterfaceStyle == .dark ? dark : light
+            let isDark = traits.userInterfaceStyle == .dark
+            let isHigh = traits.accessibilityContrast == .high || Theme.systemIncreasesContrast
+            let hex = isHigh ? (isDark ? highDark ?? dark : highLight ?? light) : (isDark ? dark : light)
             return UIColor(
                 red: CGFloat((hex >> 16) & 0xFF) / 255,
                 green: CGFloat((hex >> 8) & 0xFF) / 255,

@@ -17,15 +17,20 @@ public typealias UITextContentType = NSTextContentType
 
 public nonisolated struct PieceTraits: Sendable {
     public enum Style: Sendable { case light, dark, unspecified }
+    public enum Contrast: Sendable { case normal, high, unspecified }
     public let userInterfaceStyle: Style
+    public var accessibilityContrast: Contrast = .normal
 }
 
 extension NSColor {
     /// Mirrors `UIColor { traits in ... }` using an appearance-aware dynamic NSColor.
+    /// "Increase contrast" arrives as the high-contrast Aqua appearances.
     nonisolated convenience init(_ provider: @escaping @Sendable (PieceTraits) -> NSColor) {
         self.init(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return provider(PieceTraits(userInterfaceStyle: isDark ? .dark : .light))
+            let match = appearance.bestMatch(from: [.darkAqua, .aqua, .accessibilityHighContrastDarkAqua, .accessibilityHighContrastAqua])
+            let isDark = match == .darkAqua || match == .accessibilityHighContrastDarkAqua
+            let isHigh = match == .accessibilityHighContrastAqua || match == .accessibilityHighContrastDarkAqua
+            return provider(PieceTraits(userInterfaceStyle: isDark ? .dark : .light, accessibilityContrast: isHigh ? .high : .normal))
         }
     }
 }
