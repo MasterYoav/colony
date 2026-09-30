@@ -138,10 +138,14 @@ struct SidebarPanel: View {
             header
             // The workspace switcher stays put; everything under it scrolls as one list.
             VStack(alignment: .leading, spacing: 0) {
-                    workspaceSwitcher
-                        .padding(.horizontal, 8)
-                        .padding(.top, 8)
-                        .padding(.bottom, 6)
+                    HStack(spacing: 6) {
+                        workspaceSwitcher
+                        SearchField { app.toggleCommandPalette() }
+                            .frame(maxWidth: 118)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 8)
+                    .padding(.bottom, 6)
 
                 ScrollView {
                     VStack(spacing: 2) {
@@ -273,7 +277,7 @@ struct SidebarPanel: View {
     /// Title-bar row: Command field beside the traffic lights, collapse toggle on the right.
     private var header: some View {
         HStack(spacing: 6) {
-            CommandField { app.toggleCommandPalette() }
+            Spacer(minLength: 0)
             SidebarToggleButton()
         }
         .padding(.leading, headerLeadingInset)
@@ -429,7 +433,7 @@ struct CollapsedPanel: View {
             #endif
 
             VStack(spacing: 6) {
-                RailButton(symbol: "command", title: "Command Center (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
+                RailButton(symbol: "magnifyingglass", title: "Search (⌘K)", isSelected: app.isCommandPalettePresented) { app.toggleCommandPalette() }
                     .padding(.top, 2)
                 ForEach(layout.items) { item in navIcon(item) }
                 SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, before: nil) }
@@ -442,35 +446,7 @@ struct CollapsedPanel: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
 
-            // As in the expanded panel, only the projects scroll.
-            ScrollView {
-                VStack(spacing: 6) {
-                    ForEach(projects) { project in
-                        Button { app.go(.project(project.uuid)) } label: {
-                            ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 18)
-                                .frame(width: 34, height: 34)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                        .fill(app.destination == .project(project.uuid) ? Theme.glassSelection : .clear)
-                                }
-                        }
-                        .buttonStyle(.plain)
-                        .help(project.name)
-                        .accessibilityLabel(project.name)
-                        .sidebarDraggable(.project(project.uuid), symbol: project.symbol, title: project.name)
-                        .sidebarDropTarget(accepts: acceptsProject) { payload in
-                            guard case .project(let id) = payload, let moved = context.project(id) else { return }
-                            withMotion(.snappy(duration: 0.22)) { WorkspaceActions(context: context).move(moved, before: project) }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 8)
-            }
-            .scrollIndicators(.never)
-            .scrollBounceBehavior(.basedOnSize)
-            .frame(maxHeight: .infinity)
+            Spacer(minLength: 8)
 
             CollapsedNowPlayingButton()
             SidebarFooter(axis: .vertical)
@@ -562,7 +538,7 @@ struct WorkspaceSwitcherLabel: View {
     }
 }
 
-struct CommandField: View {
+struct SearchField: View {
     let action: () -> Void
 
     var body: some View {
@@ -583,16 +559,16 @@ struct CommandField: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .help("Command Center (⌘K)")
-        .accessibilityLabel("Open command palette")
+        .help("Search and commands (⌘K)")
+        .accessibilityLabel("Search")
     }
 
     private func content(showsHint: Bool) -> some View {
         HStack(spacing: 7) {
-            Image(systemName: "command")
+            Image(systemName: "magnifyingglass")
                 .appFont(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(Theme.secondaryText)
-            Text("Command")
+            Text("Search")
                 .appFont(.system(size: 13))
                 .foregroundStyle(Theme.secondaryText)
                 .lineLimit(1)

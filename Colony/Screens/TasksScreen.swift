@@ -39,13 +39,17 @@ enum TaskScope {
 struct TasksScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Query(sort: \TaskItem.createdAt, order: .reverse) private var allTasks: [TaskItem]
+    @Query(sort: \TaskItem.createdAt) private var allTasks: [TaskItem]
+    @Query(sort: \Project.sortIndex) private var projects: [Project]
     let scope: TaskScope
 
     @State private var layout: Layout = .list
-    @State private var filter: Set<String> = ["Open"]
-    @State private var quickTitle = ""
-    @FocusState private var quickFocused: Bool
+    @State private var smart: SmartList = .today
+    @State private var showsCompleted = false
+    @State private var selection: UUID?
+    @State private var lingering: Set<UUID> = []
+    @State private var confirmsClear = false
+    @FocusState private var focus: TaskFocus?
 
     enum Layout: String, CaseIterable { case list = "List", board = "Board" }
 
@@ -59,109 +63,173 @@ struct TasksScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
+            toolbar
                 .padding(.horizontal, 28)
-                // Collapsed sidebar: its toggle floats just above-left of the title, so give
-                // the glyph and title some room. Animates with the sidebar.
                 .padding(.leading, app.preferences.isSidebarCollapsed && isMac ? 22 : 0)
-                .padding(.top, 24)
-                .padding(.bottom, 12)
+                .padding(.top, 14)
 
             if layout == .list {
-                listBody
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if case .all = scope {
+                            SmartListTiles(selection: Binding(get: { smart }, set: { new in
+                                guard let new else { return }
+                                selection = nil
+                                smart = new
+                                showsCompleted = new == .completed
+                            }), counts: smartCounts)
+                            .padding(.bottom, 22)
+                        }
+                        titleBlock
+                        RemindersList(sections: sections, accent: accent, selection: $selection, focus: $focus, lingering: $lingering)
+                        if sections.allSatisfy({ $0.tasks.isEmpty }) && !sections.contains(where: \.acceptsNew) {
+                            Text("Nothing here yet.")
+                                .appFont(.body)
+                                .foregroundStyle(Theme.tertiaryText)
+                                .padding(.top, 24)
+                        }
+                    }
+                    .padding(.horizontal, 28)
+                    .padding(.leading, app.preferences.isSidebarCollapsed && isMac ? 22 : 0)
+                    .padding(.top, 8)
+                    .padding(.bottom, 60)
+                    .frame(maxWidth: 980, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
+                    .contentShape(.rect)
+                    // Click on empty space: deselect, like Reminders.
+                    .onTapGesture { deselect() }
+                }
+                #if os(iOS)
+                .scrollDismissesKeyboard(.interactively)
+                #endif
             } else {
                 BoardView(tasks: scoped)
+                    .padding(.top, 12)
             }
         }
         .navigationTitle(scope.title)
+        .onKeyPress(.escape) {
+            guard selection != nil || focus != nil else { return .ignored }
+            deselect()
+            return .handled
+        }
+        .onChange(of: scope.title) { selection = nil }
+        .confirmationDialog("Clear \(completedCount) completed task\(completedCount == 1 ? "" : "s")?", isPresented: $confirmsClear) {
+            Button("Clear", role: .destructive) {
+                let done = visibleScope.filter(\.isDone)
+                done.forEach(app.reminders.removeMirror)
+                withMotion(.snappy) { WorkspaceActions(context: context).clearCompleted(done) }
+            }
+        } message: {
+            Text("They're deleted from every device.")
+        }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 12) {
-                if let project = scope.project {
-                    ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 30)
+    // MARK: Header
+
+    /// Top row: layout switch, project settings, new task (the + in Reminders).
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            if case .list(let project, _) = scope {
+                Button { app.go(.project(project.uuid)) } label: {
+                    Label(project.name, systemImage: "chevron.left")
+                        .appFont(.system(size: 12.5, weight: .medium))
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    if case .list(let project, _) = scope {
-                        Button(project.name) { app.go(.project(project.uuid)) }
-                            .buttonStyle(.plain)
-                            .appFont(.caption)
-                            .foregroundStyle(Theme.secondaryText)
-                    }
-                    Text(scope.title)
-                        .appFont(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(Theme.text)
-                }
-                Spacer()
-                GlassSegments(options: Layout.allCases, selection: $layout, height: 32, label: { $0.rawValue }, systemImage: { $0 == .list ? "list.bullet" : "rectangle.split.3x1" })
-                    .frame(width: 190)
-                if let project = scope.project {
-                    Button { app.present(.projectSettings(project.uuid)) } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .appFont(.system(size: 13, weight: .medium))
-                            .frame(width: 32, height: 32)
-                            .contentShape(.rect)
-                    }
-                    .buttonStyle(QuietButtonStyle())
-                    .help("Project settings")
-                    .accessibilityLabel("Project settings")
-                }
-                Button("New task", systemImage: "plus") {
-                    app.present(.newTask(project: scope.project?.uuid, list: scope.list?.uuid))
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.secondaryText)
+            }
+            Spacer()
+            GlassSegments(options: Layout.allCases, selection: $layout, height: 30, label: { $0.rawValue }, systemImage: { $0 == .list ? "list.bullet" : "rectangle.split.3x1" })
+                .frame(width: 170)
+            if let project = scope.project {
+                Button { app.present(.projectSettings(project.uuid)) } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .appFont(.system(size: 13, weight: .medium))
+                        .frame(width: 30, height: 30)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(QuietButtonStyle())
+                .help("Project settings")
+                .accessibilityLabel("Project settings")
             }
+            Button { startNewTask() } label: {
+                Image(systemName: "plus")
+                    .appFont(.system(size: 14, weight: .medium))
+                    .frame(width: 30, height: 30)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(QuietButtonStyle())
+            .help("New task")
+            .accessibilityLabel("New task")
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+        }
+    }
 
+    /// Big coloured title with the open count, then "N Completed · Clear" and Show/Hide.
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                if let project = scope.project, scope.list == nil {
+                    ProjectGlyph(symbol: project.symbol, color: project.color.color, size: 26)
+                        .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 4 }
+                }
+                Text(title)
+                    .appFont(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                Spacer()
+                if !(isAll && smart == .completed) {
+                    Text("\(openCount)")
+                        .appFont(.system(size: 30, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(accent)
+                        .contentTransition(.numericText())
+                        .accessibilityLabel("\(openCount) open")
+                }
+            }
             if let project = scope.project, !project.summary.isEmpty, scope.list == nil {
                 Text(project.summary).appFont(.subheadline).foregroundStyle(Theme.secondaryText)
             }
-
-            if layout == .list {
-                FilterRail(options: filterOptions, selection: $filter, counts: counts)
+            if !(isAll && smart == .completed) {
+                HStack(spacing: 6) {
+                    Text("\(completedCount) Completed")
+                        .foregroundStyle(Theme.secondaryText)
+                    if completedCount > 0 {
+                        Text("·").foregroundStyle(Theme.tertiaryText)
+                        Button("Clear") { confirmsClear = true }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(accent)
+                    }
+                    Spacer()
+                    if completedCount > 0 {
+                        Button(showsCompleted ? "Hide" : "Show") {
+                            withMotion(.snappy(duration: 0.25)) { showsCompleted.toggle() }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(accent)
+                    }
+                }
+                .appFont(.system(size: 13.5, weight: .medium))
+                .padding(.bottom, 4)
             }
         }
-    }
-
-    private var listBody: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 8) {
-                quickAdd
-                let visible = filtered
-                if visible.isEmpty {
-                    EmptyStateView(symbol: "checklist", title: "No tasks here", message: "Capture one above, or press ⌘N from anywhere.")
-                }
-                ForEach(visible) { task in
-                    TaskListRow(task: task)
-                }
-            }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
-            .frame(maxWidth: 900, alignment: .leading)
-        }
-    }
-
-    private var quickAdd: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "plus")
-                .foregroundStyle(Theme.secondaryText)
-            TextField("Add a task and press Return", text: $quickTitle)
-                .textFieldStyle(.plain)
-                .focused($quickFocused)
-                .onSubmit(addQuickTask)
-        }
-        .padding(.horizontal, 14)
-        .frame(minHeight: 42)
-        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(quickFocused ? Theme.strongStroke : Theme.stroke) }
         .padding(.bottom, 4)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1).offset(y: 4) }
     }
 
-    private func addQuickTask() {
-        guard let task = WorkspaceActions(context: context).createTask(title: quickTitle, project: scope.project, list: scope.list) else { return }
-        app.syncReminder(for: task)
-        quickTitle = ""
-        quickFocused = true
+    // MARK: Data
+
+    private var isAll: Bool {
+        if case .all = scope { return true }
+        return false
+    }
+
+    private var title: String {
+        isAll ? smart.title : scope.title
+    }
+
+    private var accent: Color {
+        if isAll { return smart.color }
+        return scope.project?.color.color ?? .accentColor
     }
 
     private var scoped: [TaskItem] {
@@ -172,28 +240,108 @@ struct TasksScreen: View {
         }
     }
 
-    private let filterOptions = ["Open", "Today", "Overdue", "Done"]
-
-    private var counts: [String: Int] {
-        let s = scoped
-        return [
-            "Open": s.filter { !$0.isDone }.count,
-            "Today": s.filter { $0.isDueToday && !$0.isDone }.count,
-            "Overdue": s.filter(\.isOverdue).count,
-            "Done": s.filter(\.isDone).count
-        ]
+    /// The tasks the title counts: the scope, narrowed to the smart list on the Tasks page.
+    private var visibleScope: [TaskItem] {
+        isAll ? scoped.filter(smart.includes) : scoped
     }
 
-    private var filtered: [TaskItem] {
-        let chosen = filter.first ?? "Open"
-        let base: [TaskItem] = switch chosen {
-        case "Today": scoped.filter { $0.isDueToday && !$0.isDone }
-        case "Overdue": scoped.filter(\.isOverdue)
-        case "Done": scoped.filter(\.isDone)
-        default: scoped.filter { !$0.isDone }
+    private var openCount: Int { visibleScope.filter { !$0.isDone }.count }
+    private var completedCount: Int { visibleScope.filter(\.isDone).count }
+
+    private var smartCounts: [SmartList: Int] {
+        var counts: [SmartList: Int] = [:]
+        for list in SmartList.allCases where list != .completed {
+            counts[list] = allTasks.filter { !$0.isDone && list.includes($0) }.count
         }
-        return base.sorted {
-            ($0.dueDate ?? .distantFuture, $1.priority.sortRank) < ($1.dueDate ?? .distantFuture, $0.priority.sortRank)
+        return counts
+    }
+
+    /// Open tasks, plus ones ticked a moment ago, plus completed ones when shown.
+    private func shown(_ tasks: [TaskItem]) -> [TaskItem] {
+        tasks.filter { !$0.isDone || showsCompleted || lingering.contains($0.uuid) }
+    }
+
+    private var sections: [TaskSection] {
+        switch scope {
+        case .list(let project, let list):
+            return [TaskSection(id: list.uuid.uuidString, title: nil, color: project.color.color, tasks: shown(scoped), project: project, list: list)]
+        case .project(let project):
+            // Tasks outside any list first, then one section per list, like Reminders' groups.
+            let loose = TaskSection(id: "loose", title: nil, color: project.color.color, tasks: shown(scoped.filter { $0.list == nil }), project: project)
+            let lists = project.sortedLists.map { list in
+                TaskSection(id: list.uuid.uuidString, title: list.name, color: project.color.color, tasks: shown(scoped.filter { $0.list?.uuid == list.uuid }), project: project, list: list)
+            }
+            return [loose] + lists
+        case .all:
+            return smartSections
+        }
+    }
+
+    private var smartSections: [TaskSection] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: .now)
+        let color = smart.color
+        switch smart {
+        case .today:
+            let tasks = shown(allTasks.filter(SmartList.today.includes)).sorted(by: byDue)
+            return [TaskSection(id: "today", title: nil, color: color, tasks: tasks, dueDefault: today, showsProject: true)]
+        case .scheduled:
+            let tasks = shown(allTasks.filter { $0.dueDate != nil }).sorted(by: byDue)
+            var result: [TaskSection] = []
+            let overdue = tasks.filter { ($0.dueDate ?? .now) < today }
+            if !overdue.isEmpty {
+                result.append(TaskSection(id: "overdue", title: "Overdue", color: .red, tasks: overdue, acceptsNew: false, showsProject: true))
+            }
+            // Today, tomorrow and the rest of the week always show, so there's somewhere to add.
+            var days = (0..<7).map { cal.date(byAdding: .day, value: $0, to: today)! }
+            let later = Set(tasks.compactMap { $0.dueDate.map(cal.startOfDay) }.filter { $0 >= days.last!.addingTimeInterval(86_400) })
+            days += later.sorted()
+            for day in days {
+                let items = tasks.filter { $0.dueDate.map { cal.isDate($0, inSameDayAs: day) } ?? false }
+                let name = cal.isDateInToday(day) ? "Today" : cal.isDateInTomorrow(day) ? "Tomorrow" : DueText.day(day)
+                result.append(TaskSection(id: "day-\(Int(day.timeIntervalSince1970))", title: name, color: color, tasks: items, dueDefault: day, showsProject: true))
+            }
+            return result
+        case .all:
+            var result: [TaskSection] = projects.map { project in
+                TaskSection(id: project.uuid.uuidString, title: project.name, color: project.color.color, tasks: shown(allTasks.filter { $0.project?.uuid == project.uuid }), project: project)
+            }
+            result.append(TaskSection(id: "none", title: "No project", color: color, tasks: shown(allTasks.filter { $0.project == nil })))
+            return result
+        case .flagged:
+            return [TaskSection(id: "flagged", title: nil, color: color, tasks: shown(allTasks.filter(\.isFlagged)), flaggedDefault: true, showsProject: true)]
+        case .urgent:
+            return [TaskSection(id: "urgent", title: nil, color: color, tasks: shown(allTasks.filter { $0.priority == .urgent }), priorityDefault: .urgent, showsProject: true)]
+        case .completed:
+            let done = allTasks.filter(\.isDone).sorted { ($0.completedAt ?? $0.createdAt) > ($1.completedAt ?? $1.createdAt) }
+            var groups: [TaskSection] = projects.compactMap { project in
+                let items = done.filter { $0.project?.uuid == project.uuid }
+                return items.isEmpty ? nil : TaskSection(id: project.uuid.uuidString, title: project.name, color: project.color.color, tasks: items, acceptsNew: false)
+            }
+            let loose = done.filter { $0.project == nil }
+            if !loose.isEmpty { groups.append(TaskSection(id: "none", title: "No project", color: color, tasks: loose, acceptsNew: false)) }
+            return groups
+        }
+    }
+
+    private func byDue(_ a: TaskItem, _ b: TaskItem) -> Bool {
+        (a.dueDate ?? .distantFuture, b.priority.sortRank) < (b.dueDate ?? .distantFuture, a.priority.sortRank)
+    }
+
+    // MARK: Actions
+
+    private func deselect() {
+        selection = nil
+        focus = nil
+    }
+
+    /// + focuses the blank row of the first section that takes new tasks.
+    private func startNewTask() {
+        layout = .list
+        if isAll, smart == .completed { smart = .today }
+        selection = nil
+        if let section = sections.first(where: \.acceptsNew) {
+            focus = .newTask(section.id)
         }
     }
 }

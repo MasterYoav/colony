@@ -130,6 +130,34 @@ struct WorkspaceActions {
         setStatus(task.isDone ? .todo : .done, for: task)
     }
 
+    /// Sets or clears the due date. `hasTime: false` keeps only the day.
+    func setDue(_ date: Date?, hasTime: Bool, for task: TaskItem) {
+        guard let date else {
+            task.dueDate = nil
+            return
+        }
+        task.dueHasTime = hasTime
+        task.dueDate = hasTime ? date : Calendar.current.startOfDay(for: date)
+    }
+
+    func toggleFlag(_ task: TaskItem) {
+        task.isFlagged.toggle()
+    }
+
+    /// Moves a task to a project (and optionally one of its lists), or out of any project.
+    func move(_ task: TaskItem, to project: Project?, list: ProjectList? = nil) {
+        task.project = project ?? list?.project
+        task.list = list
+    }
+
+    /// Deletes every completed task in `tasks` (Reminders' "Clear"). Returns how many.
+    @discardableResult
+    func clearCompleted(_ tasks: [TaskItem]) -> Int {
+        let done = tasks.filter(\.isDone)
+        done.forEach(context.delete)
+        return done.count
+    }
+
     func delete(_ task: TaskItem) {
         context.delete(task)
     }

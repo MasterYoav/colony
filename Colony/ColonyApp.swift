@@ -18,7 +18,11 @@ struct ColonyApp: App {
         let preferences = CloudStore.isRunningForTests
             ? CloudPreferences(useICloud: false, defaults: UserDefaults(suiteName: "colony-test-host-\(UUID())") ?? .standard)
             : CloudPreferences()
-        _app = State(initialValue: AppModel(preferences: preferences, iCloud: ICloudStatus(mode: mode)))
+        let model = AppModel(preferences: preferences, iCloud: ICloudStatus(mode: mode))
+        _app = State(initialValue: model)
+        // Started here rather than from a view, so it runs with no window open too
+        // (menu-bar mode, open at login).
+        model.scheduler.attach(container, app: model)
     }
 
     var body: some Scene {
@@ -41,7 +45,7 @@ struct ColonyApp: App {
                 Button("New Channel") { app.present(.newChannel) }
             }
             CommandGroup(after: .sidebar) {
-                Button("Command Center…") { app.toggleCommandPalette() }
+                Button("Search…") { app.toggleCommandPalette() }
                     .keyboardShortcut("k", modifiers: .command)
                 Button(app.preferences.isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar") {
                     app.toggleSidebar()
@@ -49,6 +53,13 @@ struct ColonyApp: App {
                 .keyboardShortcut("s", modifiers: [.command, .control])
             }
         }
+
+        // Optional: while it's in the menu bar, closing the window doesn't quit Colony.
+        MenuBarExtra("Colony", systemImage: "checklist", isInserted: Binding(get: { app.preferences.runsInMenuBar }, set: { app.preferences.runsInMenuBar = $0 })) {
+            MenuBarPanel()
+                .environment(app)
+        }
+        .modelContainer(container)
         #else
         WindowGroup {
             root

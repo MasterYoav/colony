@@ -9,6 +9,9 @@
 - Sidebar music controller for the device's own player (Music on Mac, system music player on iPhone/iPad).
 - Frosted glass sidebar with Agents and Automations sections (preview crew with blinking faces; the features themselves are the next two phases).
 - Apple Contacts import and Apple Reminders mirroring.
+- Tasks laid out like Apple Reminders: smart-list tiles, in-place editing, flags, date-only or timed due dates.
+- Due-time notifications with Complete / Remind Me in 1 Hour (delivered with Colony closed), an optional menu-bar mode and Open at Login on Mac.
+- "Colony" calendar in Apple Calendar with dated tasks and automation schedules.
 - ⌘K command palette, ⌘N new task, ⌘⇧N new project.
 - Swift Pieces components across the UI.
 
@@ -47,8 +50,9 @@ The private database is single-user: it syncs one person's data across their dev
 
 - Spotlight indexing (`CoreSpotlight`) and App Intents / Shortcuts ("Add a task to Launch").
 - Widgets (due today, pipeline) and Live Activities for in-progress tasks.
-- Calendar view using EventKit events alongside task due dates.
-- Local notifications for tasks not mirrored to Reminders.
+- Calendar view inside Colony using EventKit events alongside task due dates.
+- Real automation schedules in Calendar once Automations ship (Phase 2); today it shows the preview crew's.
+- Early reminders (e.g. 15 minutes before) and repeating tasks.
 - Deploy the CloudKit schema to production before the first TestFlight build.
 
 ## Not planned

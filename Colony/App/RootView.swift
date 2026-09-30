@@ -35,6 +35,7 @@ struct RootView: View {
                 #endif
             }
         }
+        .background { TaskChangeWatcher() }
         .tint(ColonyColor.blue.color)
         .modifier(CommandPaletteHost())
         .modifier(DialogPresenter())

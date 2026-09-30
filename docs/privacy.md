@@ -43,6 +43,14 @@ any time in Settings (iOS, iPadOS, visionOS) or System Settings › Privacy & Se
   artist, artwork, position) and sends play, pause, skip, seek and mute to it. On the Mac it talks to
   the Music app (macOS asks you first); on iPhone and iPad it uses the system music player. This
   information is only held in memory while Colony is open. It is never stored, synced or sent anywhere.
+- **Notifications.** Only used if you turn on **Notify me when tasks are due**. Colony schedules the
+  alerts on your device with Apple's notification system; the task's title, project and notes are
+  shown in the alert. Nothing is sent to a server.
+- **Calendar.** Only used if you turn on **Show tasks in Calendar** or **Show automation schedules**.
+  Colony creates its own "Colony" calendar in your calendar account and adds dated tasks (title,
+  project, notes, due date) and automation schedules to it. It reads that calendar to keep it up to
+  date and never changes your other calendars. Turning both off deletes the Colony calendar. Apple
+  syncs your calendars under its own policy.
 
 When you tap to email, call or FaceTime a contact, Colony hands the address or number to Apple's
 Mail, Phone or FaceTime app. Colony does not see or record what happens next.

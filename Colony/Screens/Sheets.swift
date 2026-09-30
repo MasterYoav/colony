@@ -690,10 +690,13 @@ private struct TaskDetailForm: View {
                 DialogToggleRow(
                     title: "Due date",
                     description: task.reminderIdentifier != nil ? "Mirrored in Apple Reminders" : nil,
-                    isOn: Binding(get: { task.dueDate != nil }, set: { task.dueDate = $0 ? (task.dueDate ?? .now.addingTimeInterval(86_400)) : nil })
+                    isOn: Binding(get: { task.dueDate != nil }, set: {
+                        if $0, task.dueDate == nil { task.dueHasTime = true }
+                        task.dueDate = $0 ? (task.dueDate ?? .now.addingTimeInterval(86_400)) : nil
+                    })
                 )
                 if let due = task.dueDate {
-                    DatePicker("Due", selection: Binding(get: { due }, set: { task.dueDate = $0 }))
+                    DatePicker("Due", selection: Binding(get: { due }, set: { task.dueDate = $0; task.dueHasTime = true }))
                         .labelsHidden()
                         .datePickerStyle(.compact)
                 }

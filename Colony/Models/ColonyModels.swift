@@ -98,6 +98,14 @@ final class TaskItem {
     var completedAt: Date?
     /// `EKReminder.calendarItemIdentifier` once the task is mirrored into Apple Reminders.
     var reminderIdentifier: String?
+    /// Flagged, as in Reminders.
+    var isFlagged: Bool = false
+    /// Whether `dueDate` carries a time. Date-only tasks notify at 9:00 and show as
+    /// all-day events in Calendar. Older tasks always had a time, hence the default.
+    var dueHasTime: Bool = true
+    /// `EKEvent.calendarItemExternalIdentifier` of the task's event in the Colony
+    /// calendar; external so every device finds the same event.
+    var calendarEventID: String?
 
     var project: Project?
     var list: ProjectList?
@@ -126,7 +134,18 @@ final class TaskItem {
     }
 
     var isDone: Bool { status == .done }
-    var isOverdue: Bool { !isDone && (dueDate.map { $0 < Calendar.current.startOfDay(for: .now) } ?? false) }
+    /// Past due: a timed task once its time passes, a date-only task from the next day.
+    var isOverdue: Bool {
+        guard !isDone, let dueDate else { return false }
+        return dueHasTime ? dueDate < .now : dueDate < Calendar.current.startOfDay(for: .now)
+    }
+
+    /// When to notify: the due time, or 9:00 on the day for date-only tasks.
+    var alertDate: Date? {
+        guard let dueDate else { return nil }
+        if dueHasTime { return dueDate }
+        return Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: dueDate)
+    }
     var isDueToday: Bool { dueDate.map(Calendar.current.isDateInToday) ?? false }
 }
 

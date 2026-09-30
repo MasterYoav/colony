@@ -160,6 +160,9 @@ final class AppModel {
     let reminders = RemindersService()
     /// The device's music player, shown in the sidebar.
     let nowPlaying = NowPlaying()
+    let notifications = TaskNotifications()
+    let calendar = TaskCalendar()
+    let scheduler = TaskScheduler()
 
     init(preferences: CloudPreferences, iCloud: ICloudStatus) {
         self.preferences = preferences

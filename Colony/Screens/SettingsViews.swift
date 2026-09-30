@@ -11,13 +11,15 @@
 //  or a live status from an Apple service; nothing is stored anywhere else.
 //
 
+import EventKit
 import PhotosUI
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
-    case profile, general, appearance, iCloud, reminders, contacts, privacy, about
+    case profile, general, appearance, iCloud, notifications, calendar, reminders, contacts, privacy, about
 
     var id: String { rawValue }
 
@@ -27,6 +29,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: "General"
         case .appearance: "Appearance"
         case .iCloud: "iCloud"
+        case .notifications: "Notifications"
+        case .calendar: "Calendar"
         case .reminders: "Reminders"
         case .contacts: "Contacts"
         case .privacy: "Privacy"
@@ -40,6 +44,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: "gearshape.fill"
         case .appearance: "circle.lefthalf.filled"
         case .iCloud: "icloud.fill"
+        case .notifications: "bell.badge.fill"
+        case .calendar: "calendar"
         case .reminders: "checklist"
         case .contacts: "person.crop.circle"
         case .privacy: "hand.raised.fill"
@@ -54,6 +60,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: Color(white: 0.55)
         case .appearance: Color(white: 0.16)
         case .iCloud: Color(red: 0.20, green: 0.55, blue: 0.98)
+        case .notifications: Color(red: 0.96, green: 0.26, blue: 0.27)
+        case .calendar: Color(red: 0.93, green: 0.33, blue: 0.33)
         case .reminders: Color(red: 0.98, green: 0.58, blue: 0.10)
         case .contacts: Color(red: 0.55, green: 0.55, blue: 0.58)
         case .privacy: Color(red: 0.20, green: 0.48, blue: 0.96)
@@ -68,6 +76,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: "workspace sidebar keyboard shortcuts"
         case .appearance: "theme dark light mode font typeface"
         case .iCloud: "sync cloudkit storage"
+        case .notifications: "alerts due dates background remind tasks sound"
+        case .calendar: "apple calendar events schedule automations dated tasks"
         case .reminders: "apple reminders mirror due dates"
         case .contacts: "apple contacts import address book customers"
         case .privacy: "data policy tracking"
@@ -76,7 +86,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Sidebar groups, separated by space like System Settings.
-    static let groups: [[SettingsSection]] = [[.general, .appearance], [.iCloud, .reminders, .contacts], [.privacy, .about]]
+    static let groups: [[SettingsSection]] = [[.general, .appearance], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
 }
 
 struct SettingsView: View {
@@ -380,6 +390,8 @@ private struct SettingsPage: View {
             case .general: GeneralPage()
             case .appearance: AppearancePage()
             case .iCloud: ICloudPage()
+            case .notifications: NotificationsPage()
+            case .calendar: CalendarPage()
             case .reminders: RemindersPage()
             case .contacts: ContactsPage()
             case .privacy: PrivacyPage()
@@ -800,6 +812,142 @@ private struct RemindersPage: View {
         if let error = app.reminders.lastError {
             Text(error).appFont(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 12)
         }
+    }
+}
+
+// MARK: Notifications
+
+private struct NotificationsPage: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.openURL) private var openURL
+    @Query private var tasks: [TaskItem]
+
+    var body: some View {
+        @Bindable var prefs = app.preferences
+        PageHeader(section: .notifications, text: "Get an alert when a task is due, the way Reminders does: at its time, or at 9:00 for tasks with only a date. Alerts arrive even when Colony isn't open.")
+
+        SettingsGroup(footer: "Each alert has Complete and Remind Me in 1 Hour. The switch syncs through iCloud; each device asks once for permission.") {
+            SettingsRow("Notify me when tasks are due") {
+                Toggle("Notify me when tasks are due", isOn: Binding(get: { prefs.notifiesTasks }, set: { on in
+                    guard on else {
+                        prefs.notifiesTasks = false
+                        app.scheduler.run(force: true)
+                        return
+                    }
+                    Task {
+                        if await app.notifications.requestAccess() {
+                            prefs.notifiesTasks = true
+                            app.scheduler.run(force: true)
+                            let upcoming = tasks.filter { !$0.isDone && ($0.alertDate ?? .distantPast) > .now }.count
+                            app.show(upcoming == 0 ? "Notifications on" : "Notifications on for \(upcoming) upcoming task\(upcoming == 1 ? "" : "s")")
+                        } else {
+                            app.show("Notifications are off for Colony in System Settings")
+                        }
+                    }
+                }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+            SettingsRow("Permission") {
+                Text(app.notifications.statusTitle).appFont(.system(size: 13)).foregroundStyle(Theme.secondaryText)
+            }
+            if app.notifications.authorization == .denied {
+                SettingsRow("Open Notification Settings…", action: openSystemSettings)
+            }
+        }
+        #if os(macOS)
+        SettingsGroup(footer: "Keeps Colony in the menu bar after you close its window, so snoozes and changes from other devices are applied right away. Alerts are delivered either way.") {
+            SettingsRow("Keep running in the menu bar") {
+                Toggle("Keep running in the menu bar", isOn: $prefs.runsInMenuBar)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+            SettingsRow("Open at login") {
+                Toggle("Open at login", isOn: Binding(get: { LoginItem.isEnabled }, set: { LoginItem.set($0) }))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+        }
+        #endif
+        EmptyView()
+            .task { await app.notifications.refreshAuthorization() }
+    }
+
+    private func openSystemSettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=yoavperetz.Colony") { openURL(url) }
+        #else
+        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+        #endif
+    }
+}
+
+// MARK: Calendar
+
+private struct CalendarPage: View {
+    @Environment(AppModel.self) private var app
+    @Query private var tasks: [TaskItem]
+
+    var body: some View {
+        @Bindable var prefs = app.preferences
+        PageHeader(section: .calendar, text: "Show dated tasks and automation schedules in Apple Calendar, next to the rest of your day. Colony adds its own \"Colony\" calendar and never touches your other events.")
+
+        SettingsGroup(footer: "Tasks with only a date appear as all-day events; timed tasks take half an hour. Completing a task removes its event.") {
+            SettingsRow("Access") {
+                Text(app.calendar.statusTitle).appFont(.system(size: 13)).foregroundStyle(Theme.secondaryText)
+            }
+            SettingsRow("Show tasks in Calendar") {
+                Toggle("Show tasks in Calendar", isOn: Binding(get: { prefs.showsTasksInCalendar }, set: { on in
+                    guard on else {
+                        prefs.showsTasksInCalendar = false
+                        if !prefs.showsAutomationsInCalendar { app.calendar.removeCalendar() } else { tasks.forEach { app.calendar.remove(eventID: $0.calendarEventID); $0.calendarEventID = nil } }
+                        return
+                    }
+                    Task {
+                        guard await ensureAccess() else { return }
+                        prefs.showsTasksInCalendar = true
+                        app.scheduler.run(force: true)
+                        let dated = tasks.filter { !$0.isDone && $0.dueDate != nil }.count
+                        app.show("\(dated) task\(dated == 1 ? "" : "s") added to Calendar")
+                    }
+                }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+            SettingsRow("Show automation schedules") {
+                Toggle("Show automation schedules", isOn: Binding(get: { prefs.showsAutomationsInCalendar }, set: { on in
+                    guard on else {
+                        prefs.showsAutomationsInCalendar = false
+                        if prefs.showsTasksInCalendar { app.calendar.syncAutomations([]) } else { app.calendar.removeCalendar() }
+                        return
+                    }
+                    Task {
+                        guard await ensureAccess() else { return }
+                        prefs.showsAutomationsInCalendar = true
+                        app.calendar.syncAutomations(AutomationSchedule.previews)
+                        app.show("Automation schedules added to Calendar")
+                    }
+                }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
+        }
+
+        if let error = app.calendar.lastError {
+            Text(error).appFont(.system(size: 12)).foregroundStyle(.red).padding(.horizontal, 12)
+        }
+    }
+
+    private func ensureAccess() async -> Bool {
+        if app.calendar.authorization == .fullAccess { return true }
+        let granted = await app.calendar.requestAccess()
+        if !granted { app.show("Calendar access is off for Colony in System Settings") }
+        return granted
     }
 }
 

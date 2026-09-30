@@ -409,6 +409,7 @@
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Colony shows what's playing in Music and lets you play, pause and skip from the sidebar.";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Colony shows what's playing and lets you play, pause and skip from the sidebar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Colony reads your contacts so you can import people into your CRM. Nothing in your address book is changed.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Colony adds your dated tasks and automation schedules to a Colony calendar, so they show up next to the rest of your day.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Colony mirrors your tasks into Apple Reminders so you get due-date alerts on all your devices.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -465,6 +466,7 @@
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "Colony shows what's playing in Music and lets you play, pause and skip from the sidebar.";
 				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Colony shows what's playing and lets you play, pause and skip from the sidebar.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Colony reads your contacts so you can import people into your CRM. Nothing in your address book is changed.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Colony adds your dated tasks and automation schedules to a Colony calendar, so they show up next to the rest of your day.";
 				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Colony mirrors your tasks into Apple Reminders so you get due-date alerts on all your devices.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

@@ -45,6 +45,10 @@ final class CloudPreferences {
         static let expandedProjects = "expandedProjects"
         static let didSeedStarterContent = "didSeedStarterContent"
         static let mirrorsToReminders = "mirrorsToReminders"
+        static let notifiesTasks = "notifiesTasks"
+        static let runsInMenuBar = "runsInMenuBar"
+        static let tasksInCalendar = "tasksInCalendar"
+        static let automationsInCalendar = "automationsInCalendar"
         static let sidebarPinned = "sidebarPinnedItems"
         static let sidebarWorkspace = "sidebarWorkspaceItems"
         static let uiFont = "uiFontFamily"
@@ -64,6 +68,13 @@ final class CloudPreferences {
     var expandedProjectIDs: Set<String> { didSet { write(Array(expandedProjectIDs), Key.expandedProjects) } }
     var didSeedStarterContent: Bool { didSet { write(didSeedStarterContent, Key.didSeedStarterContent) } }
     var mirrorsToReminders: Bool { didSet { write(mirrorsToReminders, Key.mirrorsToReminders) } }
+    /// Notify at each task's due time. Each device still asks its own permission.
+    var notifiesTasks: Bool { didSet { write(notifiesTasks, Key.notifiesTasks) } }
+    /// Mac: keep Colony in the menu bar after its window closes. Per device.
+    var runsInMenuBar: Bool { didSet { local.set(runsInMenuBar, forKey: Key.runsInMenuBar) } }
+    /// Put dated tasks, and scheduled automations, in a "Colony" calendar.
+    var showsTasksInCalendar: Bool { didSet { write(showsTasksInCalendar, Key.tasksInCalendar) } }
+    var showsAutomationsInCalendar: Bool { didSet { write(showsAutomationsInCalendar, Key.automationsInCalendar) } }
     /// Sidebar order the user set by dragging (raw values of `SidebarNavItem`). Roams via iCloud.
     var sidebarPinnedItems: [String] { didSet { write(sidebarPinnedItems, Key.sidebarPinned) } }
     var sidebarWorkspaceItems: [String] { didSet { write(sidebarWorkspaceItems, Key.sidebarWorkspace) } }
@@ -92,6 +103,10 @@ final class CloudPreferences {
         expandedProjectIDs = Set(read(Key.expandedProjects) as [String]? ?? [])
         didSeedStarterContent = read(Key.didSeedStarterContent) ?? false
         mirrorsToReminders = read(Key.mirrorsToReminders) ?? false
+        notifiesTasks = read(Key.notifiesTasks) ?? false
+        runsInMenuBar = defaults.bool(forKey: Key.runsInMenuBar)
+        showsTasksInCalendar = read(Key.tasksInCalendar) ?? false
+        showsAutomationsInCalendar = read(Key.automationsInCalendar) ?? false
         sidebarPinnedItems = read(Key.sidebarPinned) ?? []
         sidebarWorkspaceItems = read(Key.sidebarWorkspace) ?? []
         uiFontFamily = read(Key.uiFont) ?? ""
@@ -119,6 +134,9 @@ final class CloudPreferences {
         if let value = store.array(forKey: Key.expandedProjects) as? [String], Set(value) != expandedProjectIDs { expandedProjectIDs = Set(value) }
         if store.bool(forKey: Key.didSeedStarterContent), !didSeedStarterContent { didSeedStarterContent = true }
         if store.object(forKey: Key.mirrorsToReminders) != nil { mirrorsToReminders = store.bool(forKey: Key.mirrorsToReminders) }
+        if store.object(forKey: Key.notifiesTasks) != nil, store.bool(forKey: Key.notifiesTasks) != notifiesTasks { notifiesTasks = store.bool(forKey: Key.notifiesTasks) }
+        if store.object(forKey: Key.tasksInCalendar) != nil, store.bool(forKey: Key.tasksInCalendar) != showsTasksInCalendar { showsTasksInCalendar = store.bool(forKey: Key.tasksInCalendar) }
+        if store.object(forKey: Key.automationsInCalendar) != nil, store.bool(forKey: Key.automationsInCalendar) != showsAutomationsInCalendar { showsAutomationsInCalendar = store.bool(forKey: Key.automationsInCalendar) }
         if let value = store.array(forKey: Key.sidebarPinned) as? [String], value != sidebarPinnedItems { sidebarPinnedItems = value }
         if let value = store.array(forKey: Key.sidebarWorkspace) as? [String], value != sidebarWorkspaceItems { sidebarWorkspaceItems = value }
         if let value = store.string(forKey: Key.uiFont), value != uiFontFamily { uiFontFamily = value }
