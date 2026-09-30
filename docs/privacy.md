@@ -5,7 +5,7 @@ permalink: /privacy/
 
 # Colony Privacy Policy
 
-**Effective 29 September 2026**
+**Effective 30 September 2026**
 
 Colony is published by Yoav Peretz, an individual developer ("I", "me"). This policy covers the
 Colony app for iPhone, iPad, Mac and Apple Vision Pro.
@@ -21,6 +21,7 @@ your data. Colony has no analytics, no advertising and no tracking.
 | What | Where it's stored | Who can read it |
 |---|---|---|
 | Projects, lists, tasks, channels, messages, contacts you add, activity history | On your device, synced through your **private iCloud database** (CloudKit) | You, on devices signed in to your Apple Account |
+| Agents (their AGENT.md settings and instructions) and your conversations with them | On your device, synced through your **private iCloud database** (CloudKit) | You, on devices signed in to your Apple Account |
 | Preferences: name, workspace name, appearance, fonts, sidebar layout | On your device and in **iCloud key-value storage** | You, on devices signed in to your Apple Account |
 
 iCloud is operated by Apple under [Apple's Privacy Policy](https://www.apple.com/legal/privacy/).
@@ -45,12 +46,20 @@ any time in Settings (iOS, iPadOS, visionOS) or System Settings › Privacy & Se
   information is only held in memory while Colony is open. It is never stored, synced or sent anywhere.
 - **Notifications.** Only used if you turn on **Notify me when tasks are due**. Colony schedules the
   alerts on your device with Apple's notification system; the task's title, project and notes are
-  shown in the alert. Nothing is sent to a server.
+  shown in the alert. If notifications are allowed, agents also notify you when they ask you
+  something or finish a scheduled run, showing the start of their message. Nothing is sent to a server.
 - **Calendar.** Only used if you turn on **Show tasks in Calendar** or **Show automation schedules**.
   Colony creates its own "Colony" calendar in your calendar account and adds dated tasks (title,
-  project, notes, due date) and automation schedules to it. It reads that calendar to keep it up to
+  project, notes, due date), automation schedules and scheduled agents (name, description, time) to it. It reads that calendar to keep it up to
   date and never changes your other calendars. Turning both off deletes the Colony calendar. Apple
   syncs your calendars under its own policy.
+
+**Agents and Apple Intelligence.** Agents run on your device with Apple Intelligence (Apple's
+on-device Foundation Models). What you write to an agent, and the workspace data it reads with its
+tools (tasks, projects, customers, channel messages, updates), is processed on the device and is not
+sent to me or to anyone else. Colony doesn't use any other AI service. Agents only read and change
+what their AGENT.md allows, and every change they make is shown in their conversation. An AGENT.md
+file you import is read once and stored with the agent; Colony doesn't keep a link to the file.
 
 When you tap to email, call or FaceTime a contact, Colony hands the address or number to Apple's
 Mail, Phone or FaceTime app. Colony does not see or record what happens next.

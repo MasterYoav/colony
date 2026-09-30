@@ -113,7 +113,14 @@ struct DestinationView: View {
                 }
             case .crm: CRMView()
             case .reports: ReportsView()
+            case .crew(.agents): AgentsHome()
             case .crew(let kind): CrewView(kind: kind)
+            case .agent(let id):
+                if let agent = context.agent(id) {
+                    AgentPage(agent: agent)
+                } else {
+                    missing
+                }
             case .settings: SettingsView()
             }
         }
@@ -145,6 +152,9 @@ struct SheetHost: View {
         case .deleteContact(let id): DeleteContactDialog(contactID: id)
         case .connectReminders: PermissionDialog(kind: .reminders)
         case .connectContacts: PermissionDialog(kind: .contacts)
+        case .recruitAgent: RecruitAgentDialog(editing: nil)
+        case .editAgent(let id): RecruitAgentDialog(editing: id)
+        case .deleteAgent(let id): DeleteAgentDialog(agentID: id)
         }
     }
 }

@@ -44,6 +44,7 @@ final class CloudPreferences {
         static let sidebarCollapsed = "sidebarCollapsed"
         static let expandedProjects = "expandedProjects"
         static let didSeedStarterContent = "didSeedStarterContent"
+        static let didSeedStarterAgents = "didSeedStarterAgents"
         static let mirrorsToReminders = "mirrorsToReminders"
         static let notifiesTasks = "notifiesTasks"
         static let runsInMenuBar = "runsInMenuBar"
@@ -67,6 +68,9 @@ final class CloudPreferences {
     var isSidebarCollapsed: Bool { didSet { write(isSidebarCollapsed, Key.sidebarCollapsed) } }
     var expandedProjectIDs: Set<String> { didSet { write(Array(expandedProjectIDs), Key.expandedProjects) } }
     var didSeedStarterContent: Bool { didSet { write(didSeedStarterContent, Key.didSeedStarterContent) } }
+    /// Starter agents are recruited once per iCloud account (separate flag so existing
+    /// workspaces get them too).
+    var didSeedStarterAgents: Bool { didSet { write(didSeedStarterAgents, Key.didSeedStarterAgents) } }
     var mirrorsToReminders: Bool { didSet { write(mirrorsToReminders, Key.mirrorsToReminders) } }
     /// Notify at each task's due time. Each device still asks its own permission.
     var notifiesTasks: Bool { didSet { write(notifiesTasks, Key.notifiesTasks) } }
@@ -102,6 +106,7 @@ final class CloudPreferences {
         isSidebarCollapsed = read(Key.sidebarCollapsed) ?? false
         expandedProjectIDs = Set(read(Key.expandedProjects) as [String]? ?? [])
         didSeedStarterContent = read(Key.didSeedStarterContent) ?? false
+        didSeedStarterAgents = read(Key.didSeedStarterAgents) ?? false
         mirrorsToReminders = read(Key.mirrorsToReminders) ?? false
         notifiesTasks = read(Key.notifiesTasks) ?? false
         runsInMenuBar = defaults.bool(forKey: Key.runsInMenuBar)
@@ -133,6 +138,7 @@ final class CloudPreferences {
         if let value = store.string(forKey: Key.workspaceName), value != workspaceName { workspaceName = value }
         if let value = store.array(forKey: Key.expandedProjects) as? [String], Set(value) != expandedProjectIDs { expandedProjectIDs = Set(value) }
         if store.bool(forKey: Key.didSeedStarterContent), !didSeedStarterContent { didSeedStarterContent = true }
+        if store.bool(forKey: Key.didSeedStarterAgents), !didSeedStarterAgents { didSeedStarterAgents = true }
         if store.object(forKey: Key.mirrorsToReminders) != nil { mirrorsToReminders = store.bool(forKey: Key.mirrorsToReminders) }
         if store.object(forKey: Key.notifiesTasks) != nil, store.bool(forKey: Key.notifiesTasks) != notifiesTasks { notifiesTasks = store.bool(forKey: Key.notifiesTasks) }
         if store.object(forKey: Key.tasksInCalendar) != nil, store.bool(forKey: Key.tasksInCalendar) != showsTasksInCalendar { showsTasksInCalendar = store.bool(forKey: Key.tasksInCalendar) }

@@ -13,4 +13,5 @@ native app for iPhone, iPad, Mac and Apple Vision Pro. Everything is stored in y
 - [Privacy Policy](privacy/)
 - [Accessibility](accessibility/) · [הצהרת נגישות](accessibility/he/)
 - [Support](support/)
+- [Agents and AGENT.md](AGENTS/)
 - [Source code on GitHub](https://github.com/MasterYoav/colony)

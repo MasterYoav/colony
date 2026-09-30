@@ -23,6 +23,32 @@ enum StarterContent {
         preferences.didSeedStarterContent = true
     }
 
+    /// Recruits the starter crew from the built-in AGENT.md templates, once per account.
+    /// Skips if agents already exist (another device synced them first).
+    static func seedAgentsIfNeeded(context: ModelContext, preferences: CloudPreferences) {
+        guard !preferences.didSeedStarterAgents else { return }
+        preferences.didSeedStarterAgents = true
+        guard ((try? context.fetchCount(FetchDescriptor<Agent>())) ?? 0) == 0 else { return }
+        seedAgents(into: context)
+    }
+
+    static func seedAgents(into context: ModelContext) {
+        let actions = WorkspaceActions(context: context)
+        for template in AgentTemplates.starters {
+            guard let definition = try? AgentDefinition.parse(template.markdown) else { continue }
+            let agent = actions.recruit(definition)
+            if let agent {
+                context.insert(AgentMessage(role: .agent, body: "Hi, I'm \(agent.name). \(definition.summary) Ask me anything, or pick a suggestion below.", agent: agent))
+                agent.lastReadAt = .now.addingTimeInterval(1)
+            }
+        }
+        // Recruiting logs to Updates; the starter crew shouldn't flood it.
+        for event in (try? context.fetch(FetchDescriptor<ActivityEvent>(predicate: #Predicate { $0.title == "Agent recruited" }))) ?? [] {
+            context.delete(event)
+        }
+        try? context.save()
+    }
+
     static func seed(into context: ModelContext) {
         let actions = WorkspaceActions(context: context)
         let calendar = Calendar.current

@@ -178,12 +178,12 @@ struct WorkspaceActions {
     }
 
     @discardableResult
-    func send(_ body: String, to channel: Channel, as author: String) -> Message? {
+    func send(_ body: String, to channel: Channel, as author: String, isMine: Bool = true) -> Message? {
         let body = ColonyText.trimmed(body)
         guard !body.isEmpty else { return nil }
-        let message = Message(body: body, authorName: author, isMine: true, channel: channel)
+        let message = Message(body: body, authorName: author, isMine: isMine, channel: channel)
         context.insert(message)
-        channel.lastReadAt = .now
+        if isMine { channel.lastReadAt = .now }
         return message
     }
 
@@ -229,6 +229,40 @@ struct WorkspaceActions {
     /// Removes the contact from Colony only; the person in Apple Contacts is never touched.
     func delete(_ contact: Contact) {
         context.delete(contact)
+    }
+
+    // MARK: Agents
+
+    /// Adds an agent from its AGENT.md definition, at the end of the crew.
+    @discardableResult
+    func recruit(_ definition: AgentDefinition) -> Agent? {
+        let existing = ((try? context.fetch(FetchDescriptor<Agent>())) ?? []).filter { !$0.isDeleted }
+        let agent = Agent(name: definition.name)
+        agent.apply(definition)
+        agent.sortIndex = (existing.map(\.sortIndex).max() ?? -1) + 1
+        // A new schedule starts from now: don't run a slot that passed before recruiting.
+        agent.lastScheduledSlot = definition.schedule?.lastSlot(before: .now)
+        context.insert(agent)
+        log("Agent recruited", definition.summary.isEmpty ? definition.name : "\(definition.name) · \(definition.summary)", symbol: "person.badge.plus", color: definition.color)
+        return agent
+    }
+
+    func update(_ agent: Agent, with definition: AgentDefinition) {
+        let scheduleChanged = agent.scheduleRaw != (definition.schedule?.text ?? "")
+        agent.apply(definition)
+        if scheduleChanged { agent.lastScheduledSlot = definition.schedule?.lastSlot(before: .now) }
+    }
+
+    func reorder(_ agents: [Agent]) {
+        for (index, agent) in agents.enumerated() where agent.sortIndex != index {
+            agent.sortIndex = index
+        }
+        save()
+    }
+
+    func delete(_ agent: Agent) {
+        log("Agent removed", agent.name, symbol: "person.badge.minus", color: .gray)
+        context.delete(agent)
     }
 
     // MARK: Updates

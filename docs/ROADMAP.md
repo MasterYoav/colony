@@ -15,17 +15,21 @@
 - ⌘K command palette, ⌘N new task, ⌘⇧N new project.
 - Swift Pieces components across the UI.
 
-## Next — Phase 1: Agents
+## Done — Phase 1: Agents
 
-Assistants that work alongside you, running on device with Apple Intelligence (Foundation Models framework). No third-party AI.
+Assistants that work alongside you, running on device with Apple Intelligence (Foundation Models framework). No third-party AI. See [Agents and AGENT.md](AGENTS.md).
 
-- [ ] `Agent` model in SwiftData (name, colour, instructions, enabled, last run, status) so agents sync through iCloud; replace the preview crew in `AgentsSidebar.swift`.
-- [ ] Agent page: chat with an agent, edit its name, colour and instructions, see its history.
-- [ ] Tools agents can call through `WorkspaceActions`: read and create tasks, move customers between stages, post to a channel, write to Updates.
-- [ ] Live status in the sidebar pill (Idle / Thinking / Waiting for you / Done) and a notification when an agent needs you.
-- [ ] Starter agents: daily planner, customer follow-up drafts, channel summaries, weekly report.
-- [ ] Fallback when Apple Intelligence isn't available on the device: explain why and keep the agent page read-only.
-- [ ] Privacy: confirm everything stays on device and update the privacy policy if anything changes.
+- [x] `Agent` and `AgentMessage` models in SwiftData, synced through iCloud; the sidebar shows the real crew.
+- [x] Recruit agents from AGENT.md files (import, drag and drop, templates, or write one), with a preview and warnings; edit and export AGENT.md.
+- [x] Agent page: streaming chat, suggested prompts, action rows for everything the agent did, AGENT.md inspector, Run now, pause, clear.
+- [x] Tools through `WorkspaceActions`: tasks, projects, customers, channels, Updates, and `ask_user`.
+- [x] Schedules (hourly, daily, weekdays, weekly), once per slot across devices; shown in the Colony calendar.
+- [x] Live status in the sidebar pill (Idle / Thinking / Waiting for you / Done) and a notification when an agent needs you.
+- [x] Starter agents: daily planner, customer follow-ups, channel digest, weekly report.
+- [x] Fallback when Apple Intelligence isn't available: explains why; agents stay readable and editable.
+- [x] Privacy policy updated.
+
+Later: background runs on iPhone and iPad with `BGTaskScheduler`, and agents that hand work to automations.
 
 ## Next — Phase 2: Automations
 

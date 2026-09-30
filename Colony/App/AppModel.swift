@@ -22,6 +22,7 @@ enum Destination: Hashable, Codable {
     case project(UUID)
     case list(project: UUID, list: UUID)
     case crew(CrewKind)
+    case agent(UUID)
     case settings
 
     /// The rail icon that lights up for this destination.
@@ -33,7 +34,7 @@ enum Destination: Hashable, Codable {
         case .tasks: .tasks
         case .projects, .project, .list: .projects
         case .crm: .people
-        case .reports, .crew: .home
+        case .reports, .crew, .agent: .home
         case .settings: .settings
         }
     }
@@ -97,6 +98,9 @@ enum ActiveSheet: Identifiable, Hashable {
     case deleteContact(UUID)
     case connectReminders
     case connectContacts
+    case recruitAgent
+    case editAgent(UUID)
+    case deleteAgent(UUID)
 
     var id: String {
         switch self {
@@ -112,13 +116,17 @@ enum ActiveSheet: Identifiable, Hashable {
         case .deleteContact(let id): "deleteContact-\(id)"
         case .connectReminders: "connectReminders"
         case .connectContacts: "connectContacts"
+        case .recruitAgent: "recruitAgent"
+        case .editAgent(let id): "editAgent-\(id)"
+        case .deleteAgent(let id): "deleteAgent-\(id)"
         }
     }
 
     /// Dialog width on Mac, iPad and Vision Pro. iPhone uses a full-width sheet.
     var dialogWidth: CGFloat {
         switch self {
-        case .deleteProject, .deleteTask, .deleteContact: 420
+        case .deleteProject, .deleteTask, .deleteContact, .deleteAgent: 420
+        case .recruitAgent, .editAgent: 640
         case .connectReminders, .connectContacts: 420
         case .newChannel: 460
         case .newProject, .projectSettings: 520
@@ -163,6 +171,10 @@ final class AppModel {
     let notifications = TaskNotifications()
     let calendar = TaskCalendar()
     let scheduler = TaskScheduler()
+    /// Runs agents on the on-device model.
+    let agents = AgentRunner()
+    /// Colony is the frontmost app (for skipping notifications about what you're looking at).
+    var isActive: Bool { notifications.isAppActive }
 
     init(preferences: CloudPreferences, iCloud: ICloudStatus) {
         self.preferences = preferences
@@ -270,5 +282,9 @@ extension ModelContext {
 
     func channel(_ id: UUID) -> Channel? {
         try? fetch(FetchDescriptor<Channel>(predicate: #Predicate { $0.uuid == id })).first
+    }
+
+    func agent(_ id: UUID) -> Agent? {
+        try? fetch(FetchDescriptor<Agent>(predicate: #Predicate { $0.uuid == id })).first
     }
 }

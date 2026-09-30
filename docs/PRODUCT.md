@@ -18,6 +18,7 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 - **Channel / Message**: threaded notes and conversations.
 - **Customer**: a person in the CRM with a deal stage and an optional deal value. Can be imported from Apple Contacts.
 - **Activity**: the Updates feed of what changed.
+- **Agents**: on-device assistants, each defined by an AGENT.md file, that read and change the workspace through the same actions you use. See [Agents](AGENTS.md).
 
 ## Navigation
 
@@ -33,4 +34,4 @@ The sidebar follows the reference design:
 - Multi-person workspaces (see Roadmap: CloudKit sharing).
 - Voice and video.
 - Importers from Slack, Discord or other tools.
-- AI features.
+- Cloud AI. Agents use Apple Intelligence on the device only.

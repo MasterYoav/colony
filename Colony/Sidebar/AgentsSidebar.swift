@@ -6,10 +6,11 @@
 //  pill (face, name, status, go arrow) over a row of small faces, as in the reference.
 //  Every face blinks on its own random clock.
 //
-//  Agents and Automations are the next two phases (see docs/ROADMAP.md). Until then
-//  the sections show a fixed preview crew and lead to pages that say so.
+//  Agents are real (SwiftData, synced through iCloud; see Agents/). Automations are
+//  the next phase (docs/ROADMAP.md) and still show a fixed preview crew.
 //
 
+import SwiftData
 import SwiftUI
 
 // MARK: - Preview crew
@@ -129,18 +130,82 @@ private struct SeededGenerator: RandomNumberGenerator {
 
 // MARK: - Sidebar section
 
+extension Agent {
+    var crewMember: CrewMember {
+        CrewMember(id: uuid.uuidString, name: name, status: status == .thinking ? "Thinking…" : status.title, role: summary, color: color)
+    }
+
+    /// Who the sidebar pill features: whoever needs you, then whoever's busy, then the
+    /// one on screen, then the crew's order. Stable otherwise, so it doesn't jump around.
+    static func featured(_ agents: [Agent], running: Set<UUID>, open: UUID? = nil) -> [Agent] {
+        func rank(_ agent: Agent) -> Int {
+            if agent.status == .waiting { return 0 }
+            if running.contains(agent.uuid) { return 1 }
+            if agent.uuid == open { return 2 }
+            return 3
+        }
+        return agents.sorted { (rank($0), $0.sortIndex) < (rank($1), $1.sortIndex) }
+    }
+}
+
 struct CrewSidebarSection: View {
     @Environment(AppModel.self) private var app
+    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
     let kind: CrewKind
     @State private var isExpanded = true
 
+    private var ordered: [Agent] {
+        guard kind == .agents else { return [] }
+        let open: UUID? = if case .agent(let id) = app.destination { id } else { nil }
+        return Agent.featured(agents, running: app.agents.running, open: open)
+    }
+
+    private var members: [CrewMember] {
+        guard kind == .agents else { return kind.members }
+        return ordered.map { agent in
+            var member = agent.crewMember
+            if app.agents.isRunning(agent) { member = CrewMember(id: member.id, name: member.name, status: "Thinking…", role: member.role, color: member.color) }
+            return member
+        }
+    }
+
     var body: some View {
-        let members = kind.members
-        let featured = members[0]
-        let rest = Array(members.dropFirst())
-        let isSelected = app.destination == .crew(kind)
+        let members = members
+        let featuredAgent = kind == .agents ? ordered.first : nil
+        let isSelected = app.destination == .crew(kind) || (featuredAgent.map { app.destination == .agent($0.uuid) } ?? false)
 
         VStack(alignment: .leading, spacing: 6) {
+            header
+            if isExpanded {
+                if let featured = members.first {
+                    FeaturedCrewRow(kind: kind, member: featured, isSelected: isSelected) {
+                        app.go(featuredAgent.map { .agent($0.uuid) } ?? .crew(kind))
+                    }
+                    .contextMenu {
+                        if let featuredAgent { AgentMenuItems(agent: featuredAgent) }
+                    }
+                } else {
+                    Button { app.present(.recruitAgent) } label: {
+                        Label("Recruit an agent", systemImage: "person.badge.plus")
+                            .appFont(.system(size: 13))
+                            .foregroundStyle(Theme.secondaryText)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                }
+                faces(Array(members.dropFirst()), agents: Array(ordered.dropFirst()))
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
             Button {
                 withMotion(.snappy(duration: 0.2)) { isExpanded.toggle() }
             } label: {
@@ -157,39 +222,59 @@ struct CrewSidebarSection: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 8)
             .accessibilityLabel("\(kind.title) section")
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-
-            if isExpanded {
-                FeaturedCrewRow(kind: kind, member: featured, isSelected: isSelected) {
-                    app.go(.crew(kind))
-                }
-
-                Button { app.go(.crew(kind)) } label: {
-                    HStack(spacing: 1) {
-                        ForEach(Array(rest.prefix(5).enumerated()), id: \.element.id) { index, member in
-                            AgentFace(color: member.color.color, size: 19, isRound: kind.isRound, seed: index + (kind == .agents ? 1 : 11))
-                        }
-                        if rest.count > 5 {
-                            Text("+\(rest.count - 5)")
-                                .appFont(.system(size: 11.5, weight: .medium))
-                                .foregroundStyle(Theme.secondaryText)
-                                .padding(.leading, 9)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 8)
-                    .contentShape(.rect)
+            if kind == .agents {
+                Button { app.present(.recruitAgent) } label: {
+                    Image(systemName: "plus")
+                        .appFont(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .frame(width: 18, height: 18)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("All \(kind.title.lowercased()): \(rest.map(\.name).joined(separator: ", "))")
-                .transition(.opacity)
+                .help("Recruit an agent")
+                .accessibilityLabel("Recruit an agent")
             }
         }
         .padding(.horizontal, 8)
-        .padding(.top, 12)
-        .padding(.bottom, 4)
+    }
+
+    private func faces(_ rest: [CrewMember], agents: [Agent]) -> some View {
+        HStack(spacing: 1) {
+            ForEach(Array(rest.prefix(5).enumerated()), id: \.element.id) { index, member in
+                let agent = index < agents.count ? agents[index] : nil
+                Button { app.go(agent.map { .agent($0.uuid) } ?? .crew(kind)) } label: {
+                    AgentFace(color: member.color.color, size: 19, isRound: kind.isRound, seed: index + (kind == .agents ? 1 : 11))
+                        .overlay(alignment: .topTrailing) {
+                            if let agent, agent.status == .waiting || agent.unreadCount > 0 || app.agents.isRunning(agent) {
+                                Circle()
+                                    .fill(agent.status == .waiting ? ColonyColor.orange.color : member.color.color)
+                                    .frame(width: 6, height: 6)
+                                    .overlay { Circle().strokeBorder(Theme.sidebar, lineWidth: 1) }
+                                    .offset(x: 1, y: -1)
+                            }
+                        }
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .help("\(member.name) · \(member.status)")
+                .accessibilityLabel("\(member.name), \(member.status)")
+                .contextMenu { if let agent { AgentMenuItems(agent: agent) } }
+            }
+            Button { app.go(.crew(kind)) } label: {
+                Text(rest.count > 5 ? "+\(rest.count - 5)" : "All")
+                    .appFont(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(Theme.secondaryText)
+                    .padding(.leading, rest.isEmpty ? 0 : 9)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("All \(kind.title.lowercased())")
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .transition(.opacity)
     }
 }
 
@@ -243,12 +328,18 @@ private struct FeaturedCrewRow: View {
 /// Collapsed column: the featured face as a rail button.
 struct CrewRailButton: View {
     @Environment(AppModel.self) private var app
+    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
     let kind: CrewKind
 
     var body: some View {
-        let isSelected = app.destination == .crew(kind)
+        let featured = kind == .agents ? Agent.featured(agents, running: app.agents.running).first : nil
+        let isSelected: Bool = {
+            if app.destination == .crew(kind) { return true }
+            if kind == .agents, case .agent = app.destination { return true }
+            return false
+        }()
         Button { app.go(.crew(kind)) } label: {
-            AgentFace(color: kind.members[0].color.color, size: 24, isRound: kind.isRound, seed: kind == .agents ? 0 : 10)
+            AgentFace(color: featured?.color.color ?? kind.members[0].color.color, size: 24, isRound: kind.isRound, seed: kind == .agents ? 0 : 10)
                 .frame(width: 34, height: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)

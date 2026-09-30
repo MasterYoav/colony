@@ -393,6 +393,7 @@ enum ColonyText {
 /// Every model in the iCloud schema, in one place so the container, previews and tests agree.
 enum ColonySchema {
     static let models: [any PersistentModel.Type] = [
-        Project.self, ProjectList.self, TaskItem.self, Channel.self, Message.self, Contact.self, ActivityEvent.self
+        Project.self, ProjectList.self, TaskItem.self, Channel.self, Message.self, Contact.self, ActivityEvent.self,
+        Agent.self, AgentMessage.self
     ]
 }

@@ -6,7 +6,7 @@ Colony is a native Apple app. All data lives in the user's iCloud account and ev
 
 | What | Where | Framework |
 | --- | --- | --- |
-| Projects, lists, tasks, channels, messages, contacts, activity | Private CloudKit database `iCloud.yoavperetz.Colony` | SwiftData with `ModelConfiguration(cloudKitDatabase: .private(...))` |
+| Projects, lists, tasks, channels, messages, contacts, activity, agents and their conversations | Private CloudKit database `iCloud.yoavperetz.Colony` | SwiftData with `ModelConfiguration(cloudKitDatabase: .private(...))` |
 | Preferences (appearance, name, workspace name, expanded sidebar projects, seed flag) | iCloud key-value store | `NSUbiquitousKeyValueStore`, mirrored to `UserDefaults` |
 | Contact photos | CloudKit assets | `@Attribute(.externalStorage)` |
 
@@ -32,7 +32,18 @@ Before the first App Store release, deploy the schema to production in the Cloud
 | Import people into the CRM | Contacts (`CNContactStore`) | Read-only. `appleContactIdentifier` makes imports idempotent. |
 | Due-date alerts | EventKit (`EKReminder`) | Optional mirror of tasks into Apple Reminders. |
 | Share, Mail, Phone, FaceTime | `ShareLink`, `mailto:`, `tel:`, `facetime:` | Hands off to system apps. |
+| Due-date notifications | UserNotifications | Local alerts with Complete / Snooze; also agent notices. |
+| Colony calendar | EventKit (`EKEvent`) | Dated tasks, automation and agent schedules. |
+| Agents | Foundation Models (`LanguageModelSession`, `Tool`) | On-device only. See below. |
 | Identity | iCloud account | No separate sign-up. |
+
+## Agents
+
+An agent is an `Agent` record built from an AGENT.md file (`Agents/AgentDefinition.swift` parses and writes the format; [AGENTS.md](AGENTS.md) documents it). `AgentRunner` keeps one `LanguageModelSession` per agent while the app runs, seeded with the agent's instructions and its recent conversation, and streams replies into `AgentMessage` records.
+
+Tools (`Agents/AgentTools.swift`) are Foundation Models `Tool`s that hop to the main actor and call `AgentWorkspace`, which reads the SwiftData context and changes it only through `WorkspaceActions`. Each change also adds an action row to the conversation. `AgentWorkspace` is plain Swift, so `AgentTests` covers the tools without a model.
+
+Schedules run from a one-minute clock while the app is open. `Agent.lastScheduledSlot` syncs through iCloud, so each slot runs once across devices.
 
 ## Code layout
 
@@ -40,6 +51,7 @@ Before the first App Store release, deploy the schema to production in the Cloud
 Colony/
   App/            ColonyApp entry, AppModel (navigation + sheets), RootView, starter content
   Models/         SwiftData models, WorkspaceActions (every mutation goes through here)
+  Agents/         AGENT.md format, runner (Foundation Models), tools, agent screens
   Services/       CloudStore, CloudPreferences, AppleServices (Contacts, Reminders)
   Sidebar/        Rail + expandable panel + collapsed icon column
   Screens/        Home, Tasks/Board/Projects, Messages, CRM/Pipeline/Reports, Settings, Sheets

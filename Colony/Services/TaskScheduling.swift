@@ -44,6 +44,8 @@ final class TaskNotifications: NSObject {
 
     /// Called for Complete / Remind me in 1 hour / a tap on the notification.
     var onAction: ((_ taskID: UUID, _ action: String) -> Void)?
+    /// A tap on an agent's notification.
+    var onAgent: ((_ agentID: UUID) -> Void)?
 
     var canNotify: Bool { authorization == .authorized || authorization == .provisional }
 
@@ -68,12 +70,18 @@ final class TaskNotifications: NSObject {
         // Permission can change in System Settings while Colony is open.
         #if os(macOS)
         let becameActive = NSApplication.didBecomeActiveNotification
+        let resigned = NSApplication.didResignActiveNotification
         #else
         let becameActive = UIApplication.didBecomeActiveNotification
+        let resigned = UIApplication.willResignActiveNotification
         #endif
+        NotificationCenter.default.addObserver(forName: resigned, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.isAppActive = false }
+        }
         NotificationCenter.default.addObserver(forName: becameActive, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
+                self.isAppActive = true
                 let was = self.canNotify
                 await self.refreshAuthorization()
                 if self.canNotify != was { self.onPermissionChange?() }
@@ -84,6 +92,8 @@ final class TaskNotifications: NSObject {
 
     /// Lets the scheduler rebuild alerts once permission is granted in System Settings.
     var onPermissionChange: (() -> Void)?
+    /// Whether Colony is frontmost; agents skip notifying about the page you're on.
+    var isAppActive = true
     var onBecameActive: (() -> Void)?
 
     func refreshAuthorization() async {
@@ -158,6 +168,10 @@ extension TaskNotifications: UNUserNotificationCenterDelegate {
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if let raw = response.notification.request.content.userInfo["agentID"] as? String, let id = UUID(uuidString: raw) {
+            await MainActor.run { self.onAgent?(id) }
+            return
+        }
         guard let raw = response.notification.request.content.userInfo["taskID"] as? String, let id = UUID(uuidString: raw) else { return }
         let action = response.actionIdentifier
         await MainActor.run { self.onAction?(id, action) }
@@ -309,8 +323,8 @@ final class TaskCalendar {
         for schedule in schedules {
             let event = byID[schedule.id] ?? EKEvent(eventStore: store)
             event.calendar = calendar
-            event.title = "⚙︎ \(schedule.name)"
-            event.notes = "\(schedule.detail)\n\nColony automation"
+            event.title = "\(schedule.symbol) \(schedule.name)"
+            event.notes = "\(schedule.detail)\n\n\(schedule.symbol == "✦" ? "Colony agent" : "Colony automation")"
             event.url = URL(string: "colony://automation/\(schedule.id)")
             event.startDate = schedule.firstRun
             event.endDate = schedule.firstRun.addingTimeInterval(15 * 60)
@@ -336,6 +350,7 @@ struct AutomationSchedule {
     let detail: String
     let firstRun: Date
     let rule: EKRecurrenceRule
+    var symbol: String = "⚙︎"
 
     /// The schedules of the Automations preview crew (see AgentsSidebar), until real
     /// automations exist.
@@ -354,6 +369,40 @@ struct AutomationSchedule {
             AutomationSchedule(id: "cleanup", name: "Weekly cleanup", detail: "Archive tasks done for more than 30 days.",
                                firstRun: next(weekday: 6, hour: 17), rule: EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)),
         ]
+    }
+
+    /// Scheduled agents, as repeating events at their run time.
+    static func agents(_ agents: [Agent]) -> [AutomationSchedule] {
+        let cal = Calendar.current
+        return agents.compactMap { agent -> AutomationSchedule? in
+            guard agent.isEnabled, !agent.isDeleted, let schedule = agent.schedule else { return nil }
+            var parts = DateComponents()
+            parts.minute = schedule.minute
+            let rule: EKRecurrenceRule
+            switch schedule.kind {
+            case .hourly:
+                // An event every hour would bury the calendar; hourly agents stay out.
+                return nil
+            case .daily:
+                parts.hour = schedule.hour
+                rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
+            case .weekdays:
+                parts.hour = schedule.hour
+                let days = (2...6).map { EKRecurrenceDayOfWeek(EKWeekday(rawValue: $0)!) }
+                rule = EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, daysOfTheWeek: days, daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil, daysOfTheYear: nil, setPositions: nil, end: nil)
+            case .weekly(let weekday):
+                parts.hour = schedule.hour
+                parts.weekday = weekday
+                rule = EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)
+            }
+            var first = cal.nextDate(after: .now, matching: parts, matchingPolicy: .nextTime) ?? .now
+            if schedule.kind == .weekdays {
+                while !(2...6).contains(cal.component(.weekday, from: first)) {
+                    first = cal.date(byAdding: .day, value: 1, to: first) ?? first
+                }
+            }
+            return AutomationSchedule(id: "agent-\(agent.uuid.uuidString)", name: agent.name, detail: agent.summary.isEmpty ? "Colony agent" : agent.summary, firstRun: first, rule: rule, symbol: "✦")
+        }
     }
 }
 
@@ -374,6 +423,8 @@ final class TaskScheduler {
     private var pending: Task<Void, Never>?
     /// Last synced state of each task, so only changed tasks touch Calendar.
     private var seen: [UUID: String] = [:]
+    /// Agents' schedules as last written to Calendar.
+    private var agentScheduleKey: String?
 
     func attach(_ container: ModelContainer, app: AppModel) {
         guard self.container == nil, !CloudStore.isRunningForTests else { return }
@@ -386,6 +437,7 @@ final class TaskScheduler {
             })
         }
         app.notifications.onAction = { [weak self] id, action in self?.handle(id, action) }
+        app.notifications.onAgent = { [weak app] id in app?.go(.agent(id)) }
         app.notifications.onPermissionChange = { [weak self] in self?.run(force: true) }
         app.notifications.onBecameActive = { [weak app, weak self] in
             guard let app else { return }
@@ -439,8 +491,14 @@ final class TaskScheduler {
         }
         seen = current
         if app.preferences.showsAutomationsInCalendar {
-            if force { app.calendar.syncAutomations(AutomationSchedule.previews) }
+            let agents = ((try? context.fetch(FetchDescriptor<Agent>())) ?? []).filter { !$0.isDeleted }
+            let key = agents.map { "\($0.uuid)\($0.scheduleRaw)\($0.isEnabled)\($0.name)" }.sorted().joined()
+            if force || key != agentScheduleKey {
+                agentScheduleKey = key
+                app.calendar.syncAutomations(AutomationSchedule.previews + AutomationSchedule.agents(agents))
+            }
         } else if force {
+            agentScheduleKey = nil
             app.calendar.syncAutomations([])
         }
     }

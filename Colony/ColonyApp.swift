@@ -23,6 +23,7 @@ struct ColonyApp: App {
         // Started here rather than from a view, so it runs with no window open too
         // (menu-bar mode, open at login).
         model.scheduler.attach(container, app: model)
+        model.agents.attach(container, app: model)
     }
 
     var body: some Scene {
@@ -43,6 +44,8 @@ struct ColonyApp: App {
                 Button("New Project") { app.present(.newProject) }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Button("New Channel") { app.present(.newChannel) }
+                Button("Recruit Agent…") { app.present(.recruitAgent) }
+                    .keyboardShortcut("n", modifiers: [.command, .option])
             }
             CommandGroup(after: .sidebar) {
                 Button("Search…") { app.toggleCommandPalette() }
@@ -82,6 +85,10 @@ struct ColonyApp: App {
                 guard !CloudStore.isRunningForTests else { return }
                 StarterContent.seedIfNeeded(context: container.mainContext, preferences: app.preferences)
                 app.nowPlaying.start()
+                // After the first iCloud import has had a moment, so a second device
+                // sees the agents the first one recruited instead of adding duplicates.
+                try? await Task.sleep(for: .seconds(app.preferences.didSeedStarterAgents ? 0 : 4))
+                StarterContent.seedAgentsIfNeeded(context: container.mainContext, preferences: app.preferences)
             }
     }
 }

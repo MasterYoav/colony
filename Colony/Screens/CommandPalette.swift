@@ -17,6 +17,7 @@ struct CommandPalette: View {
     @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasks: [TaskItem]
     @Query private var channels: [Channel]
     @Query private var contacts: [Contact]
+    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
     @State private var query = ""
     @State private var highlighted: String?
     @State private var lastPointer: CGPoint?
@@ -24,7 +25,7 @@ struct CommandPalette: View {
 
     struct Item: Identifiable {
         enum Group: String, CaseIterable {
-            case actions = "Actions", navigation = "Go to", projects = "Projects", tasks = "Tasks", channels = "Channels", people = "People"
+            case actions = "Actions", navigation = "Go to", projects = "Projects", tasks = "Tasks", channels = "Channels", agents = "Agents", people = "People"
         }
 
         let id: String
@@ -237,6 +238,7 @@ struct CommandPalette: View {
             Item(id: "a-task", group: .actions, symbol: "plus", title: "New task", shortcut: "⌘N", run: open(.newTask(project: nil, list: nil))),
             Item(id: "a-project", group: .actions, symbol: "folder.badge.plus", title: "New project", shortcut: "⇧⌘N", run: open(.newProject)),
             Item(id: "a-channel", group: .actions, symbol: "number", title: "New channel", run: open(.newChannel)),
+            Item(id: "a-recruit", group: .actions, symbol: "person.badge.plus", title: "Recruit an agent", subtitle: "From an AGENT.md file", shortcut: "⌥⌘N", run: open(.recruitAgent)),
             Item(id: "a-contact", group: .actions, symbol: "person.crop.circle.badge.plus", title: "New contact", run: open(.newContact)),
             Item(id: "a-import", group: .actions, symbol: "person.crop.rectangle.stack", title: "Import from Apple Contacts", run: open(app.contacts.canRead ? .importContacts : .connectContacts)),
             Item(id: "a-appearance", group: .actions, symbol: app.preferences.appearance == .light ? "moon" : "sun.max", title: app.preferences.appearance == .light ? "Switch to dark appearance" : "Switch to light appearance", run: {
@@ -255,6 +257,7 @@ struct CommandPalette: View {
             Item(id: "n-crm", group: .navigation, symbol: "person.2", title: "CRM · Customers", run: { close(); app.crmTab = .customers; app.go(.crm) }),
             Item(id: "n-pipeline", group: .navigation, symbol: "square.grid.2x2", title: "CRM · Pipeline", run: { close(); app.crmTab = .pipeline; app.go(.crm) }),
             Item(id: "n-reports", group: .navigation, symbol: "chart.pie", title: "Reports", run: go(.reports)),
+            Item(id: "n-agents", group: .navigation, symbol: "person.2.wave.2", title: "Agents", run: go(.crew(.agents))),
             Item(id: "n-settings", group: .navigation, symbol: "slider.horizontal.3", title: "Settings", run: { close(); app.openSettings(.profile) }),
             Item(id: "n-settings-appearance", group: .navigation, symbol: "circle.lefthalf.filled", title: "Settings › Appearance", run: { close(); app.openSettings(.appearance) }),
             Item(id: "n-settings-icloud", group: .navigation, symbol: "icloud", title: "Settings › iCloud", run: { close(); app.openSettings(.iCloud) }),
@@ -272,6 +275,9 @@ struct CommandPalette: View {
         items += channels.map { c in
             Item(id: "c-\(c.uuid)", group: .channels, symbol: "number", title: c.name, subtitle: c.topic.isEmpty ? nil : c.topic, run: go(.messages(channel: c.uuid)))
         }
+        items += agents.map { a in
+            Item(id: "g-\(a.uuid)", group: .agents, symbol: "sparkles", tint: a.color.color, title: a.name, subtitle: a.summary.isEmpty ? nil : a.summary, run: go(.agent(a.uuid)))
+        }
         items += contacts.map { c in
             Item(id: "k-\(c.uuid)", group: .people, symbol: "person.crop.circle", title: c.name, subtitle: c.company.isEmpty ? nil : c.company, run: { close(); app.crmTab = .customers; app.crmSelection = c.uuid; app.go(.crm) })
         }
@@ -282,7 +288,7 @@ struct CommandPalette: View {
         let q = ColonyText.trimmed(query)
         guard !q.isEmpty else {
             // Empty query: actions, navigation and projects; tasks/people appear once you type.
-            return allItems.filter { [.actions, .navigation, .projects].contains($0.group) }
+            return allItems.filter { [.actions, .navigation, .projects, .agents].contains($0.group) }
         }
         return allItems
             .compactMap { item -> (Item, Int)? in
