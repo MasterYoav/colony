@@ -23,6 +23,7 @@ enum Destination: Hashable, Codable {
     case list(project: UUID, list: UUID)
     case crew(CrewKind)
     case agent(UUID)
+    case automation(UUID)
     case settings
 
     /// The rail icon that lights up for this destination.
@@ -34,7 +35,7 @@ enum Destination: Hashable, Codable {
         case .tasks: .tasks
         case .projects, .project, .list: .projects
         case .crm: .people
-        case .reports, .crew, .agent: .home
+        case .reports, .crew, .agent, .automation: .home
         case .settings: .settings
         }
     }
@@ -101,6 +102,8 @@ enum ActiveSheet: Identifiable, Hashable {
     case recruitAgent
     case editAgent(UUID)
     case deleteAgent(UUID)
+    case newAutomation
+    case deleteAutomation(UUID)
 
     var id: String {
         switch self {
@@ -119,13 +122,16 @@ enum ActiveSheet: Identifiable, Hashable {
         case .recruitAgent: "recruitAgent"
         case .editAgent(let id): "editAgent-\(id)"
         case .deleteAgent(let id): "deleteAgent-\(id)"
+        case .newAutomation: "newAutomation"
+        case .deleteAutomation(let id): "deleteAutomation-\(id)"
         }
     }
 
     /// Dialog width on Mac, iPad and Vision Pro. iPhone uses a full-width sheet.
     var dialogWidth: CGFloat {
         switch self {
-        case .deleteProject, .deleteTask, .deleteContact, .deleteAgent: 420
+        case .deleteProject, .deleteTask, .deleteContact, .deleteAgent, .deleteAutomation: 420
+        case .newAutomation: 620
         case .recruitAgent, .editAgent: 640
         case .connectReminders, .connectContacts: 420
         case .newChannel: 460
@@ -173,6 +179,8 @@ final class AppModel {
     let scheduler = TaskScheduler()
     /// Runs agents on the on-device model.
     let agents = AgentRunner()
+    /// Runs automations when the workspace changes or their time comes.
+    let automations = AutomationEngine()
     /// Colony is the frontmost app (for skipping notifications about what you're looking at).
     var isActive: Bool { notifications.isAppActive }
 

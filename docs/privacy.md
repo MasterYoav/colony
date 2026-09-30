@@ -54,6 +54,9 @@ any time in Settings (iOS, iPadOS, visionOS) or System Settings › Privacy & Se
   date and never changes your other calendars. Turning both off deletes the Colony calendar. Apple
   syncs your calendars under its own policy.
 
+**Automations.** Automations you create and their run history are stored in your iCloud with the
+rest of your workspace and run on your devices. They don't contact any server.
+
 **Agents and Apple Intelligence.** Agents run on your device with Apple Intelligence (Apple's
 on-device Foundation Models). What you write to an agent, and the workspace data it reads with its
 tools (tasks, projects, customers, channel messages, updates), is processed on the device and is not

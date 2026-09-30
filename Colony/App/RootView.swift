@@ -114,7 +114,14 @@ struct DestinationView: View {
             case .crm: CRMView()
             case .reports: ReportsView()
             case .crew(.agents): AgentsHome()
-            case .crew(let kind): CrewView(kind: kind)
+            case .crew: AutomationsHome()
+            case .automation(let id):
+                if let automation = context.automation(id) {
+                    AutomationEditor(automation: automation)
+                        .id(id)
+                } else {
+                    missing
+                }
             case .agent(let id):
                 if let agent = context.agent(id) {
                     AgentPage(agent: agent)
@@ -155,6 +162,8 @@ struct SheetHost: View {
         case .recruitAgent: RecruitAgentDialog(editing: nil)
         case .editAgent(let id): RecruitAgentDialog(editing: id)
         case .deleteAgent(let id): DeleteAgentDialog(agentID: id)
+        case .newAutomation: NewAutomationDialog()
+        case .deleteAutomation(let id): DeleteAutomationDialog(automationID: id)
         }
     }
 }

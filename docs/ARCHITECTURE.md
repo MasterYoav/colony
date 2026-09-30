@@ -45,6 +45,10 @@ Tools (`Agents/AgentTools.swift`) are Foundation Models `Tool`s that hop to the 
 
 Schedules run from a one-minute clock while the app is open. `Agent.lastScheduledSlot` syncs through iCloud, so each slot runs once across devices.
 
+## Automations
+
+An `Automation` stores one trigger, filters and steps as small JSON blobs (CloudKit-safe) plus on/off and `lastScheduledSlot`; each run adds an `AutomationRun` (last 25 kept). `WorkspaceActions` announces changes on `AutomationBus` (task created, status changed, customer added or moved, message posted), so changes from you, agents and automations are all seen. `AutomationEngine` matches the event, checks the filters, runs the steps through `WorkspaceActions`, and caps chains at 3 automations in a row. The same one-minute clock handles schedules and the overdue check. `Automation.dryRun` powers the Test button without changing anything, and `AutomationTests` covers matching, filters, steps and sentences.
+
 ## Code layout
 
 ```
@@ -52,6 +56,7 @@ Colony/
   App/            ColonyApp entry, AppModel (navigation + sheets), RootView, starter content
   Models/         SwiftData models, WorkspaceActions (every mutation goes through here)
   Agents/         AGENT.md format, runner (Foundation Models), tools, agent screens
+  Automations/    AutomationEngine, recipes, flow builder screens
   Services/       CloudStore, CloudPreferences, AppleServices (Contacts, Reminders)
   Sidebar/        Rail + expandable panel + collapsed icon column
   Screens/        Home, Tasks/Board/Projects, Messages, CRM/Pipeline/Reports, Settings, Sheets

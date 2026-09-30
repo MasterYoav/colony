@@ -113,6 +113,7 @@ struct WorkspaceActions {
         guard !title.isEmpty else { return nil }
         let task = TaskItem(title: title, notes: notes, status: status, priority: priority, dueDate: dueDate, project: project ?? list?.project, list: list)
         context.insert(task)
+        AutomationBus.post(.taskCreated, task.uuid)
         let place = (project ?? list?.project)?.name ?? "My tasks"
         log("Task created", "\(title) · \(place)", symbol: "checklist", color: (project ?? list?.project)?.color ?? .blue)
         return task
@@ -121,6 +122,7 @@ struct WorkspaceActions {
     func setStatus(_ status: TaskStatus, for task: TaskItem) {
         guard task.status != status else { return }
         task.status = status
+        AutomationBus.post(.taskStatusChanged, task.uuid, status: status)
         if status == .done {
             log("Task completed", task.title, symbol: "checkmark.circle.fill", color: .green)
         }
@@ -184,6 +186,7 @@ struct WorkspaceActions {
         let message = Message(body: body, authorName: author, isMine: isMine, channel: channel)
         context.insert(message)
         if isMine { channel.lastReadAt = .now }
+        AutomationBus.post(.messagePosted, message.uuid, channel: channel.uuid)
         return message
     }
 
@@ -211,6 +214,7 @@ struct WorkspaceActions {
         contact.appleContactIdentifier = appleIdentifier
         contact.imageData = imageData
         context.insert(contact)
+        AutomationBus.post(.customerAdded, contact.uuid)
         log("Customer added", company.isEmpty ? name : "\(name) · \(company)", symbol: "person.crop.circle.badge.plus", color: .indigo)
         return contact
     }
@@ -223,6 +227,7 @@ struct WorkspaceActions {
     func setStage(_ stage: DealStage, for contact: Contact) {
         guard contact.stage != stage else { return }
         contact.stage = stage
+        AutomationBus.post(.dealStageChanged, contact.uuid, stage: stage)
         log("Deal moved", "\(contact.name) → \(stage.title)", symbol: "arrow.triangle.branch", color: stage.color)
     }
 
@@ -263,6 +268,74 @@ struct WorkspaceActions {
     func delete(_ agent: Agent) {
         log("Agent removed", agent.name, symbol: "person.badge.minus", color: .gray)
         context.delete(agent)
+    }
+
+    // MARK: Automations
+
+    /// A new automation: from a recipe (complete, but off until you turn it on), or empty.
+    @discardableResult
+    func createAutomation(from recipe: AutomationRecipe? = nil, name: String? = nil) -> Automation {
+        let existing = ((try? context.fetch(FetchDescriptor<Automation>())) ?? []).filter { !$0.isDeleted }
+        let automation = Automation(name: ColonyText.trimmed(name ?? recipe?.name ?? "").isEmpty ? Self.untitled(existing) : ColonyText.trimmed(name ?? recipe?.name ?? ""))
+        automation.sortIndex = (existing.map(\.sortIndex).max() ?? -1) + 1
+        automation.isEnabled = false
+        if let recipe {
+            automation.recipeID = recipe.id
+            automation.color = recipe.color
+            automation.trigger = recipe.trigger
+            automation.conditions = recipe.conditions
+            automation.steps = recipe.steps(context)
+        } else {
+            automation.color = [.orange, .blue, .purple, .green, .teal, .pink, .indigo][existing.count % 7]
+        }
+        startFresh(automation)
+        context.insert(automation)
+        return automation
+    }
+
+    private static func untitled(_ existing: [Automation]) -> String {
+        let names = Set(existing.map(\.name))
+        if !names.contains("New automation") { return "New automation" }
+        var n = 2
+        while names.contains("New automation \(n)") { n += 1 }
+        return "New automation \(n)"
+    }
+
+    /// Turns an automation on or off. Turning on starts from now: no backlog of past
+    /// schedule slots or tasks that went overdue while it was off.
+    func setEnabled(_ enabled: Bool, for automation: Automation) {
+        guard automation.isEnabled != enabled else { return }
+        if enabled { startFresh(automation) }
+        automation.isEnabled = enabled
+        save()
+    }
+
+    /// Changing the trigger also starts from now.
+    func setTrigger(_ trigger: AutomationTrigger?, for automation: Automation) {
+        automation.trigger = trigger
+        startFresh(automation)
+    }
+
+    private func startFresh(_ automation: Automation) {
+        automation.lastCheckedAt = .now
+        automation.lastScheduledSlot = automation.trigger?.schedule?.lastSlot(before: .now)
+    }
+
+    @discardableResult
+    func duplicate(_ automation: Automation) -> Automation {
+        let copy = createAutomation(name: "\(automation.name) copy")
+        copy.color = automation.color
+        copy.trigger = automation.trigger
+        copy.conditions = automation.conditions.map { var c = $0; c.id = UUID(); return c }
+        copy.steps = automation.steps.map { var s = $0; s.id = UUID(); return s }
+        copy.recipeID = automation.recipeID
+        startFresh(copy)
+        return copy
+    }
+
+    func delete(_ automation: Automation) {
+        context.delete(automation)
+        save()
     }
 
     // MARK: Updates

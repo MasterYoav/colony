@@ -20,6 +20,7 @@ There's no Colony server and no third-party SDK. Your data lives in your iCloud 
 - **iCloud storage.** SwiftData models are mirrored to your private CloudKit database. Preferences, such as appearance and sidebar layout, sync through iCloud key-value storage.
 - **Apple services.** Import people from Contacts, mirror due dates into Reminders, and reach contacts through Mail, Phone, FaceTime and the share sheet.
 - **Agents.** On-device assistants powered by Apple Intelligence. Recruit one from an `AGENT.md` file, a template, or write your own. Agents read and change your tasks, customers and channels through the same actions you use, run on a schedule, and ask before big changes. See [Agents](docs/AGENTS.md).
+- **Automations.** "When this happens, do that" for beginners, built from blocks instead of code: pick a trigger (a new task, a deal won, a message, a time of day), optional filters, and steps. Each automation reads as one sentence, can be tested without changing anything, and keeps a run log. Start from 8 recipes. See [Automations](docs/AUTOMATIONS.md).
 - **Tasks like Reminders.** Smart lists, due-time notifications, and an optional Colony calendar in Apple Calendar.
 - **Keyboard-first on Mac.** The ⌘K command center searches actions, projects, tasks and contacts. ⌘N creates a task, ⌘⇧N a project, and ⌃⌘S collapses the sidebar.
 - **Arrangeable sidebar.** Drag navigation items and projects to reorder them. The order syncs to your other devices.
@@ -67,6 +68,7 @@ Colony/
   App/           app model, root view, starter content
   Models/        SwiftData models and WorkspaceActions (the single mutation path)
   Agents/        AGENT.md format, on-device runner (Foundation Models), tools, agent screens
+  Automations/   Automation engine (triggers, filters, steps, schedules), recipes, flow builder
   Services/      CloudStore (SwiftData + CloudKit), CloudPreferences (iCloud KVS), Apple services
   Sidebar/       sidebar, drag-and-drop layout
   Screens/       Home, Tasks, Messages, CRM, Settings, dialogs, command palette
@@ -81,6 +83,7 @@ When changing models, keep them CloudKit-compatible: every attribute needs a def
 
 - [Architecture](docs/ARCHITECTURE.md): storage, CloudKit schema rules, Apple services, code layout
 - [Agents and AGENT.md](docs/AGENTS.md)
+- [Automations](docs/AUTOMATIONS.md)
 - [Product](docs/PRODUCT.md)
 - [Theming](docs/THEMING.md)
 - [Roadmap](docs/ROADMAP.md)

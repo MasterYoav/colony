@@ -24,6 +24,7 @@ struct ColonyApp: App {
         // (menu-bar mode, open at login).
         model.scheduler.attach(container, app: model)
         model.agents.attach(container, app: model)
+        model.automations.attach(container, app: model)
     }
 
     var body: some Scene {
@@ -46,6 +47,8 @@ struct ColonyApp: App {
                 Button("New Channel") { app.present(.newChannel) }
                 Button("Recruit Agent…") { app.present(.recruitAgent) }
                     .keyboardShortcut("n", modifiers: [.command, .option])
+                Button("New Automation…") { app.present(.newAutomation) }
+                    .keyboardShortcut("a", modifiers: [.command, .option])
             }
             CommandGroup(after: .sidebar) {
                 Button("Search…") { app.toggleCommandPalette() }
@@ -89,6 +92,7 @@ struct ColonyApp: App {
                 // sees the agents the first one recruited instead of adding duplicates.
                 try? await Task.sleep(for: .seconds(app.preferences.didSeedStarterAgents ? 0 : 4))
                 StarterContent.seedAgentsIfNeeded(context: container.mainContext, preferences: app.preferences)
+                StarterContent.seedAutomationsIfNeeded(context: container.mainContext, preferences: app.preferences)
             }
     }
 }

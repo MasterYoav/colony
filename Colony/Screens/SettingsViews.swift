@@ -928,7 +928,7 @@ private struct CalendarPage: View {
                     Task {
                         guard await ensureAccess() else { return }
                         prefs.showsAutomationsInCalendar = true
-                        app.calendar.syncAutomations(AutomationSchedule.previews)
+                        app.scheduler.run(force: true)
                         app.show("Automation schedules added to Calendar")
                     }
                 }))

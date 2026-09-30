@@ -45,6 +45,7 @@ final class CloudPreferences {
         static let expandedProjects = "expandedProjects"
         static let didSeedStarterContent = "didSeedStarterContent"
         static let didSeedStarterAgents = "didSeedStarterAgents"
+        static let didSeedStarterAutomations = "didSeedStarterAutomations"
         static let mirrorsToReminders = "mirrorsToReminders"
         static let notifiesTasks = "notifiesTasks"
         static let runsInMenuBar = "runsInMenuBar"
@@ -71,6 +72,8 @@ final class CloudPreferences {
     /// Starter agents are recruited once per iCloud account (separate flag so existing
     /// workspaces get them too).
     var didSeedStarterAgents: Bool { didSet { write(didSeedStarterAgents, Key.didSeedStarterAgents) } }
+    /// The starter automations (switched off) were added once for this account.
+    var didSeedStarterAutomations: Bool { didSet { write(didSeedStarterAutomations, Key.didSeedStarterAutomations) } }
     var mirrorsToReminders: Bool { didSet { write(mirrorsToReminders, Key.mirrorsToReminders) } }
     /// Notify at each task's due time. Each device still asks its own permission.
     var notifiesTasks: Bool { didSet { write(notifiesTasks, Key.notifiesTasks) } }
@@ -107,6 +110,7 @@ final class CloudPreferences {
         expandedProjectIDs = Set(read(Key.expandedProjects) as [String]? ?? [])
         didSeedStarterContent = read(Key.didSeedStarterContent) ?? false
         didSeedStarterAgents = read(Key.didSeedStarterAgents) ?? false
+        didSeedStarterAutomations = read(Key.didSeedStarterAutomations) ?? false
         mirrorsToReminders = read(Key.mirrorsToReminders) ?? false
         notifiesTasks = read(Key.notifiesTasks) ?? false
         runsInMenuBar = defaults.bool(forKey: Key.runsInMenuBar)

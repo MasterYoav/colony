@@ -6,8 +6,8 @@
 //  pill (face, name, status, go arrow) over a row of small faces, as in the reference.
 //  Every face blinks on its own random clock.
 //
-//  Agents are real (SwiftData, synced through iCloud; see Agents/). Automations are
-//  the next phase (docs/ROADMAP.md) and still show a fixed preview crew.
+//  Both are real (SwiftData, synced through iCloud): agents live in Agents/,
+//  automations in Automations/.
 //
 
 import SwiftData
@@ -30,25 +30,6 @@ enum CrewKind: String, Hashable, Codable {
 
     /// Agents are round faces; automations are little squircle bots.
     var isRound: Bool { self == .agents }
-
-    var members: [CrewMember] {
-        switch self {
-        case .agents: [
-            CrewMember(id: "neo", name: "Neo", status: "Waiting", role: "Plans your day from open tasks and due dates", color: .blue),
-            CrewMember(id: "ada", name: "Ada", status: "Idle", role: "Drafts follow-ups for customers in Proposal", color: .purple),
-            CrewMember(id: "mira", name: "Mira", status: "Idle", role: "Summarises busy channels into Updates", color: .green),
-            CrewMember(id: "pax", name: "Pax", status: "Idle", role: "Breaks big tasks into checklists", color: .pink),
-            CrewMember(id: "juno", name: "Juno", status: "Idle", role: "Writes the weekly report", color: .teal),
-            CrewMember(id: "orla", name: "Orla", status: "Idle", role: "Triages new tasks into projects", color: .orange),
-        ]
-        case .automations: [
-            CrewMember(id: "nudge", name: "Overdue nudge", status: "Daily · 9:00", role: "When a task is overdue, raise its priority and ping you", color: .orange),
-            CrewMember(id: "won", name: "Deal won", status: "On stage change", role: "When a customer moves to Won, create an onboarding task list", color: .green),
-            CrewMember(id: "review", name: "Ready for review", status: "On status change", role: "When a task hits Review, post it to the project channel", color: .indigo),
-            CrewMember(id: "cleanup", name: "Weekly cleanup", status: "Fridays", role: "Archive tasks done for more than 30 days", color: .gray),
-        ]
-        }
-    }
 }
 
 // MARK: - Face
@@ -130,6 +111,24 @@ private struct SeededGenerator: RandomNumberGenerator {
 
 // MARK: - Sidebar section
 
+extension Automation {
+    func crewMember(_ names: AutomationNames, running: Bool) -> CrewMember {
+        CrewMember(id: uuid.uuidString, name: name, status: running ? "Running…" : statusLine(names), role: sentence(names), color: color)
+    }
+
+    /// Who the sidebar pill features: whatever's running, then the one on screen, then
+    /// what ran most recently among those that are on, then the list's order.
+    static func featured(_ automations: [Automation], running: Set<UUID>, open: UUID? = nil) -> [Automation] {
+        func rank(_ a: Automation) -> (Int, Double, Int) {
+            if running.contains(a.uuid) { return (0, 0, a.sortIndex) }
+            if a.uuid == open { return (1, 0, a.sortIndex) }
+            if a.isEnabled && a.isComplete { return (2, -(a.lastRunAt?.timeIntervalSince1970 ?? 0), a.sortIndex) }
+            return (3, 0, a.sortIndex)
+        }
+        return automations.sorted { rank($0) < rank($1) }
+    }
+}
+
 extension Agent {
     var crewMember: CrewMember {
         CrewMember(id: uuid.uuidString, name: name, status: status == .thinking ? "Thinking…" : status.title, role: summary, color: color)
@@ -151,6 +150,9 @@ extension Agent {
 struct CrewSidebarSection: View {
     @Environment(AppModel.self) private var app
     @Query(sort: \Agent.sortIndex) private var agents: [Agent]
+    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
+    @Query private var projects: [Project]
+    @Query private var channels: [Channel]
     let kind: CrewKind
     @State private var isExpanded = true
 
@@ -160,8 +162,31 @@ struct CrewSidebarSection: View {
         return Agent.featured(agents, running: app.agents.running, open: open)
     }
 
+    private var orderedAutomations: [Automation] {
+        guard kind == .automations else { return [] }
+        let open: UUID? = if case .automation(let id) = app.destination { id } else { nil }
+        return Automation.featured(automations, running: app.automations.running, open: open)
+    }
+
+    private var names: AutomationNames {
+        AutomationNames(
+            projects: Dictionary(projects.map { ($0.uuid, $0.name) }, uniquingKeysWith: { a, _ in a }),
+            channels: Dictionary(channels.map { ($0.uuid, $0.name) }, uniquingKeysWith: { a, _ in a }),
+            agents: Dictionary(agents.map { ($0.uuid, $0.name) }, uniquingKeysWith: { a, _ in a })
+        )
+    }
+
+    /// Where a member of this crew opens.
+    private func destination(_ id: String) -> Destination {
+        guard let uuid = UUID(uuidString: id) else { return .crew(kind) }
+        return kind == .agents ? .agent(uuid) : .automation(uuid)
+    }
+
     private var members: [CrewMember] {
-        guard kind == .agents else { return kind.members }
+        if kind == .automations {
+            let names = names
+            return orderedAutomations.map { $0.crewMember(names, running: app.automations.isRunning($0)) }
+        }
         return ordered.map { agent in
             var member = agent.crewMember
             if app.agents.isRunning(agent) { member = CrewMember(id: member.id, name: member.name, status: "Thinking…", role: member.role, color: member.color) }
@@ -172,21 +197,23 @@ struct CrewSidebarSection: View {
     var body: some View {
         let members = members
         let featuredAgent = kind == .agents ? ordered.first : nil
-        let isSelected = app.destination == .crew(kind) || (featuredAgent.map { app.destination == .agent($0.uuid) } ?? false)
+        let featuredAutomation = kind == .automations ? orderedAutomations.first : nil
+        let isSelected = app.destination == .crew(kind) || (members.first.map { app.destination == destination($0.id) } ?? false)
 
         VStack(alignment: .leading, spacing: 6) {
             header
             if isExpanded {
                 if let featured = members.first {
-                    FeaturedCrewRow(kind: kind, member: featured, isSelected: isSelected) {
-                        app.go(featuredAgent.map { .agent($0.uuid) } ?? .crew(kind))
+                    FeaturedCrewRow(kind: kind, member: featured, isSelected: isSelected, isOff: featuredAutomation.map { !$0.isEnabled || !$0.isComplete } ?? false) {
+                        app.go(destination(featured.id))
                     }
                     .contextMenu {
                         if let featuredAgent { AgentMenuItems(agent: featuredAgent) }
+                        if let featuredAutomation { AutomationMenuItems(automation: featuredAutomation) }
                     }
                 } else {
-                    Button { app.present(.recruitAgent) } label: {
-                        Label("Recruit an agent", systemImage: "person.badge.plus")
+                    Button { app.present(kind == .agents ? .recruitAgent : .newAutomation) } label: {
+                        Label(kind == .agents ? "Recruit an agent" : "New automation", systemImage: kind == .agents ? "person.badge.plus" : "bolt.badge.clock")
                             .appFont(.system(size: 13))
                             .foregroundStyle(Theme.secondaryText)
                             .padding(.horizontal, 8)
@@ -196,7 +223,7 @@ struct CrewSidebarSection: View {
                     }
                     .buttonStyle(.plain)
                 }
-                faces(Array(members.dropFirst()), agents: Array(ordered.dropFirst()))
+                faces(Array(members.dropFirst()), agents: Array(ordered.dropFirst()), automations: Array(orderedAutomations.dropFirst()))
             }
         }
         .padding(.horizontal, 8)
@@ -224,28 +251,37 @@ struct CrewSidebarSection: View {
             .buttonStyle(.plain)
             .accessibilityLabel("\(kind.title) section")
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-            if kind == .agents {
-                Button { app.present(.recruitAgent) } label: {
-                    Image(systemName: "plus")
-                        .appFont(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Theme.tertiaryText)
-                        .frame(width: 18, height: 18)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .help("Recruit an agent")
-                .accessibilityLabel("Recruit an agent")
+            Button { app.present(kind == .agents ? .recruitAgent : .newAutomation) } label: {
+                Image(systemName: "plus")
+                    .appFont(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .frame(width: 18, height: 18)
+                    .contentShape(.rect)
             }
+            .buttonStyle(.plain)
+            .help(kind == .agents ? "Recruit an agent" : "New automation")
+            .accessibilityLabel(kind == .agents ? "Recruit an agent" : "New automation")
         }
         .padding(.horizontal, 8)
     }
 
-    private func faces(_ rest: [CrewMember], agents: [Agent]) -> some View {
+    private func faces(_ rest: [CrewMember], agents: [Agent], automations: [Automation]) -> some View {
         HStack(spacing: 1) {
             ForEach(Array(rest.prefix(5).enumerated()), id: \.element.id) { index, member in
                 let agent = index < agents.count ? agents[index] : nil
-                Button { app.go(agent.map { .agent($0.uuid) } ?? .crew(kind)) } label: {
+                let automation = index < automations.count ? automations[index] : nil
+                Button { app.go(destination(member.id)) } label: {
                     AgentFace(color: member.color.color, size: 19, isRound: kind.isRound, seed: index + (kind == .agents ? 1 : 11))
+                        .opacity(automation.map { $0.isEnabled && $0.isComplete ? 1 : 0.45 } ?? 1)
+                        .overlay(alignment: .topTrailing) {
+                            if let automation, app.automations.isRunning(automation) {
+                                Circle()
+                                    .fill(member.color.color)
+                                    .frame(width: 6, height: 6)
+                                    .overlay { Circle().strokeBorder(Theme.sidebar, lineWidth: 1) }
+                                    .offset(x: 1, y: -1)
+                            }
+                        }
                         .overlay(alignment: .topTrailing) {
                             if let agent, agent.status == .waiting || agent.unreadCount > 0 || app.agents.isRunning(agent) {
                                 Circle()
@@ -260,7 +296,10 @@ struct CrewSidebarSection: View {
                 .buttonStyle(.plain)
                 .help("\(member.name) · \(member.status)")
                 .accessibilityLabel("\(member.name), \(member.status)")
-                .contextMenu { if let agent { AgentMenuItems(agent: agent) } }
+                .contextMenu {
+                    if let agent { AgentMenuItems(agent: agent) }
+                    if let automation { AutomationMenuItems(automation: automation) }
+                }
             }
             Button { app.go(.crew(kind)) } label: {
                 Text(rest.count > 5 ? "+\(rest.count - 5)" : "All")
@@ -283,6 +322,7 @@ private struct FeaturedCrewRow: View {
     let kind: CrewKind
     let member: CrewMember
     let isSelected: Bool
+    var isOff = false
     let action: () -> Void
     @State private var isHovering = false
 
@@ -290,6 +330,7 @@ private struct FeaturedCrewRow: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 AgentFace(color: member.color.color, size: 30, isRound: kind.isRound, seed: kind == .agents ? 0 : 10)
+                    .opacity(isOff ? 0.5 : 1)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(member.name)
                         .appFont(.system(size: 13.5, weight: .medium))
@@ -320,7 +361,7 @@ private struct FeaturedCrewRow: View {
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
         .accessibilityLabel("\(member.name), \(member.status)")
-        .accessibilityHint("Opens \(kind.title)")
+        .accessibilityHint(kind == .agents ? "Opens the agent" : "Opens the automation")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
@@ -329,17 +370,21 @@ private struct FeaturedCrewRow: View {
 struct CrewRailButton: View {
     @Environment(AppModel.self) private var app
     @Query(sort: \Agent.sortIndex) private var agents: [Agent]
+    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
     let kind: CrewKind
 
     var body: some View {
-        let featured = kind == .agents ? Agent.featured(agents, running: app.agents.running).first : nil
+        let color: ColonyColor = kind == .agents
+            ? (Agent.featured(agents, running: app.agents.running).first?.color ?? .blue)
+            : (Automation.featured(automations, running: app.automations.running).first?.color ?? .orange)
         let isSelected: Bool = {
             if app.destination == .crew(kind) { return true }
             if kind == .agents, case .agent = app.destination { return true }
+            if kind == .automations, case .automation = app.destination { return true }
             return false
         }()
         Button { app.go(.crew(kind)) } label: {
-            AgentFace(color: featured?.color.color ?? kind.members[0].color.color, size: 24, isRound: kind.isRound, seed: kind == .agents ? 0 : 10)
+            AgentFace(color: color.color, size: 24, isRound: kind.isRound, seed: kind == .agents ? 0 : 10)
                 .frame(width: 34, height: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -350,71 +395,5 @@ struct CrewRailButton: View {
         .buttonStyle(.plain)
         .help(kind.title)
         .accessibilityLabel(kind.title)
-    }
-}
-
-// MARK: - Page
-
-/// Destination page for a crew: who's in it and what each will do. Labelled as a
-/// preview until the feature ships.
-struct CrewView: View {
-    let kind: CrewKind
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 10) {
-                        Text(kind.title)
-                            .appFont(.system(size: 26, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                        Text("Coming next")
-                            .appFont(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(ColonyColor.blue.color)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(ColonyColor.blue.color.opacity(0.12), in: Capsule())
-                    }
-                    Text(summary)
-                        .appFont(.system(size: 13.5))
-                        .foregroundStyle(Theme.secondaryText)
-                        .frame(maxWidth: 560, alignment: .leading)
-                }
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 14)], spacing: 14) {
-                    ForEach(Array(kind.members.enumerated()), id: \.element.id) { index, member in
-                        HStack(alignment: .top, spacing: 12) {
-                            AgentFace(color: member.color.color, size: 40, isRound: kind.isRound, seed: index + 30)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(member.name)
-                                    .appFont(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Theme.text)
-                                Text(member.role)
-                                    .appFont(.system(size: 12.5))
-                                    .foregroundStyle(Theme.secondaryText)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Theme.stroke) }
-                        .accessibilityElement(children: .combine)
-                    }
-                }
-            }
-            .padding(.horizontal, 28)
-            .padding(.top, 24)
-            .padding(.bottom, 32)
-        }
-        .background(Theme.canvas)
-    }
-
-    private var summary: String {
-        switch kind {
-        case .agents: "Assistants that work alongside you in Colony, on your device with Apple Intelligence. These are examples of what's planned; they don't run yet."
-        case .automations: "Rules that run when something changes in your workspace. These are examples of what's planned; they don't run yet."
-        }
     }
 }

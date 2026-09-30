@@ -31,16 +31,19 @@ Assistants that work alongside you, running on device with Apple Intelligence (F
 
 Later: background runs on iPhone and iPad with `BGTaskScheduler`, and agents that hand work to automations.
 
-## Next — Phase 2: Automations
+## Done — Phase 2: Automations
 
-Rules that run when something changes in the workspace. No AI required.
+"When … only if … then …" flows for beginners. No AI required. See [Automations](AUTOMATIONS.md).
 
-- [ ] `Automation` model in SwiftData (trigger, conditions, actions, enabled, last run) synced through iCloud; replace the preview list.
-- [ ] Triggers: task status or due date changes, task overdue, customer stage changes, new message, schedule (daily/weekly).
-- [ ] Actions: set priority or status, create a task or list, move a customer, post to a channel, add to Updates, mirror to Reminders.
-- [ ] Builder UI: "When … if … then …" with a run log and a test-run button.
-- [ ] Runs while the app is open, and in the background via `BGTaskScheduler` on iPhone/iPad where allowed.
-- [ ] Starter automations: overdue nudge, deal won → onboarding list, ready for review → post to channel, weekly cleanup.
+- [x] `Automation` and `AutomationRun` models in SwiftData (trigger, filters, steps as JSON, on/off, last run) synced through iCloud.
+- [x] Triggers: task created, status changed, overdue; customer added or stage changed; message posted; schedule (hourly/daily/weekdays/weekly).
+- [x] Filters: project, priority, name, flagged, company, deal value, message text.
+- [x] Steps: create a task, change priority/status/due date/project, flag, move a customer, post to a channel, add to Updates, notify me, ask an agent, clear old completed tasks.
+- [x] Builder: vertical When → Only if → Then flow with block pickers, blanks like [Task name], a live sentence, warnings, a Test (dry run) and a run log.
+- [x] Recipes: overdue nudge, deal won, ready for review, weekly cleanup, say hello to new customers, flag urgent work, morning plan with an agent, keyword alert.
+- [x] Loop guard (3 automations in a row) and cross-device once-per-slot schedules.
+- [ ] Background runs via `BGTaskScheduler` on iPhone/iPad (today they run while Colony is open).
+- [ ] Mirror to Reminders as a step.
 
 ## Then: team workspaces with CloudKit sharing
 
@@ -55,7 +58,6 @@ The private database is single-user: it syncs one person's data across their dev
 - Spotlight indexing (`CoreSpotlight`) and App Intents / Shortcuts ("Add a task to Launch").
 - Widgets (due today, pipeline) and Live Activities for in-progress tasks.
 - Calendar view inside Colony using EventKit events alongside task due dates.
-- Real automation schedules in Calendar once Automations ship (Phase 2); today it shows the preview crew's.
 - Early reminders (e.g. 15 minutes before) and repeating tasks.
 - Deploy the CloudKit schema to production before the first TestFlight build.
 

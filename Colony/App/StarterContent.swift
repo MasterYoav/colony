@@ -32,6 +32,23 @@ enum StarterContent {
         seedAgents(into: context)
     }
 
+    /// Adds the starter automations, all switched off, once per account.
+    static func seedAutomationsIfNeeded(context: ModelContext, preferences: CloudPreferences) {
+        guard !preferences.didSeedStarterAutomations else { return }
+        preferences.didSeedStarterAutomations = true
+        guard ((try? context.fetchCount(FetchDescriptor<Automation>())) ?? 0) == 0 else { return }
+        seedAutomations(into: context)
+    }
+
+    static func seedAutomations(into context: ModelContext) {
+        let actions = WorkspaceActions(context: context)
+        for id in AutomationRecipes.starterIDs {
+            guard let recipe = AutomationRecipes.recipe(id) else { continue }
+            actions.createAutomation(from: recipe)
+        }
+        try? context.save()
+    }
+
     static func seedAgents(into context: ModelContext) {
         let actions = WorkspaceActions(context: context)
         for template in AgentTemplates.starters {

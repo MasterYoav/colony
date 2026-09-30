@@ -352,55 +352,52 @@ struct AutomationSchedule {
     let rule: EKRecurrenceRule
     var symbol: String = "⚙︎"
 
-    /// The schedules of the Automations preview crew (see AgentsSidebar), until real
-    /// automations exist.
-    static var previews: [AutomationSchedule] {
-        let cal = Calendar.current
-        func next(weekday: Int?, hour: Int) -> Date {
-            var parts = DateComponents()
-            parts.hour = hour
-            parts.minute = 0
-            if let weekday { parts.weekday = weekday }
-            return cal.nextDate(after: .now, matching: parts, matchingPolicy: .nextTime) ?? .now
+    /// Scheduled automations that are on, as repeating events at their run time.
+    static func automations(_ automations: [Automation]) -> [AutomationSchedule] {
+        automations.compactMap { automation -> AutomationSchedule? in
+            guard automation.isEnabled, automation.isComplete, !automation.isDeleted,
+                  let trigger = automation.trigger, trigger.kind == .schedule, let schedule = trigger.schedule,
+                  let (first, rule) = recurrence(schedule) else { return nil }
+            let detail = automation.sentence(AutomationNames(context: automation.modelContext ?? ModelContext.placeholder))
+            return AutomationSchedule(id: automation.uuid.uuidString, name: automation.name, detail: detail, firstRun: first, rule: rule)
         }
-        return [
-            AutomationSchedule(id: "nudge", name: "Overdue nudge", detail: "When a task is overdue, raise its priority and ping you.",
-                               firstRun: next(weekday: nil, hour: 9), rule: EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)),
-            AutomationSchedule(id: "cleanup", name: "Weekly cleanup", detail: "Archive tasks done for more than 30 days.",
-                               firstRun: next(weekday: 6, hour: 17), rule: EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)),
-        ]
+    }
+
+    /// First run and repeat rule for a schedule; nil for hourly (an event every hour
+    /// would bury the calendar).
+    static func recurrence(_ schedule: AgentSchedule) -> (Date, EKRecurrenceRule)? {
+        let cal = Calendar.current
+        var parts = DateComponents()
+        parts.minute = schedule.minute
+        let rule: EKRecurrenceRule
+        switch schedule.kind {
+        case .hourly:
+            return nil
+        case .daily:
+            parts.hour = schedule.hour
+            rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
+        case .weekdays:
+            parts.hour = schedule.hour
+            let days = (2...6).map { EKRecurrenceDayOfWeek(EKWeekday(rawValue: $0)!) }
+            rule = EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, daysOfTheWeek: days, daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil, daysOfTheYear: nil, setPositions: nil, end: nil)
+        case .weekly(let weekday):
+            parts.hour = schedule.hour
+            parts.weekday = weekday
+            rule = EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)
+        }
+        var first = cal.nextDate(after: .now, matching: parts, matchingPolicy: .nextTime) ?? .now
+        if schedule.kind == .weekdays {
+            while !(2...6).contains(cal.component(.weekday, from: first)) {
+                first = cal.date(byAdding: .day, value: 1, to: first) ?? first
+            }
+        }
+        return (first, rule)
     }
 
     /// Scheduled agents, as repeating events at their run time.
     static func agents(_ agents: [Agent]) -> [AutomationSchedule] {
-        let cal = Calendar.current
-        return agents.compactMap { agent -> AutomationSchedule? in
-            guard agent.isEnabled, !agent.isDeleted, let schedule = agent.schedule else { return nil }
-            var parts = DateComponents()
-            parts.minute = schedule.minute
-            let rule: EKRecurrenceRule
-            switch schedule.kind {
-            case .hourly:
-                // An event every hour would bury the calendar; hourly agents stay out.
-                return nil
-            case .daily:
-                parts.hour = schedule.hour
-                rule = EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)
-            case .weekdays:
-                parts.hour = schedule.hour
-                let days = (2...6).map { EKRecurrenceDayOfWeek(EKWeekday(rawValue: $0)!) }
-                rule = EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, daysOfTheWeek: days, daysOfTheMonth: nil, monthsOfTheYear: nil, weeksOfTheYear: nil, daysOfTheYear: nil, setPositions: nil, end: nil)
-            case .weekly(let weekday):
-                parts.hour = schedule.hour
-                parts.weekday = weekday
-                rule = EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)
-            }
-            var first = cal.nextDate(after: .now, matching: parts, matchingPolicy: .nextTime) ?? .now
-            if schedule.kind == .weekdays {
-                while !(2...6).contains(cal.component(.weekday, from: first)) {
-                    first = cal.date(byAdding: .day, value: 1, to: first) ?? first
-                }
-            }
+        agents.compactMap { agent -> AutomationSchedule? in
+            guard agent.isEnabled, !agent.isDeleted, let schedule = agent.schedule, let (first, rule) = recurrence(schedule) else { return nil }
             return AutomationSchedule(id: "agent-\(agent.uuid.uuidString)", name: agent.name, detail: agent.summary.isEmpty ? "Colony agent" : agent.summary, firstRun: first, rule: rule, symbol: "✦")
         }
     }
@@ -492,10 +489,12 @@ final class TaskScheduler {
         seen = current
         if app.preferences.showsAutomationsInCalendar {
             let agents = ((try? context.fetch(FetchDescriptor<Agent>())) ?? []).filter { !$0.isDeleted }
+            let automations = ((try? context.fetch(FetchDescriptor<Automation>())) ?? []).filter { !$0.isDeleted }
             let key = agents.map { "\($0.uuid)\($0.scheduleRaw)\($0.isEnabled)\($0.name)" }.sorted().joined()
+                + automations.map { "\($0.uuid)\($0.triggerJSON)\($0.stepsJSON)\($0.conditionsJSON)\($0.isEnabled)\($0.name)" }.sorted().joined()
             if force || key != agentScheduleKey {
                 agentScheduleKey = key
-                app.calendar.syncAutomations(AutomationSchedule.previews + AutomationSchedule.agents(agents))
+                app.calendar.syncAutomations(AutomationSchedule.automations(automations) + AutomationSchedule.agents(agents))
             }
         } else if force {
             agentScheduleKey = nil

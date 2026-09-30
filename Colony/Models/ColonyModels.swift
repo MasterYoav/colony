@@ -394,6 +394,6 @@ enum ColonyText {
 enum ColonySchema {
     static let models: [any PersistentModel.Type] = [
         Project.self, ProjectList.self, TaskItem.self, Channel.self, Message.self, Contact.self, ActivityEvent.self,
-        Agent.self, AgentMessage.self
+        Agent.self, AgentMessage.self, Automation.self, AutomationRun.self
     ]
 }

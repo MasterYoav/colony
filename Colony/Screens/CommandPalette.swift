@@ -18,6 +18,7 @@ struct CommandPalette: View {
     @Query private var channels: [Channel]
     @Query private var contacts: [Contact]
     @Query(sort: \Agent.sortIndex) private var agents: [Agent]
+    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
     @State private var query = ""
     @State private var highlighted: String?
     @State private var lastPointer: CGPoint?
@@ -25,7 +26,7 @@ struct CommandPalette: View {
 
     struct Item: Identifiable {
         enum Group: String, CaseIterable {
-            case actions = "Actions", navigation = "Go to", projects = "Projects", tasks = "Tasks", channels = "Channels", agents = "Agents", people = "People"
+            case actions = "Actions", navigation = "Go to", projects = "Projects", tasks = "Tasks", channels = "Channels", agents = "Agents & automations", people = "People"
         }
 
         let id: String
@@ -238,6 +239,7 @@ struct CommandPalette: View {
             Item(id: "a-task", group: .actions, symbol: "plus", title: "New task", shortcut: "⌘N", run: open(.newTask(project: nil, list: nil))),
             Item(id: "a-project", group: .actions, symbol: "folder.badge.plus", title: "New project", shortcut: "⇧⌘N", run: open(.newProject)),
             Item(id: "a-channel", group: .actions, symbol: "number", title: "New channel", run: open(.newChannel)),
+            Item(id: "a-automation", group: .actions, symbol: "bolt.badge.clock", title: "New automation", subtitle: "From a recipe or from scratch", shortcut: "⌥⌘A", run: open(.newAutomation)),
             Item(id: "a-recruit", group: .actions, symbol: "person.badge.plus", title: "Recruit an agent", subtitle: "From an AGENT.md file", shortcut: "⌥⌘N", run: open(.recruitAgent)),
             Item(id: "a-contact", group: .actions, symbol: "person.crop.circle.badge.plus", title: "New contact", run: open(.newContact)),
             Item(id: "a-import", group: .actions, symbol: "person.crop.rectangle.stack", title: "Import from Apple Contacts", run: open(app.contacts.canRead ? .importContacts : .connectContacts)),
@@ -258,6 +260,7 @@ struct CommandPalette: View {
             Item(id: "n-pipeline", group: .navigation, symbol: "square.grid.2x2", title: "CRM · Pipeline", run: { close(); app.crmTab = .pipeline; app.go(.crm) }),
             Item(id: "n-reports", group: .navigation, symbol: "chart.pie", title: "Reports", run: go(.reports)),
             Item(id: "n-agents", group: .navigation, symbol: "person.2.wave.2", title: "Agents", run: go(.crew(.agents))),
+            Item(id: "n-automations", group: .navigation, symbol: "bolt.fill", title: "Automations", run: go(.crew(.automations))),
             Item(id: "n-settings", group: .navigation, symbol: "slider.horizontal.3", title: "Settings", run: { close(); app.openSettings(.profile) }),
             Item(id: "n-settings-appearance", group: .navigation, symbol: "circle.lefthalf.filled", title: "Settings › Appearance", run: { close(); app.openSettings(.appearance) }),
             Item(id: "n-settings-icloud", group: .navigation, symbol: "icloud", title: "Settings › iCloud", run: { close(); app.openSettings(.iCloud) }),
@@ -277,6 +280,9 @@ struct CommandPalette: View {
         }
         items += agents.map { a in
             Item(id: "g-\(a.uuid)", group: .agents, symbol: "sparkles", tint: a.color.color, title: a.name, subtitle: a.summary.isEmpty ? nil : a.summary, run: go(.agent(a.uuid)))
+        }
+        items += automations.map { a in
+            Item(id: "u-\(a.uuid)", group: .agents, symbol: "bolt.fill", tint: a.color.color, title: a.name, subtitle: a.isEnabled ? "Automation · on" : "Automation · off", run: go(.automation(a.uuid)))
         }
         items += contacts.map { c in
             Item(id: "k-\(c.uuid)", group: .people, symbol: "person.crop.circle", title: c.name, subtitle: c.company.isEmpty ? nil : c.company, run: { close(); app.crmTab = .customers; app.crmSelection = c.uuid; app.go(.crm) })
