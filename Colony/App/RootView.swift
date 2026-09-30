@@ -112,6 +112,7 @@ struct DestinationView: View {
                 }
             case .crm: CRMView()
             case .reports: ReportsView()
+            case .crew(let kind): CrewView(kind: kind)
             case .settings: SettingsView()
             }
         }

@@ -21,6 +21,7 @@ enum Destination: Hashable, Codable {
     case reports
     case project(UUID)
     case list(project: UUID, list: UUID)
+    case crew(CrewKind)
     case settings
 
     /// The rail icon that lights up for this destination.
@@ -32,7 +33,7 @@ enum Destination: Hashable, Codable {
         case .tasks: .tasks
         case .projects, .project, .list: .projects
         case .crm: .people
-        case .reports: .home
+        case .reports, .crew: .home
         case .settings: .settings
         }
     }

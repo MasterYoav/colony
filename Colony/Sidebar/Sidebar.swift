@@ -42,7 +42,7 @@ struct Sidebar: View {
         .frame(width: collapsed ? Theme.collapsedPanelWidth : Theme.panelWidth(for: typeSize), alignment: .leading)
         .frame(maxHeight: .infinity)
         .clipped()
-        .background(Theme.sidebar)
+        .background { SidebarGlassBackground().ignoresSafeArea() }
     }
 
     private func fade(showing: Bool) -> Animation {
@@ -98,7 +98,7 @@ struct RailButton: View {
                 .frame(width: 34, height: 34)
                 .background {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                        .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
+                        .fill(isSelected ? Theme.glassSelection : (isHovering ? Theme.glassHover : .clear))
                 }
                 .overlay(alignment: .topTrailing) {
                     if showsDot {
@@ -152,6 +152,10 @@ struct SidebarPanel: View {
                     .padding(.horizontal, 8)
                     .padding(.bottom, 4)
 
+                    CrewSidebarSection(kind: .agents)
+                    CrewSidebarSection(kind: .automations)
+                        .padding(.bottom, 4)
+
                     SidebarDivider()
 
                     SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, scrollsContent: true, onAdd: { app.present(.newProject) }, menu: {
@@ -186,7 +190,6 @@ struct SidebarPanel: View {
             SidebarFooter(axis: .horizontal)
         }
         .frame(width: Theme.panelWidth(for: typeSize))
-        .background(Theme.sidebar)
     }
 
     // MARK: Rows
@@ -278,7 +281,7 @@ struct SidebarPanel: View {
         .padding(.leading, headerLeadingInset)
         .padding(.trailing, 8)
         .frame(minHeight: headerHeight, alignment: .center)
-        .overlay(alignment: .bottom) { Rectangle().fill(Theme.stroke).frame(height: 1) }
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.glassStroke).frame(height: 1) }
     }
 
     private var workspaceSwitcher: some View {
@@ -434,6 +437,9 @@ struct CollapsedPanel: View {
                 SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, before: nil) }
 
                 SidebarDivider().padding(.vertical, 4)
+                CrewRailButton(kind: .agents)
+                CrewRailButton(kind: .automations)
+                SidebarDivider().padding(.vertical, 4)
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
@@ -447,7 +453,7 @@ struct CollapsedPanel: View {
                                 .frame(width: 34, height: 34)
                                 .background {
                                     RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                        .fill(app.destination == .project(project.uuid) ? Theme.selection : .clear)
+                                        .fill(app.destination == .project(project.uuid) ? Theme.glassSelection : .clear)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -471,7 +477,6 @@ struct CollapsedPanel: View {
             SidebarFooter(axis: .vertical)
         }
         .frame(width: Theme.collapsedPanelWidth)
-        .background(Theme.sidebar)
     }
 
     private func navIcon(_ item: SidebarNavItem) -> some View {
@@ -551,7 +556,7 @@ struct WorkspaceSwitcherLabel: View {
         .frame(maxWidth: .infinity)
         .background {
             RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
-                .fill(isHovering ? Theme.hover : .clear)
+                .fill(isHovering ? Theme.glassHover : .clear)
         }
         .contentShape(.rect)
         .onHover { isHovering = $0 }
@@ -572,9 +577,9 @@ struct CommandField: View {
             .padding(.horizontal, 9)
             .frame(minHeight: 28)
             .frame(maxWidth: .infinity)
-            .background(Theme.field, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(Theme.glassHover, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.strongStroke)
+                RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Theme.glassStroke)
             }
             .contentShape(.rect)
         }
@@ -640,7 +645,7 @@ struct SidebarRow<Glyph: View>: View {
         .frame(minHeight: Theme.rowHeight)
         .background {
             RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
-                .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
+                .fill(isSelected ? Theme.glassSelection : (isHovering ? Theme.glassHover : .clear))
         }
         .contentShape(.rect)
         .onTapGesture(perform: action)
@@ -688,7 +693,7 @@ struct SidebarRow<Glyph: View>: View {
                         .frame(width: 18, height: 18)
                         .background {
                             RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                .fill(expanded ? Theme.selection : .clear)
+                                .fill(expanded ? Theme.glassSelection : .clear)
                         }
                         .contentShape(.rect)
                 }
@@ -737,7 +742,7 @@ struct SidebarChildRow: View {
         .frame(minHeight: Theme.rowHeight)
         .background {
             RoundedRectangle(cornerRadius: Theme.rowRadius, style: .continuous)
-                .fill(isSelected ? Theme.selection : (isHovering ? Theme.hover : .clear))
+                .fill(isSelected ? Theme.glassSelection : (isHovering ? Theme.glassHover : .clear))
         }
         .contentShape(.rect)
         .onTapGesture(perform: action)
@@ -777,16 +782,16 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
                     withMotion(.snappy(duration: 0.2)) { isExpanded.toggle() }
                 } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "chevron.down")
-                            .appFont(.system(size: 9, weight: .bold))
-                            .rotationEffect(.degrees(isExpanded ? 0 : -90))
-                        Text(title.uppercased())
-                            .appFont(.system(size: 11, weight: .semibold))
-                            .kerning(0.4)
+                        Text(title)
+                            .appFont(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.secondaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
+                        Image(systemName: "chevron.down")
+                            .appFont(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .rotationEffect(.degrees(isExpanded ? 0 : -90))
                     }
-                    .foregroundStyle(Theme.secondaryText)
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
@@ -848,7 +853,7 @@ struct SidebarSection<Content: View, MenuContent: View>: View {
 
 struct SidebarDivider: View {
     var body: some View {
-        Rectangle().fill(Theme.stroke).frame(height: 1)
+        Rectangle().fill(Theme.glassStroke).frame(height: 1)
     }
 }
 
@@ -909,8 +914,7 @@ struct SidebarFooter: View {
                 Image(systemName: cloud.isHealthy ? "icloud.fill" : "exclamationmark.icloud.fill")
                     .appFont(.system(size: 9, weight: .semibold))
                     .foregroundStyle(cloud.isHealthy ? Color.green : Color.orange)
-                    .shadow(color: Theme.sidebar, radius: 0.5)
-                    .shadow(color: Theme.sidebar, radius: 0.5)
+                    .shadow(color: .black.opacity(0.25), radius: 0.5)
                     .offset(x: 1, y: -1)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
