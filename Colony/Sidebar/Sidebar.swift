@@ -126,8 +126,8 @@ struct SidebarPanel: View {
     @Query private var channels: [Channel]
     @Query(filter: #Predicate<TaskItem> { $0.statusRaw != "done" }) private var openTasks: [TaskItem]
 
-    @State private var isProjectsExpanded = true
-    @State private var isProjectsRowExpanded = false
+    /// Projects live under the Projects item; open by default, remembered per device.
+    @AppStorage("sidebarProjectsExpanded") private var isProjectsRowExpanded = true
     /// The project whose sidebar row is being renamed in place.
     @State private var renamingID: UUID?
 
@@ -136,13 +136,14 @@ struct SidebarPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            // Everything above Projects is fixed; only the project list scrolls.
+            // The workspace switcher stays put; everything under it scrolls as one list.
             VStack(alignment: .leading, spacing: 0) {
                     workspaceSwitcher
                         .padding(.horizontal, 8)
                         .padding(.top, 8)
                         .padding(.bottom, 6)
 
+                ScrollView {
                     VStack(spacing: 2) {
                         ForEach(layout.items) { item in
                             navRow(item)
@@ -154,39 +155,14 @@ struct SidebarPanel: View {
 
                     CrewSidebarSection(kind: .agents)
                     CrewSidebarSection(kind: .automations)
-                        .padding(.bottom, 4)
-
-                    SidebarDivider()
-
-                    SidebarSection(title: "Projects", isExpanded: $isProjectsExpanded, scrollsContent: true, onAdd: { app.present(.newProject) }, menu: {
-                        Button("Expand all", systemImage: "chevron.down") {
-                            app.preferences.expandedProjectIDs = Set(projects.map(\.uuid.uuidString))
-                        }
-                        Button("Collapse all", systemImage: "chevron.up") {
-                            app.preferences.expandedProjectIDs = []
-                        }
-                    }) {
-                        if projects.isEmpty {
-                            Button { app.present(.newProject) } label: {
-                                Label("Create a project", systemImage: "plus")
-                                    .appFont(.system(size: 13))
-                                    .foregroundStyle(Theme.secondaryText)
-                                    .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, alignment: .leading)
-                                    .padding(.horizontal, 8)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        ForEach(projects) { project in
-                            projectRows(project)
-                        }
-                        if !projects.isEmpty {
-                            SidebarDropTail(accepts: acceptsProject) { dropProject($0, before: nil) }
-                        }
-                    }
-                    .frame(maxHeight: .infinity, alignment: .top)
+                        .padding(.bottom, 8)
+                }
+                .scrollIndicators(.automatic)
+                .scrollBounceBehavior(.basedOnSize)
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
+            NowPlayingBar()
             SidebarFooter(axis: .horizontal)
         }
         .frame(width: Theme.panelWidth(for: typeSize))
@@ -204,11 +180,26 @@ struct SidebarPanel: View {
         .contextMenu { navMenu(item) }
 
         if item == .projects, isProjectsRowExpanded {
-            ForEach(projects.prefix(5)) { project in
-                SidebarChildRow(title: project.name, count: project.openTaskCount, isSelected: app.destination == .project(project.uuid)) {
-                    app.go(.project(project.uuid))
+            VStack(spacing: 2) {
+                if projects.isEmpty {
+                    Button { app.present(.newProject) } label: {
+                        Label("Create a project", systemImage: "plus")
+                            .appFont(.system(size: 13))
+                            .foregroundStyle(Theme.secondaryText)
+                            .frame(maxWidth: .infinity, minHeight: Theme.rowHeight, alignment: .leading)
+                            .padding(.leading, 8)
+                    }
+                    .buttonStyle(.plain)
+                }
+                ForEach(projects) { project in
+                    projectRows(project)
+                }
+                if !projects.isEmpty {
+                    SidebarDropTail(accepts: acceptsProject) { dropProject($0, before: nil) }
                 }
             }
+            .padding(.leading, 12)
+            .transition(.opacity)
         }
     }
 
@@ -220,7 +211,14 @@ struct SidebarPanel: View {
             Button("New customer", systemImage: "person.crop.circle.badge.plus") { app.present(.newContact) }
             Button("Import from Contacts", systemImage: "person.crop.rectangle.stack") { app.present(app.contacts.canRead ? .importContacts : .connectContacts) }
         case .inbox: Button("New channel", systemImage: "number") { app.present(.newChannel) }
-        case .projects: Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
+        case .projects:
+            Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
+            Button("Expand all projects", systemImage: "chevron.down") {
+                app.preferences.expandedProjectIDs = Set(projects.map(\.uuid.uuidString))
+            }
+            Button("Collapse all projects", systemImage: "chevron.up") {
+                app.preferences.expandedProjectIDs = []
+            }
         default: EmptyView()
         }
         if layout.isCustomized {
@@ -474,6 +472,7 @@ struct CollapsedPanel: View {
             .scrollBounceBehavior(.basedOnSize)
             .frame(maxHeight: .infinity)
 
+            CollapsedNowPlayingButton()
             SidebarFooter(axis: .vertical)
         }
         .frame(width: Theme.collapsedPanelWidth)

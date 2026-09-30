@@ -158,6 +158,8 @@ final class AppModel {
     let iCloud: ICloudStatus
     let contacts = ContactsService()
     let reminders = RemindersService()
+    /// The device's music player, shown in the sidebar.
+    let nowPlaying = NowPlaying()
 
     init(preferences: CloudPreferences, iCloud: ICloudStatus) {
         self.preferences = preferences

@@ -39,6 +39,10 @@ any time in Settings (iOS, iPadOS, visionOS) or System Settings › Privacy & Se
 - **Reminders.** Only used if you turn on **Mirror tasks to Reminders**. Colony writes a task's
   title, notes, project name, priority and due date to your default Reminders list, and updates or
   removes that reminder when the task changes. Apple syncs your Reminders under its own policy.
+- **Music.** The player at the bottom of the sidebar shows what's playing on your device (title,
+  artist, artwork, position) and sends play, pause, skip, seek and mute to it. On the Mac it talks to
+  the Music app (macOS asks you first); on iPhone and iPad it uses the system music player. This
+  information is only held in memory while Colony is open. It is never stored, synced or sent anywhere.
 
 When you tap to email, call or FaceTime a contact, Colony hands the address or number to Apple's
 Mail, Phone or FaceTime app. Colony does not see or record what happens next.

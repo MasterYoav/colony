@@ -6,6 +6,7 @@
 - Preferences synced with iCloud key-value storage.
 - Sidebar rebuilt to match the reference: single panel with footer controls, collapsible to an icon column.
 - Home, Updates, Inbox, Tasks (list and board), Projects, CRM (customers table grouped by stage + pipeline board), Reports, Settings (System Settings layout, profile photo).
+- Sidebar music controller for the device's own player (Music on Mac, system music player on iPhone/iPad).
 - Frosted glass sidebar with Agents and Automations sections (preview crew with blinking faces; the features themselves are the next two phases).
 - Apple Contacts import and Apple Reminders mirroring.
 - ⌘K command palette, ⌘N new task, ⌘⇧N new project.

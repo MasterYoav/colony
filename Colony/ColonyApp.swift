@@ -70,6 +70,7 @@ struct ColonyApp: App {
             .task {
                 guard !CloudStore.isRunningForTests else { return }
                 StarterContent.seedIfNeeded(context: container.mainContext, preferences: app.preferences)
+                app.nowPlaying.start()
             }
     }
 }
