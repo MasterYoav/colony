@@ -93,18 +93,18 @@ enum AutomationRecipes {
     static let starterIDs = ["overdue-nudge", "deal-won", "ready-for-review", "weekly-cleanup"]
 
     private static func project(named name: String, _ context: ModelContext) -> UUID? {
-        ((try? context.fetch(FetchDescriptor<Project>())) ?? []).first { $0.name == name && $0.archivedAt == nil }?.uuid
+        context.inWorkspace(Project.self).first { $0.name == name && $0.archivedAt == nil }?.uuid
     }
 
     /// #general if there is one, otherwise the first channel.
     private static func channel(_ context: ModelContext) -> UUID? {
-        let channels = ((try? context.fetch(FetchDescriptor<Channel>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? [])
+        let channels = context.inWorkspace(Channel.self, sortBy: [SortDescriptor(\.sortIndex)])
         return (channels.first { $0.name == "general" } ?? channels.first)?.uuid
     }
 
     /// Neo, the planner, if recruited; otherwise the first agent.
     private static func agent(_ context: ModelContext) -> UUID? {
-        let agents = ((try? context.fetch(FetchDescriptor<Agent>(sortBy: [SortDescriptor(\.sortIndex)]))) ?? [])
+        let agents = context.inWorkspace(Agent.self, sortBy: [SortDescriptor(\.sortIndex)])
         return (agents.first { $0.name == "Neo" } ?? agents.first)?.uuid
     }
 }

@@ -164,6 +164,9 @@ struct SheetHost: View {
         case .deleteAgent(let id): DeleteAgentDialog(agentID: id)
         case .newAutomation: NewAutomationDialog()
         case .deleteAutomation(let id): DeleteAutomationDialog(automationID: id)
+        case .newWorkspace: NewWorkspaceDialog()
+        case .deleteWorkspace(let id): DeleteWorkspaceDialog(workspaceID: id)
+        case .newList(let project): NewListDialog(projectID: project)
         }
     }
 }

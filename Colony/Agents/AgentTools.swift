@@ -18,7 +18,9 @@ nonisolated struct AgentBridge: Sendable {
     func callAsFunction(_ body: @escaping @MainActor @Sendable (AgentWorkspace) -> String) async -> String {
         let (container, agentID) = (container, agentID)
         return await MainActor.run {
-            let result = body(AgentWorkspace(context: container.mainContext, agentID: agentID))
+            let context = container.mainContext
+            let workspace = context.agent(agentID)?.workspaceID ?? WorkspaceInfo.originalID
+            let result = WorkspaceScope.run(in: workspace) { body(AgentWorkspace(context: context, agentID: agentID)) }
             try? container.mainContext.save()
             return result
         }

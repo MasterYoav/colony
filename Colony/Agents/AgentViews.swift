@@ -15,7 +15,8 @@ import UniformTypeIdentifiers
 struct AgentsHome: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
+    @Query(sort: \Agent.sortIndex) private var agentsEverywhere: [Agent]
+    private var agents: [Agent] { agentsEverywhere.inWorkspace() }
 
     var body: some View {
         ScrollView {

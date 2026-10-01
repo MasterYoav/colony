@@ -17,7 +17,8 @@ struct MenuBarPanel: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
     @Environment(\.modelContext) private var context
-    @Query(sort: \TaskItem.createdAt) private var tasks: [TaskItem]
+    @Query(sort: \TaskItem.createdAt) private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
 
     private var due: [TaskItem] {
         tasks.filter { !$0.isDone && SmartList.today.includes($0) }

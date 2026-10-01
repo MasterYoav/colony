@@ -243,7 +243,8 @@ struct TaskReminderRow: View {
     let select: () -> Void
     let onReturn: () -> Void
     let onComplete: () -> Void
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
     @State private var isHovering = false
 
     var body: some View {

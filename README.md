@@ -23,7 +23,9 @@ There's no Colony server and no third-party SDK. Your data lives in your iCloud 
 - **Automations.** "When this happens, do that" for beginners, built from blocks instead of code: pick a trigger (a new task, a deal won, a message, a time of day), optional filters, and steps. Each automation reads as one sentence, can be tested without changing anything, and keeps a run log. Start from 8 recipes. See [Automations](docs/AUTOMATIONS.md).
 - **Tasks like Reminders.** Smart lists, due-time notifications, and an optional Colony calendar in Apple Calendar.
 - **Keyboard-first on Mac.** The ⌘K command center searches actions, projects, tasks and contacts. ⌘N creates a task, ⌘⇧N a project, and ⌃⌘S collapses the sidebar.
-- **Arrangeable sidebar.** Drag navigation items and projects to reorder them. The order syncs to your other devices.
+- **Workspaces.** Click the workspace name to switch or create a blank one (Personal, Sales, Team or Everything). Each has its own projects, tasks, customers, channels, agents and automations.
+- **A sidebar that fits you.** Settings › Sidebar shows or hides every page and section, per workspace; drag items to reorder them. It syncs to your other devices.
+- **Reports in plain language.** How it's going, what got done, what needs attention, and how each project and the pipeline are doing.
 - **UI pieces.** Several components come from [Swift Pieces](https://swiftpieces.com), vendored in `Colony/SwiftPieces/` with a small AppKit compatibility shim.
 
 ## Requirements

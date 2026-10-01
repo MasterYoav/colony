@@ -267,7 +267,8 @@ struct NewTaskSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
     @Environment(\.dialogDismiss) private var dismiss
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
     let projectID: UUID?
     let listID: UUID?
 
@@ -442,7 +443,8 @@ struct ImportContactsSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
     @Environment(\.dialogDismiss) private var dismiss
-    @Query private var existing: [Contact]
+    @Query private var existingEverywhere: [Contact]
+    private var existing: [Contact] { existingEverywhere.inWorkspace() }
     @State private var candidates: [AppleContactCandidate] = []
     @State private var selection: Set<String> = []
     @State private var search = ""

@@ -24,7 +24,8 @@ enum CRMTab: String, CaseIterable, Identifiable {
 
 struct CRMView: View {
     @Environment(AppModel.self) private var app
-    @Query(sort: \Contact.name) private var contacts: [Contact]
+    @Query(sort: \Contact.name) private var contactsEverywhere: [Contact]
+    private var contacts: [Contact] { contactsEverywhere.inWorkspace() }
     @State private var search = ""
 
     var body: some View {
@@ -757,44 +758,5 @@ struct ContactInspector: View {
         }
         .padding(.vertical, 4)
         .overlay(alignment: .bottom) { SidebarDivider() }
-    }
-}
-
-// MARK: - Reports
-
-struct ReportsView: View {
-    @Query private var tasks: [TaskItem]
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
-    @Query private var contacts: [Contact]
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                ScreenHeader(title: "Reports", subtitle: "Computed on-device from your iCloud data")
-                HStack(alignment: .top, spacing: 16) {
-                    Card {
-                        Text("Tasks by status").appFont(.headline).foregroundStyle(Theme.text)
-                        RingBreakdown(slices: TaskStatus.allCases.map { status in
-                            .init(label: status.title, value: Double(tasks.filter { $0.status == status }.count))
-                        }, thickness: 26)
-                    }
-                    Card {
-                        Text("Pipeline by stage").appFont(.headline).foregroundStyle(Theme.text)
-                        RingBreakdown(slices: DealStage.allCases.map { stage in
-                            .init(label: stage.title, value: Double(contacts.filter { $0.stage == stage }.count), color: stage.color.color)
-                        }, thickness: 26)
-                    }
-                }
-                Card {
-                    Text("Open work per project").appFont(.headline).foregroundStyle(Theme.text)
-                    RingBreakdown(slices: projects.map { project in
-                        .init(label: project.name, value: Double(project.openTaskCount), color: project.color.color)
-                    }, thickness: 26)
-                }
-            }
-            .padding(28)
-            .frame(maxWidth: 1000, alignment: .leading)
-        }
-        .navigationTitle("Reports")
     }
 }

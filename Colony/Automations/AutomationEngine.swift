@@ -66,6 +66,16 @@ enum AutomationSubject {
         }
     }
 
+    /// The workspace the change happened in (nil for scheduled runs).
+    var workspaceID: String? {
+        switch self {
+        case .none: nil
+        case .task(let task): task.workspaceID
+        case .customer(let contact): contact.workspaceID
+        case .message(let message): message.channel?.workspaceID ?? WorkspaceInfo.originalID
+        }
+    }
+
     var title: String {
         switch self {
         case .none: "Scheduled run"
@@ -244,7 +254,7 @@ struct AutomationExecutor {
 
         case .clearCompleted:
             let cutoff = Calendar.current.date(byAdding: .day, value: -max(step.days, 1), to: .now) ?? .now
-            let old = ((try? context.fetch(FetchDescriptor<TaskItem>())) ?? []).filter { $0.isDone && ($0.completedAt ?? $0.createdAt) < cutoff }
+            let old = context.inWorkspace(TaskItem.self).filter { $0.isDone && ($0.completedAt ?? $0.createdAt) < cutoff }
             if !dryRun { old.forEach(actions.delete) }
             return (true, "\(would)\(cap("clear \(old.count) completed \(old.count == 1 ? "task" : "tasks")"))")
 
@@ -258,16 +268,16 @@ struct AutomationExecutor {
         switch trigger.kind.subject {
         case .none: return .none
         case .task:
-            var tasks = (try? context.fetch(FetchDescriptor<TaskItem>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+            var tasks = context.inWorkspace(TaskItem.self, sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
             if trigger.kind == .taskOverdue { tasks = tasks.filter(\.isOverdue) + tasks.filter { !$0.isOverdue } }
             if let status = trigger.status, trigger.kind == .taskStatusChanged { tasks = tasks.filter { $0.status == status } + tasks.filter { $0.status != status } }
             return tasks.first.map(AutomationSubject.task) ?? .none
         case .customer:
-            var contacts = (try? context.fetch(FetchDescriptor<Contact>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+            var contacts = context.inWorkspace(Contact.self, sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
             if let stage = trigger.stage { contacts = contacts.filter { $0.stage == stage } + contacts.filter { $0.stage != stage } }
             return contacts.first.map(AutomationSubject.customer) ?? .none
         case .message:
-            var messages = (try? context.fetch(FetchDescriptor<Message>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []
+            var messages = ((try? context.fetch(FetchDescriptor<Message>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))) ?? []).inWorkspace()
             if let channel = trigger.channelID { messages = messages.filter { $0.channel?.uuid == channel } }
             return messages.first.map(AutomationSubject.message) ?? .none
         }
@@ -339,7 +349,8 @@ final class AutomationEngine {
         guard !automations.isEmpty else { return }
         for event in events {
             guard let subject = subject(for: event, context: context) else { continue }
-            for automation in automations where automation.uuid != event.sourceID {
+            let workspace = subject.workspaceID
+            for automation in automations where automation.uuid != event.sourceID && (workspace == nil || automation.workspaceID == workspace) {
                 guard let trigger = automation.trigger, AutomationExecutor.matches(trigger, event) else { continue }
                 AutomationBus.depth = event.depth
                 execute(automation, subject: subject, context: context)
@@ -383,7 +394,7 @@ final class AutomationEngine {
                 let since = automation.lastCheckedAt ?? automation.createdAt
                 automation.lastCheckedAt = now
                 changed = true
-                let tasks = ((try? context.fetch(FetchDescriptor<TaskItem>())) ?? []).filter { task in
+                let tasks = context.inWorkspace(TaskItem.self, automation.workspaceID).filter { task in
                     guard !task.isDone, let moment = AutomationExecutor.overdueMoment(task) else { return false }
                     return moment > since && moment <= now
                 }
@@ -401,7 +412,7 @@ final class AutomationEngine {
     func execute(_ automation: Automation, subject: AutomationSubject, context: ModelContext) -> AutomationOutcome {
         running.insert(automation.uuid)
         let executor = AutomationExecutor(context: context, effects: effects(for: automation))
-        let outcome = executor.run(automation, subject: subject)
+        let outcome = WorkspaceScope.run(in: automation.workspaceID) { executor.run(automation, subject: subject) }
         record(outcome, for: automation, context: context)
         if outcome.kind != .skipped {
             automation.lastRunAt = .now
@@ -419,7 +430,7 @@ final class AutomationEngine {
     /// Runs the automation now, for real, on the most recent matching item.
     func runNow(_ automation: Automation) -> AutomationOutcome? {
         guard let context = container?.mainContext, let trigger = automation.trigger else { return nil }
-        let subject = AutomationExecutor(context: context).sampleSubject(for: trigger)
+        let subject = WorkspaceScope.run(in: automation.workspaceID) { AutomationExecutor(context: context).sampleSubject(for: trigger) }
         if trigger.kind.subject != .none, case .none = subject { return nil }
         let outcome = execute(automation, subject: subject, context: context)
         try? context.save()

@@ -104,6 +104,9 @@ enum ActiveSheet: Identifiable, Hashable {
     case deleteAgent(UUID)
     case newAutomation
     case deleteAutomation(UUID)
+    case newWorkspace
+    case deleteWorkspace(String)
+    case newList(project: UUID?)
 
     var id: String {
         switch self {
@@ -124,13 +127,17 @@ enum ActiveSheet: Identifiable, Hashable {
         case .deleteAgent(let id): "deleteAgent-\(id)"
         case .newAutomation: "newAutomation"
         case .deleteAutomation(let id): "deleteAutomation-\(id)"
+        case .newWorkspace: "newWorkspace"
+        case .deleteWorkspace(let id): "deleteWorkspace-\(id)"
+        case .newList(let p): "newList-\(p?.uuidString ?? "")"
         }
     }
 
     /// Dialog width on Mac, iPad and Vision Pro. iPhone uses a full-width sheet.
     var dialogWidth: CGFloat {
         switch self {
-        case .deleteProject, .deleteTask, .deleteContact, .deleteAgent, .deleteAutomation: 420
+        case .deleteProject, .deleteTask, .deleteContact, .deleteAgent, .deleteAutomation, .deleteWorkspace, .newList: 420
+        case .newWorkspace: 520
         case .newAutomation: 620
         case .recruitAgent, .editAgent: 640
         case .connectReminders, .connectContacts: 420

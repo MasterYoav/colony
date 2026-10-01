@@ -149,10 +149,14 @@ extension Agent {
 
 struct CrewSidebarSection: View {
     @Environment(AppModel.self) private var app
-    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
-    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
-    @Query private var projects: [Project]
-    @Query private var channels: [Channel]
+    @Query(sort: \Agent.sortIndex) private var agentsEverywhere: [Agent]
+    private var agents: [Agent] { agentsEverywhere.inWorkspace() }
+    @Query(sort: \Automation.sortIndex) private var automationsEverywhere: [Automation]
+    private var automations: [Automation] { automationsEverywhere.inWorkspace() }
+    @Query private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
+    @Query private var channelsEverywhere: [Channel]
+    private var channels: [Channel] { channelsEverywhere.inWorkspace() }
     let kind: CrewKind
     @State private var isExpanded = true
 
@@ -369,8 +373,10 @@ private struct FeaturedCrewRow: View {
 /// Collapsed column: the featured face as a rail button.
 struct CrewRailButton: View {
     @Environment(AppModel.self) private var app
-    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
-    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
+    @Query(sort: \Agent.sortIndex) private var agentsEverywhere: [Agent]
+    private var agents: [Agent] { agentsEverywhere.inWorkspace() }
+    @Query(sort: \Automation.sortIndex) private var automationsEverywhere: [Automation]
+    private var automations: [Automation] { automationsEverywhere.inWorkspace() }
     let kind: CrewKind
 
     var body: some View {

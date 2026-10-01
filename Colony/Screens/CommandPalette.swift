@@ -13,12 +13,18 @@ import SwiftUI
 
 struct CommandPalette: View {
     @Environment(AppModel.self) private var app
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
-    @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasks: [TaskItem]
-    @Query private var channels: [Channel]
-    @Query private var contacts: [Contact]
-    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
-    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
+    @Query(sort: \TaskItem.createdAt, order: .reverse) private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
+    @Query private var channelsEverywhere: [Channel]
+    private var channels: [Channel] { channelsEverywhere.inWorkspace() }
+    @Query private var contactsEverywhere: [Contact]
+    private var contacts: [Contact] { contactsEverywhere.inWorkspace() }
+    @Query(sort: \Agent.sortIndex) private var agentsEverywhere: [Agent]
+    private var agents: [Agent] { agentsEverywhere.inWorkspace() }
+    @Query(sort: \Automation.sortIndex) private var automationsEverywhere: [Automation]
+    private var automations: [Automation] { automationsEverywhere.inWorkspace() }
     @State private var query = ""
     @State private var highlighted: String?
     @State private var lastPointer: CGPoint?
@@ -265,7 +271,12 @@ struct CommandPalette: View {
             Item(id: "n-settings-appearance", group: .navigation, symbol: "circle.lefthalf.filled", title: "Settings › Appearance", run: { close(); app.openSettings(.appearance) }),
             Item(id: "n-settings-icloud", group: .navigation, symbol: "icloud", title: "Settings › iCloud", run: { close(); app.openSettings(.iCloud) }),
             Item(id: "n-settings-reminders", group: .navigation, symbol: "checklist", title: "Settings › Reminders", run: { close(); app.openSettings(.reminders) }),
-        ]
+            Item(id: "n-settings-sidebar", group: .navigation, symbol: "sidebar.left", title: "Settings › Sidebar", subtitle: "Show or hide sidebar items", run: { close(); app.openSettings(.sidebar) }),
+            Item(id: "a-workspace", group: .actions, symbol: "plus.square.on.square", title: "New workspace", subtitle: "A blank workspace", run: open(.newWorkspace)),
+            Item(id: "a-list", group: .actions, symbol: "list.bullet.rectangle", title: "New list", run: open(.newList(project: currentProject?.uuid))),
+        ] + app.preferences.workspaces.filter { $0.id != app.preferences.currentWorkspaceID }.map { workspace in
+            Item(id: "w-\(workspace.id)", group: .navigation, symbol: "arrow.left.arrow.right", title: "Switch to \(workspace.name)", subtitle: "Workspace", run: { close(); app.switchWorkspace(to: workspace.id) })
+        }
         if let current = currentProject {
             items.insert(Item(id: "a-project-settings", group: .actions, symbol: "slider.horizontal.3", title: "Project settings", subtitle: current.name, run: open(.projectSettings(current.uuid))), at: 2)
         }

@@ -27,7 +27,7 @@ struct WorkspaceActions {
     func createProject(name: String, symbol: String, color: ColonyColor, summary: String = "", lists: [String] = []) -> Project? {
         let name = ColonyText.trimmed(name)
         guard !name.isEmpty else { return nil }
-        let nextIndex = ((try? context.fetch(FetchDescriptor<Project>()))?.map(\.sortIndex).max() ?? -1) + 1
+        let nextIndex = (context.inWorkspace(Project.self).map(\.sortIndex).max() ?? -1) + 1
         let project = Project(name: name, symbol: symbol, color: color, summary: ColonyText.trimmed(summary), sortIndex: nextIndex)
         context.insert(project)
         for (index, listName) in lists.map(ColonyText.trimmed).filter({ !$0.isEmpty }).enumerated() {
@@ -89,7 +89,7 @@ struct WorkspaceActions {
     /// renumbers every project, so the order is stable on all devices after CloudKit merges.
     func move(_ project: Project, before target: Project?) {
         guard project.uuid != target?.uuid else { return }
-        var ordered = ((try? context.fetch(FetchDescriptor<Project>())) ?? [])
+        var ordered = context.inWorkspace(Project.self, project.workspaceID)
             .sorted { ($0.sortIndex, $0.createdAt) < ($1.sortIndex, $1.createdAt) }
         ordered.removeAll { $0.uuid == project.uuid }
         let index = target.flatMap { t in ordered.firstIndex { $0.uuid == t.uuid } } ?? ordered.endIndex
@@ -170,7 +170,7 @@ struct WorkspaceActions {
     func createChannel(name: String, topic: String) -> Channel? {
         let slug = ColonyText.channelSlug(name)
         guard !slug.isEmpty else { return nil }
-        let existing = (try? context.fetch(FetchDescriptor<Channel>())) ?? []
+        let existing = context.inWorkspace(Channel.self)
         guard !existing.contains(where: { $0.name == slug }) else { return nil }
         let channel = Channel(name: slug, topic: ColonyText.trimmed(topic), sortIndex: existing.count)
         channel.lastReadAt = .now
@@ -205,7 +205,7 @@ struct WorkspaceActions {
         let name = ColonyText.trimmed(name)
         guard !name.isEmpty else { return nil }
         if let appleIdentifier,
-           let existing = try? context.fetch(FetchDescriptor<Contact>(predicate: #Predicate { $0.appleContactIdentifier == appleIdentifier })),
+           let existing = try? context.fetch(FetchDescriptor<Contact>(predicate: #Predicate { $0.appleContactIdentifier == appleIdentifier })).inWorkspace(),
            !existing.isEmpty {
             return existing.first
         }
@@ -241,7 +241,7 @@ struct WorkspaceActions {
     /// Adds an agent from its AGENT.md definition, at the end of the crew.
     @discardableResult
     func recruit(_ definition: AgentDefinition) -> Agent? {
-        let existing = ((try? context.fetch(FetchDescriptor<Agent>())) ?? []).filter { !$0.isDeleted }
+        let existing = context.inWorkspace(Agent.self)
         let agent = Agent(name: definition.name)
         agent.apply(definition)
         agent.sortIndex = (existing.map(\.sortIndex).max() ?? -1) + 1
@@ -275,7 +275,7 @@ struct WorkspaceActions {
     /// A new automation: from a recipe (complete, but off until you turn it on), or empty.
     @discardableResult
     func createAutomation(from recipe: AutomationRecipe? = nil, name: String? = nil) -> Automation {
-        let existing = ((try? context.fetch(FetchDescriptor<Automation>())) ?? []).filter { !$0.isDeleted }
+        let existing = context.inWorkspace(Automation.self)
         let automation = Automation(name: ColonyText.trimmed(name ?? recipe?.name ?? "").isEmpty ? Self.untitled(existing) : ColonyText.trimmed(name ?? recipe?.name ?? ""))
         automation.sortIndex = (existing.map(\.sortIndex).max() ?? -1) + 1
         automation.isEnabled = false
@@ -341,7 +341,7 @@ struct WorkspaceActions {
     // MARK: Updates
 
     func markAllUpdatesRead() {
-        for event in (try? context.fetch(FetchDescriptor<ActivityEvent>(predicate: #Predicate { !$0.isRead }))) ?? [] {
+        for event in context.inWorkspace(ActivityEvent.self) where !event.isRead {
             event.isRead = true
         }
     }

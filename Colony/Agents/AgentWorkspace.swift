@@ -206,9 +206,7 @@ struct AgentWorkspace {
     // MARK: Updates
 
     func listUpdates(limit: Int?) -> String {
-        var descriptor = FetchDescriptor<ActivityEvent>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        descriptor.fetchLimit = min(max(limit ?? 15, 1), 40)
-        let events = (try? context.fetch(descriptor)) ?? []
+        let events = Array(context.inWorkspace(ActivityEvent.self, sortBy: [SortDescriptor(\.createdAt, order: .reverse)]).prefix(min(max(limit ?? 15, 1), 40)))
         guard !events.isEmpty else { return "No updates yet." }
         return events.map { "- \($0.createdAt.formatted(date: .abbreviated, time: .shortened)): \($0.title) — \($0.detail.prefix(200))" }.joined(separator: "\n")
     }
@@ -242,7 +240,7 @@ struct AgentWorkspace {
     }
 
     private func fetch<T: PersistentModel>(_ type: T.Type) -> [T] {
-        ((try? context.fetch(FetchDescriptor<T>())) ?? []).filter { !$0.isDeleted }
+        ((try? context.fetch(FetchDescriptor<T>())) ?? []).filter { !$0.isDeleted && workspaceOf($0) == WorkspaceScope.stamp }
     }
 
     private func describe(_ task: TaskItem) -> String {

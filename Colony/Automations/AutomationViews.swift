@@ -22,10 +22,14 @@ import SwiftUI
 struct AutomationsHome: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Query(sort: \Automation.sortIndex) private var automations: [Automation]
-    @Query private var projects: [Project]
-    @Query private var channels: [Channel]
-    @Query private var agents: [Agent]
+    @Query(sort: \Automation.sortIndex) private var automationsEverywhere: [Automation]
+    private var automations: [Automation] { automationsEverywhere.inWorkspace() }
+    @Query private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
+    @Query private var channelsEverywhere: [Channel]
+    private var channels: [Channel] { channelsEverywhere.inWorkspace() }
+    @Query private var agentsEverywhere: [Agent]
+    private var agents: [Agent] { agentsEverywhere.inWorkspace() }
 
     private var names: AutomationNames {
         AutomationNames(
@@ -388,9 +392,12 @@ struct AutomationEditor: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
     @Bindable var automation: Automation
-    @Query private var projects: [Project]
-    @Query(sort: \Channel.sortIndex) private var channels: [Channel]
-    @Query(sort: \Agent.sortIndex) private var agents: [Agent]
+    @Query private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
+    @Query(sort: \Channel.sortIndex) private var channelsEverywhere: [Channel]
+    private var channels: [Channel] { channelsEverywhere.inWorkspace() }
+    @Query(sort: \Agent.sortIndex) private var agentsEverywhere: [Agent]
+    private var agents: [Agent] { agentsEverywhere.inWorkspace() }
     @State private var test: AutomationOutcome?
     @State private var testNote: String?
     @State private var picker: BlockPicker.Mode?

@@ -121,10 +121,14 @@ struct SidebarPanel: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
-    @Query(filter: #Predicate<ActivityEvent> { !$0.isRead }) private var unreadUpdates: [ActivityEvent]
-    @Query private var channels: [Channel]
-    @Query(filter: #Predicate<TaskItem> { $0.statusRaw != "done" }) private var openTasks: [TaskItem]
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
+    @Query(filter: #Predicate<ActivityEvent> { !$0.isRead }) private var unreadUpdatesEverywhere: [ActivityEvent]
+    private var unreadUpdates: [ActivityEvent] { unreadUpdatesEverywhere.inWorkspace() }
+    @Query private var channelsEverywhere: [Channel]
+    private var channels: [Channel] { channelsEverywhere.inWorkspace() }
+    @Query(filter: #Predicate<TaskItem> { $0.statusRaw != "done" }) private var openTasksEverywhere: [TaskItem]
+    private var openTasks: [TaskItem] { openTasksEverywhere.inWorkspace() }
 
     /// Projects live under the Projects item; open by default, remembered per device.
     @AppStorage("sidebarProjectsExpanded") private var isProjectsRowExpanded = true
@@ -157,16 +161,22 @@ struct SidebarPanel: View {
                     .padding(.horizontal, 8)
                     .padding(.bottom, 4)
 
-                    CrewSidebarSection(kind: .agents)
-                    CrewSidebarSection(kind: .automations)
-                        .padding(.bottom, 8)
+                    if !layout.isHidden(SidebarSectionItem.agents) {
+                        CrewSidebarSection(kind: .agents)
+                    }
+                    if !layout.isHidden(SidebarSectionItem.automations) {
+                        CrewSidebarSection(kind: .automations)
+                    }
+                    Color.clear.frame(height: 8)
                 }
                 .scrollIndicators(.automatic)
                 .scrollBounceBehavior(.basedOnSize)
             }
             .frame(maxHeight: .infinity, alignment: .top)
 
-            NowPlayingBar()
+            if !layout.isHidden(SidebarSectionItem.nowPlaying) {
+                NowPlayingBar()
+            }
             SidebarFooter(axis: .horizontal)
         }
         .frame(width: Theme.panelWidth(for: typeSize))
@@ -225,10 +235,13 @@ struct SidebarPanel: View {
             }
         default: EmptyView()
         }
-        if layout.isCustomized {
-            Divider()
-            Button("Reset sidebar order", systemImage: "arrow.counterclockwise") { layout.reset() }
+        Divider()
+        Button("Hide \(item.title)", systemImage: "eye.slash") {
+            if item.isSelected(app.destination) { app.go(.home) }
+            layout.setHidden(item, true)
         }
+        .disabled(item == .home)
+        Button("Customize Sidebar…", systemImage: "sidebar.left") { app.openSettings(.sidebar) }
     }
 
     private func count(for item: SidebarNavItem) -> Int? {
@@ -288,18 +301,30 @@ struct SidebarPanel: View {
 
     private var workspaceSwitcher: some View {
         Menu {
-            Button("Workspace settings", systemImage: "gearshape") { app.openSettings(.general) }
-            Button("Apple services", systemImage: "puzzlepiece.extension") { app.openSettings(.iCloud) }
+            Section("Workspaces") {
+                ForEach(app.preferences.workspaces) { workspace in
+                    Toggle(isOn: Binding(get: { workspace.id == app.preferences.currentWorkspaceID }, set: { _ in app.switchWorkspace(to: workspace.id) })) {
+                        Label(workspace.name, systemImage: workspace.isOriginal ? "square.grid.2x2.fill" : WorkspaceInfo.symbol(for: workspace.name))
+                    }
+                }
+            }
+            Button("New Workspace…", systemImage: "plus") { app.present(.newWorkspace) }
             Divider()
-            Button("New project", systemImage: "folder.badge.plus") { app.present(.newProject) }
-            Button("New channel", systemImage: "number") { app.present(.newChannel) }
+            Button("Workspace Settings", systemImage: "gearshape") { app.openSettings(.general) }
+            Button("Customize Sidebar", systemImage: "sidebar.left") { app.openSettings(.sidebar) }
+            if !app.preferences.currentWorkspace.isOriginal {
+                Divider()
+                Button("Delete \(app.preferences.currentWorkspace.name)…", systemImage: "trash", role: .destructive) {
+                    app.present(.deleteWorkspace(app.preferences.currentWorkspaceID))
+                }
+            }
         } label: {
-            WorkspaceSwitcherLabel(name: app.preferences.workspaceName)
+            WorkspaceSwitcherLabel(workspace: app.preferences.currentWorkspace)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
-        .accessibilityLabel("Workspace: \(app.preferences.workspaceName)")
+        .accessibilityLabel("Workspace: \(app.preferences.currentWorkspace.name)")
     }
 
     /// On macOS the header shares the title-bar row with the traffic lights.
@@ -417,7 +442,8 @@ struct InlineRenameRow<Glyph: View>: View {
 struct CollapsedPanel: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
 
     private var layout: SidebarLayout { SidebarLayout(preferences: app.preferences) }
 
@@ -438,17 +464,21 @@ struct CollapsedPanel: View {
                 ForEach(layout.items) { item in navIcon(item) }
                 SidebarDropTail(height: 6, accepts: acceptsNav) { drop($0, before: nil) }
 
-                SidebarDivider().padding(.vertical, 4)
-                CrewRailButton(kind: .agents)
-                CrewRailButton(kind: .automations)
-                SidebarDivider().padding(.vertical, 4)
+                if !layout.isHidden(SidebarSectionItem.agents) || !layout.isHidden(SidebarSectionItem.automations) {
+                    SidebarDivider().padding(.vertical, 4)
+                    if !layout.isHidden(SidebarSectionItem.agents) { CrewRailButton(kind: .agents) }
+                    if !layout.isHidden(SidebarSectionItem.automations) { CrewRailButton(kind: .automations) }
+                    SidebarDivider().padding(.vertical, 4)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
 
             Spacer(minLength: 8)
 
-            CollapsedNowPlayingButton()
+            if !layout.isHidden(SidebarSectionItem.nowPlaying) {
+                CollapsedNowPlayingButton()
+            }
             SidebarFooter(axis: .vertical)
         }
         .frame(width: Theme.collapsedPanelWidth)
@@ -509,15 +539,13 @@ struct SidebarToggleButton: View {
 }
 
 struct WorkspaceSwitcherLabel: View {
-    let name: String
+    let workspace: WorkspaceInfo
     @State private var isHovering = false
 
     var body: some View {
         HStack(spacing: 9) {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(Theme.brandGradient)
-                .frame(width: 22, height: 22)
-            Text(name)
+            WorkspaceBadge(workspace: workspace)
+            Text(workspace.name)
                 .appFont(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.text)
                 .lineLimit(1)

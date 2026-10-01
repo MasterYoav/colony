@@ -14,12 +14,12 @@ import SwiftData
 enum StarterContent {
     static func seedIfNeeded(context: ModelContext, preferences: CloudPreferences) {
         guard !preferences.didSeedStarterContent else { return }
-        let existing = (try? context.fetchCount(FetchDescriptor<Project>())) ?? 0
+        let existing = context.inWorkspace(Project.self, WorkspaceInfo.originalID).count
         guard existing == 0 else {
             preferences.didSeedStarterContent = true
             return
         }
-        seed(into: context)
+        WorkspaceScope.run(in: WorkspaceInfo.originalID) { seed(into: context) }
         preferences.didSeedStarterContent = true
     }
 
@@ -28,16 +28,16 @@ enum StarterContent {
     static func seedAgentsIfNeeded(context: ModelContext, preferences: CloudPreferences) {
         guard !preferences.didSeedStarterAgents else { return }
         preferences.didSeedStarterAgents = true
-        guard ((try? context.fetchCount(FetchDescriptor<Agent>())) ?? 0) == 0 else { return }
-        seedAgents(into: context)
+        guard context.inWorkspace(Agent.self, WorkspaceInfo.originalID).isEmpty else { return }
+        WorkspaceScope.run(in: WorkspaceInfo.originalID) { seedAgents(into: context) }
     }
 
     /// Adds the starter automations, all switched off, once per account.
     static func seedAutomationsIfNeeded(context: ModelContext, preferences: CloudPreferences) {
         guard !preferences.didSeedStarterAutomations else { return }
         preferences.didSeedStarterAutomations = true
-        guard ((try? context.fetchCount(FetchDescriptor<Automation>())) ?? 0) == 0 else { return }
-        seedAutomations(into: context)
+        guard context.inWorkspace(Automation.self, WorkspaceInfo.originalID).isEmpty else { return }
+        WorkspaceScope.run(in: WorkspaceInfo.originalID) { seedAutomations(into: context) }
     }
 
     static func seedAutomations(into context: ModelContext) {

@@ -523,7 +523,8 @@ final class TaskScheduler {
 /// waiting for SwiftData's autosave. Lives invisibly behind the main window.
 struct TaskChangeWatcher: View {
     @Environment(AppModel.self) private var app
-    @Query private var tasks: [TaskItem]
+    @Query private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
 
     var body: some View {
         Color.clear

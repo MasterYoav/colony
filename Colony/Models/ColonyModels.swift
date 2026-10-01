@@ -20,6 +20,8 @@ import SwiftUI
 @Model
 final class Project {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var name: String = ""
     var symbol: String = "folder.fill"
     var colorRaw: String = ColonyColor.blue.rawValue
@@ -35,6 +37,7 @@ final class Project {
     var tasks: [TaskItem]? = []
 
     init(name: String, symbol: String = "folder.fill", color: ColonyColor = .blue, summary: String = "", sortIndex: Int = 0) {
+        self.workspaceID = WorkspaceScope.stamp
         self.name = name
         self.symbol = symbol
         self.colorRaw = color.rawValue
@@ -88,6 +91,8 @@ final class ProjectList {
 @Model
 final class TaskItem {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var title: String = ""
     var notes: String = ""
     var statusRaw: String = TaskStatus.todo.rawValue
@@ -111,6 +116,7 @@ final class TaskItem {
     var list: ProjectList?
 
     init(title: String, notes: String = "", status: TaskStatus = .todo, priority: TaskPriority = .medium, dueDate: Date? = nil, project: Project? = nil, list: ProjectList? = nil) {
+        self.workspaceID = WorkspaceScope.stamp
         self.title = title
         self.notes = notes
         self.statusRaw = status.rawValue
@@ -154,6 +160,8 @@ final class TaskItem {
 @Model
 final class Channel {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var name: String = ""
     var topic: String = ""
     var symbol: String = "number"
@@ -165,6 +173,7 @@ final class Channel {
     var messages: [Message]? = []
 
     init(name: String, topic: String = "", symbol: String = "number", sortIndex: Int = 0) {
+        self.workspaceID = WorkspaceScope.stamp
         self.name = name
         self.topic = topic
         self.symbol = symbol
@@ -200,6 +209,8 @@ final class Message {
 @Model
 final class Contact {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var name: String = ""
     var company: String = ""
     var jobTitle: String = ""
@@ -217,6 +228,7 @@ final class Contact {
     @Attribute(.externalStorage) var imageData: Data?
 
     init(name: String, company: String = "", jobTitle: String = "", email: String = "", phone: String = "", stage: DealStage = .lead, color: ColonyColor = .indigo) {
+        self.workspaceID = WorkspaceScope.stamp
         self.name = name
         self.company = company
         self.jobTitle = jobTitle
@@ -244,6 +256,8 @@ final class Contact {
 @Model
 final class ActivityEvent {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var title: String = ""
     var detail: String = ""
     var symbol: String = "sparkles"
@@ -252,6 +266,7 @@ final class ActivityEvent {
     var isRead: Bool = false
 
     init(title: String, detail: String, symbol: String, color: ColonyColor) {
+        self.workspaceID = WorkspaceScope.stamp
         self.title = title
         self.detail = detail
         self.symbol = symbol

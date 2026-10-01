@@ -15,6 +15,8 @@ import SwiftUI
 @Model
 final class Agent {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var name: String = ""
     /// One line: what the agent does. `description` in AGENT.md.
     var summary: String = ""
@@ -40,6 +42,7 @@ final class Agent {
     var messages: [AgentMessage]? = []
 
     init(name: String) {
+        self.workspaceID = WorkspaceScope.stamp
         self.name = name
     }
 

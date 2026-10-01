@@ -28,6 +28,19 @@ enum SidebarNavItem: String, CaseIterable, Identifiable {
         }
     }
 
+    /// One line for Settings › Sidebar.
+    var detail: String {
+        switch self {
+        case .home: "Your day at a glance."
+        case .updates: "What changed, from you, agents and automations."
+        case .inbox: "Channels for notes and conversations."
+        case .tasks: "Everything to do, like Reminders."
+        case .projects: "Projects and their lists."
+        case .crm: "Customers and your sales pipeline."
+        case .reports: "How work and sales are going."
+        }
+    }
+
     var symbol: String {
         switch self {
         case .home: "house"
@@ -71,21 +84,22 @@ enum SidebarNavItem: String, CaseIterable, Identifiable {
     static let defaultOrder: [SidebarNavItem] = [.home, .updates, .inbox, .tasks, .projects, .crm, .reports]
 }
 
-/// Reads and rewrites the user's order of the sidebar's navigation items, stored in
-/// `CloudPreferences` (iCloud key-value storage) so every device shows the same list.
+/// The open workspace's sidebar: item order and what's hidden. Stored per workspace in
+/// `CloudPreferences.sidebarSetups` (iCloud key-value storage), so every device shows the
+/// same sidebar for the same workspace.
 @MainActor
 struct SidebarLayout {
     let preferences: CloudPreferences
 
-    /// Stored order, cleaned up: legacy items merged, unknown values and duplicates
-    /// dropped, and anything added in a newer version appended in its default place.
-    var items: [SidebarNavItem] {
-        let stored = (preferences.sidebarPinnedItems + preferences.sidebarWorkspaceItems).compactMap(SidebarNavItem.init(stored:))
+    /// Every navigation item in the user's order, hidden ones included (for Settings).
+    /// Legacy items merge, unknown values and duplicates drop, and anything added in a
+    /// newer version is inserted in its default place.
+    var allItems: [SidebarNavItem] {
+        let stored = preferences.sidebarSetup.order.compactMap(SidebarNavItem.init(stored:))
         guard !stored.isEmpty else { return SidebarNavItem.defaultOrder }
         var seen = Set<SidebarNavItem>()
         var result = stored.filter { seen.insert($0).inserted }
         for item in SidebarNavItem.defaultOrder where !seen.contains(item) {
-            // Insert after its default predecessor when possible.
             let index = SidebarNavItem.defaultOrder.firstIndex(of: item)!
             let before = SidebarNavItem.defaultOrder[..<index].last { result.contains($0) }
             result.insert(item, at: before.flatMap { result.firstIndex(of: $0).map { $0 + 1 } } ?? 0)
@@ -93,26 +107,67 @@ struct SidebarLayout {
         return result
     }
 
+    /// The items the sidebar shows.
+    var items: [SidebarNavItem] {
+        let hidden = Set(preferences.sidebarSetup.hidden)
+        return allItems.filter { !hidden.contains($0.rawValue) }
+    }
+
+    func isHidden(_ item: SidebarNavItem) -> Bool { preferences.sidebarSetup.hidden.contains(item.rawValue) }
+    func isHidden(_ section: SidebarSectionItem) -> Bool { preferences.sidebarSetup.hiddenSections.contains(section.rawValue) }
+
+    func setHidden(_ item: SidebarNavItem, _ hidden: Bool) {
+        update { setup in
+            setup.hidden.removeAll { $0 == item.rawValue }
+            if hidden { setup.hidden.append(item.rawValue) }
+        }
+    }
+
+    func setHidden(_ section: SidebarSectionItem, _ hidden: Bool) {
+        update { setup in
+            setup.hiddenSections.removeAll { $0 == section.rawValue }
+            if hidden { setup.hiddenSections.append(section.rawValue) }
+        }
+    }
+
     /// Moves `item` just before `target` (or to the end when `target` is nil).
     func move(_ item: SidebarNavItem, before target: SidebarNavItem?) {
         guard item != target else { return }
-        var list = items.filter { $0 != item }
+        var list = allItems.filter { $0 != item }
         let index = target.flatMap { list.firstIndex(of: $0) } ?? list.endIndex
         list.insert(item, at: index)
-        withMotion(.snappy(duration: 0.22)) {
-            preferences.sidebarPinnedItems = list.map(\.rawValue)
-            preferences.sidebarWorkspaceItems = []
-        }
+        update { $0.order = list.map(\.rawValue) }
     }
 
+    /// Moves an item one place up or down among all items (Settings › Sidebar).
+    func move(_ item: SidebarNavItem, by offset: Int) {
+        var list = allItems
+        guard let index = list.firstIndex(of: item) else { return }
+        let target = index + offset
+        guard list.indices.contains(target) else { return }
+        list.swapAt(index, target)
+        update { $0.order = list.map(\.rawValue) }
+    }
+
+    func apply(_ preset: WorkspacePreset) {
+        update { $0 = preset.setup }
+    }
+
+    /// Back to the default order with everything shown.
     func reset() {
-        withMotion(.snappy(duration: 0.22)) {
-            preferences.sidebarPinnedItems = []
-            preferences.sidebarWorkspaceItems = []
-        }
+        update { $0 = SidebarSetup() }
     }
 
-    var isCustomized: Bool { items != SidebarNavItem.defaultOrder }
+    var isCustomized: Bool {
+        allItems != SidebarNavItem.defaultOrder || !preferences.sidebarSetup.hidden.isEmpty || !preferences.sidebarSetup.hiddenSections.isEmpty
+    }
+
+    private func update(_ change: (inout SidebarSetup) -> Void) {
+        var setup = preferences.sidebarSetup
+        setup.order = allItems.map(\.rawValue)
+        change(&setup)
+        withMotion(.snappy(duration: 0.22)) { preferences.sidebarSetup = setup }
+    }
 }
 
 /// What travels during a drag: a nav item or a project, encoded as plain text so it

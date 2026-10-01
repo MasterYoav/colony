@@ -45,6 +45,13 @@ Later: background runs on iPhone and iPad with `BGTaskScheduler`, and agents tha
 - [ ] Background runs via `BGTaskScheduler` on iPhone/iPad (today they run while Colony is open).
 - [ ] Mirror to Reminders as a step.
 
+## Done — workspaces, sidebar setup, clearer Reports
+
+- [x] Several workspaces per iCloud account, created blank from the workspace menu, each with its own data and sidebar.
+- [x] Settings › Sidebar: show/hide and reorder pages and sections per workspace, with presets.
+- [x] Tasks + opens New Task / New List.
+- [x] Reports rebuilt around four plain questions.
+
 ## Then: team workspaces with CloudKit sharing
 
 The private database is single-user: it syncs one person's data across their devices. To let a team share a workspace:

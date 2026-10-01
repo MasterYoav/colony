@@ -18,6 +18,8 @@ import SwiftUI
 @Model
 final class Automation {
     var uuid: UUID = UUID()
+    /// The workspace this belongs to ("" = the original one). See Workspaces.swift.
+    var workspaceID: String = ""
     var name: String = ""
     var colorRaw: String = ColonyColor.orange.rawValue
     var isEnabled: Bool = true
@@ -42,6 +44,7 @@ final class Automation {
     var runs: [AutomationRun]? = []
 
     init(name: String) {
+        self.workspaceID = WorkspaceScope.stamp
         self.name = name
     }
 
@@ -526,9 +529,9 @@ struct AutomationNames {
     }
 
     init(context: ModelContext) {
-        for p in (try? context.fetch(FetchDescriptor<Project>())) ?? [] { projects[p.uuid] = p.name }
-        for c in (try? context.fetch(FetchDescriptor<Channel>())) ?? [] { channels[c.uuid] = c.name }
-        for a in (try? context.fetch(FetchDescriptor<Agent>())) ?? [] { agents[a.uuid] = a.name }
+        for p in context.inWorkspace(Project.self) { projects[p.uuid] = p.name }
+        for c in context.inWorkspace(Channel.self) { channels[c.uuid] = c.name }
+        for a in context.inWorkspace(Agent.self) { agents[a.uuid] = a.name }
     }
 
     func project(_ id: UUID) -> String { projects[id] ?? "a project" }

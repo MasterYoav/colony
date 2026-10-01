@@ -39,8 +39,10 @@ enum TaskScope {
 struct TasksScreen: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Query(sort: \TaskItem.createdAt) private var allTasks: [TaskItem]
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
+    @Query(sort: \TaskItem.createdAt) private var allTasksEverywhere: [TaskItem]
+    private var allTasks: [TaskItem] { allTasksEverywhere.inWorkspace() }
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
     let scope: TaskScope
 
     @State private var layout: Layout = .list
@@ -152,16 +154,22 @@ struct TasksScreen: View {
                 .help("Project settings")
                 .accessibilityLabel("Project settings")
             }
-            Button { startNewTask() } label: {
+            // A small menu, like right-clicking: New Task or New List.
+            Menu {
+                Button("New Task", systemImage: "checklist") { startNewTask() }
+                Button("New List", systemImage: "list.bullet.rectangle") { app.present(.newList(project: scope.project?.uuid)) }
+            } label: {
                 Image(systemName: "plus")
                     .appFont(.system(size: 14, weight: .medium))
                     .frame(width: 30, height: 30)
                     .contentShape(.rect)
             }
+            .menuStyle(.button)
             .buttonStyle(QuietButtonStyle())
-            .help("New task")
-            .accessibilityLabel("New task")
-            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("New task or list")
+            .accessibilityLabel("Add")
         }
     }
 
@@ -553,7 +561,8 @@ struct BoardCard: View {
 
 struct ProjectsView: View {
     @Environment(AppModel.self) private var app
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
 
     var body: some View {
         ScrollView {

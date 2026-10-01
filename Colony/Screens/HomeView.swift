@@ -8,10 +8,14 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(AppModel.self) private var app
-    @Query(sort: \TaskItem.createdAt) private var tasks: [TaskItem]
-    @Query(sort: \Project.sortIndex) private var projects: [Project]
-    @Query(sort: \ActivityEvent.createdAt, order: .reverse) private var events: [ActivityEvent]
-    @Query private var contacts: [Contact]
+    @Query(sort: \TaskItem.createdAt) private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
+    @Query(sort: \Project.sortIndex) private var projectsEverywhere: [Project]
+    private var projects: [Project] { projectsEverywhere.inWorkspace() }
+    @Query(sort: \ActivityEvent.createdAt, order: .reverse) private var eventsEverywhere: [ActivityEvent]
+    private var events: [ActivityEvent] { eventsEverywhere.inWorkspace() }
+    @Query private var contactsEverywhere: [Contact]
+    private var contacts: [Contact] { contactsEverywhere.inWorkspace() }
 
     var body: some View {
         ScrollView {
@@ -202,7 +206,8 @@ struct UpdateRow: View {
 
 struct UpdatesView: View {
     @Environment(\.modelContext) private var context
-    @Query(sort: \ActivityEvent.createdAt, order: .reverse) private var events: [ActivityEvent]
+    @Query(sort: \ActivityEvent.createdAt, order: .reverse) private var eventsEverywhere: [ActivityEvent]
+    private var events: [ActivityEvent] { eventsEverywhere.inWorkspace() }
 
     var body: some View {
         ScrollView {

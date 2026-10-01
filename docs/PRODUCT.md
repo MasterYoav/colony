@@ -13,6 +13,7 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 ## Core objects
 
 - **Project**: a group of lists and tasks, with an icon and color.
+- **Workspace**: a separate space (team, personal, side project) with its own records and sidebar setup. Records carry a `workspaceID`; the original workspace keeps the legacy empty ID.
 - **List**: a sub-group inside a project (sprints, months, phases). Lists appear as expandable children in the sidebar.
 - **Task**: status, priority, flag, due date (with or without a time) and notes. Laid out like Apple Reminders (smart lists Today, Scheduled, All, Flagged, Urgent, Completed; edit in place). Optional due-time alerts, a "Colony" calendar in Apple Calendar, and mirroring to Apple Reminders.
 - **Channel / Message**: threaded notes and conversations.
@@ -25,8 +26,8 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 
 The sidebar follows the reference design:
 
-1. **Header**: workspace switcher and collapse button, sharing the title bar with the window controls on Mac.
-2. **Panel**: Search (⌘K) beside the workspace switcher, one reorderable list (Home, Updates, Projects, Tasks, CRM, Inbox, Reports) with projects nested under Projects, then the Agents and Automations sections.
+1. **Header**: workspace switcher (switch, New Workspace…, Workspace Settings, Customize Sidebar) and collapse button, sharing the title bar with the window controls on Mac.
+2. **Panel**: Search (⌘K) beside the workspace switcher, one reorderable list (Home, Updates, Projects, Tasks, CRM, Inbox, Reports) with projects nested under Projects, then the Agents and Automations sections. Settings › Sidebar shows or hides each page, section and the music player per workspace, with presets (Everything, Personal, Sales, Team).
 3. **Bottom**: the music controller, then account, appearance, iCloud status and settings.
 4. **Collapsed**: icon-only column with the same items and footer.
 

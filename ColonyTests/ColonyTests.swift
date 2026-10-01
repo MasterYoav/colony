@@ -212,7 +212,7 @@ struct ColonyTests {
 
         layout.move(.crm, before: .inbox)
         #expect(layout.items.first == .crm)
-        #expect(prefs.sidebarWorkspaceItems.isEmpty)
+        #expect(prefs.sidebarSetup.order.first == "crm")
 
         layout.reset()
         #expect(layout.items == SidebarNavItem.defaultOrder)

@@ -19,7 +19,7 @@ import UniformTypeIdentifiers
 import UserNotifications
 
 enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
-    case profile, general, appearance, iCloud, notifications, calendar, reminders, contacts, privacy, about
+    case profile, general, sidebar, appearance, iCloud, notifications, calendar, reminders, contacts, privacy, about
 
     var id: String { rawValue }
 
@@ -27,6 +27,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .profile: "Profile"
         case .general: "General"
+        case .sidebar: "Sidebar"
         case .appearance: "Appearance"
         case .iCloud: "iCloud"
         case .notifications: "Notifications"
@@ -42,6 +43,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .profile: "person.crop.circle.fill"
         case .general: "gearshape.fill"
+        case .sidebar: "sidebar.left"
         case .appearance: "circle.lefthalf.filled"
         case .iCloud: "icloud.fill"
         case .notifications: "bell.badge.fill"
@@ -58,6 +60,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .profile: ColonyColor.purple.color
         case .general: Color(white: 0.55)
+        case .sidebar: Color(red: 0.36, green: 0.42, blue: 0.95)
         case .appearance: Color(white: 0.16)
         case .iCloud: Color(red: 0.20, green: 0.55, blue: 0.98)
         case .notifications: Color(red: 0.96, green: 0.26, blue: 0.27)
@@ -73,7 +76,8 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     var keywords: String {
         switch self {
         case .profile: "name photo picture avatar account"
-        case .general: "workspace sidebar keyboard shortcuts"
+        case .general: "workspace name keyboard shortcuts"
+        case .sidebar: "hide show items reorder customize crm reports inbox agents automations music workspace"
         case .appearance: "theme dark light mode font typeface"
         case .iCloud: "sync cloudkit storage"
         case .notifications: "alerts due dates background remind tasks sound"
@@ -86,7 +90,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Sidebar groups, separated by space like System Settings.
-    static let groups: [[SettingsSection]] = [[.general, .appearance], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
+    static let groups: [[SettingsSection]] = [[.general, .sidebar, .appearance], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
 }
 
 struct SettingsView: View {
@@ -388,6 +392,7 @@ private struct SettingsPage: View {
             switch section {
             case .profile: ProfilePage()
             case .general: GeneralPage()
+            case .sidebar: SidebarSettingsPage()
             case .appearance: AppearancePage()
             case .iCloud: ICloudPage()
             case .notifications: NotificationsPage()
@@ -557,20 +562,43 @@ private struct GeneralPage: View {
 
     var body: some View {
         @Bindable var prefs = app.preferences
-        let layout = SidebarLayout(preferences: prefs)
 
-        SettingsGroup(footer: "The name at the top of the sidebar.") {
-            SettingsRow("Workspace name") {
-                TextField("Workspace name", text: $prefs.workspaceName)
+        SettingsGroup(header: "This workspace", footer: "The name and colour at the top of the sidebar. Each workspace has its own projects, tasks, customers, channels, agents and automations.") {
+            SettingsRow("Name") {
+                TextField("Workspace name", text: $prefs.currentWorkspaceName)
                     .textFieldStyle(.plain)
                     .multilineTextAlignment(.trailing)
                     .appFont(.system(size: 13.5))
                     .frame(maxWidth: 240)
-                    .onChange(of: prefs.workspaceName) { _, new in if new.count > 32 { prefs.workspaceName = String(new.prefix(32)) } }
+                    .onChange(of: prefs.currentWorkspaceName) { _, new in if new.count > 32 { prefs.currentWorkspaceName = String(new.prefix(32)) } }
+            }
+            SettingsRow("Colour") {
+                ColorSwatches(selection: Binding(get: { prefs.currentWorkspace.color }, set: { color in
+                    var workspace = prefs.currentWorkspace
+                    workspace.color = color
+                    prefs.update(workspace)
+                }))
+                .disabled(prefs.currentWorkspace.isOriginal)
+                .opacity(prefs.currentWorkspace.isOriginal ? 0.4 : 1)
+                .help(prefs.currentWorkspace.isOriginal ? "Your first workspace keeps the Colony colours." : "")
             }
         }
 
-        SettingsGroup(header: "Sidebar", footer: "Drag items in the sidebar to reorder them. The order syncs to your other devices.") {
+        SettingsGroup(header: "Workspaces") {
+            ForEach(prefs.workspaces) { workspace in
+                SettingsRow(workspace.name, detail: workspace.id == prefs.currentWorkspaceID ? "Open now" : nil) {
+                    if workspace.id != prefs.currentWorkspaceID {
+                        Button("Open") { app.switchWorkspace(to: workspace.id) }
+                    }
+                    if !workspace.isOriginal {
+                        Button("Delete…", role: .destructive) { app.present(.deleteWorkspace(workspace.id)) }
+                    }
+                }
+            }
+            SettingsRow("New Workspace…") { app.present(.newWorkspace) }
+        }
+
+        SettingsGroup(header: "Sidebar") {
             SettingsRow("Show sidebar") {
                 Toggle("Show sidebar", isOn: Binding(get: { !prefs.isSidebarCollapsed }, set: { show in
                     if show == prefs.isSidebarCollapsed { app.toggleSidebar() }
@@ -579,10 +607,7 @@ private struct GeneralPage: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
             }
-            SettingsRow("Item order") {
-                Button("Reset") { layout.reset() }
-                    .disabled(!layout.isCustomized)
-            }
+            SettingsRow("Choose what the sidebar shows…") { app.openSettings(.sidebar) }
         }
 
         SettingsGroup(header: "Keyboard shortcuts") {
@@ -600,6 +625,117 @@ private struct GeneralPage: View {
                 .appFont(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(Theme.secondaryText)
         }
+    }
+}
+
+// MARK: Sidebar
+
+/// Choose what the sidebar shows, per workspace: a starting point, then each item.
+private struct SidebarSettingsPage: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        let layout = SidebarLayout(preferences: app.preferences)
+        let workspace = app.preferences.currentWorkspace
+
+        PageHeader(section: .sidebar, text: "Show the tools you use and hide the rest. This is for \(workspace.name); each workspace has its own sidebar. Hidden tools are still in Search (⌘K).")
+
+        SettingsGroup(header: "Start from", footer: "Pick what this workspace is for, then fine-tune below.") {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                ForEach(WorkspacePreset.allCases) { preset in
+                    PresetCard(preset: preset, isSelected: app.preferences.sidebarSetup.preset == preset) {
+                        layout.apply(preset)
+                    }
+                }
+            }
+            .padding(10)
+        }
+
+        SettingsGroup(header: "Pages", footer: "Use the arrows to change the order, or drag items in the sidebar. Home is always shown.") {
+            ForEach(Array(layout.allItems.enumerated()), id: \.element) { index, item in
+                SidebarItemRow(
+                    symbol: item.symbol,
+                    title: item.title,
+                    detail: item.detail,
+                    isShown: !layout.isHidden(item),
+                    canHide: item != .home,
+                    canMoveUp: index > 0,
+                    canMoveDown: index < layout.allItems.count - 1,
+                    setShown: { layout.setHidden(item, !$0) },
+                    move: { layout.move(item, by: $0) }
+                )
+            }
+        }
+
+        SettingsGroup(header: "Sections") {
+            ForEach(SidebarSectionItem.allCases) { section in
+                SidebarItemRow(
+                    symbol: section.symbol,
+                    title: section.title,
+                    detail: section.detail,
+                    isShown: !layout.isHidden(section),
+                    setShown: { layout.setHidden(section, !$0) }
+                )
+            }
+        }
+
+        SettingsGroup {
+            SettingsRow("Show everything, in the original order") { layout.reset() }
+        }
+    }
+}
+
+/// Icon, title, one line, optional ↑↓, and a switch.
+private struct SidebarItemRow: View {
+    let symbol: String
+    let title: String
+    let detail: String
+    let isShown: Bool
+    var canHide = true
+    var canMoveUp: Bool? = nil
+    var canMoveDown: Bool? = nil
+    let setShown: (Bool) -> Void
+    var move: ((Int) -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .appFont(.system(size: 13, weight: .medium))
+                .foregroundStyle(isShown ? Theme.text : Theme.tertiaryText)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).appFont(.system(size: 13.5)).foregroundStyle(isShown ? Theme.text : Theme.secondaryText)
+                Text(detail).appFont(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
+            }
+            Spacer(minLength: 12)
+            if let move, let canMoveUp, let canMoveDown {
+                HStack(spacing: 0) {
+                    arrow("chevron.up", "Move \(title) up", enabled: canMoveUp) { move(-1) }
+                    arrow("chevron.down", "Move \(title) down", enabled: canMoveDown) { move(1) }
+                }
+            }
+            Toggle(isOn: Binding(get: { isShown }, set: setShown)) { Text("Show \(title)") }
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .disabled(!canHide)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .frame(minHeight: 44)
+    }
+
+    private func arrow(_ symbol: String, _ label: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .appFont(.system(size: 10.5, weight: .semibold))
+                .frame(width: 24, height: 24)
+                .contentShape(.rect)
+        }
+        .buttonStyle(QuietButtonStyle())
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.3)
+        .accessibilityLabel(label)
     }
 }
 
@@ -781,7 +917,8 @@ private struct ICloudPage: View {
 
 private struct RemindersPage: View {
     @Environment(AppModel.self) private var app
-    @Query private var tasks: [TaskItem]
+    @Query private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
 
     var body: some View {
         @Bindable var prefs = app.preferences
@@ -820,7 +957,8 @@ private struct RemindersPage: View {
 private struct NotificationsPage: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
-    @Query private var tasks: [TaskItem]
+    @Query private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
 
     var body: some View {
         @Bindable var prefs = app.preferences
@@ -889,7 +1027,8 @@ private struct NotificationsPage: View {
 
 private struct CalendarPage: View {
     @Environment(AppModel.self) private var app
-    @Query private var tasks: [TaskItem]
+    @Query private var tasksEverywhere: [TaskItem]
+    private var tasks: [TaskItem] { tasksEverywhere.inWorkspace() }
 
     var body: some View {
         @Bindable var prefs = app.preferences
@@ -955,7 +1094,8 @@ private struct CalendarPage: View {
 
 private struct ContactsPage: View {
     @Environment(AppModel.self) private var app
-    @Query private var customers: [Contact]
+    @Query private var customersEverywhere: [Contact]
+    private var customers: [Contact] { customersEverywhere.inWorkspace() }
 
     var body: some View {
         PageHeader(section: .contacts, text: "Import people from Apple Contacts into the CRM. Colony only reads your address book; it never changes it.")

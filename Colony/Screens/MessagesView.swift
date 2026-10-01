@@ -12,7 +12,8 @@ import SwiftUI
 struct MessagesView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
-    @Query(sort: \Channel.sortIndex) private var channels: [Channel]
+    @Query(sort: \Channel.sortIndex) private var channelsEverywhere: [Channel]
+    private var channels: [Channel] { channelsEverywhere.inWorkspace() }
     let channelID: UUID?
 
     var body: some View {

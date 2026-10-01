@@ -57,6 +57,10 @@ final class CloudPreferences {
         static let dataFont = "dataFontFamily"
         static let avatarImage = "avatarImage"
         static let avatarColor = "avatarColor"
+        static let workspaces = "workspaces"
+        static let sidebarSetups = "sidebarSetups"
+        static let currentWorkspace = "currentWorkspaceID"
+        static let originalWorkspaceColor = "originalWorkspaceColor"
     }
 
     private let store: NSUbiquitousKeyValueStore?
@@ -94,6 +98,18 @@ final class CloudPreferences {
     var avatarImageData: Data? { didSet { writeOptional(avatarImageData, Key.avatarImage) } }
     /// Monogram background when there's no photo.
     var avatarColor: ColonyColor { didSet { write(avatarColor.rawValue, Key.avatarColor) } }
+    /// Workspaces besides the original one. Roams via iCloud.
+    var extraWorkspaces: [WorkspaceInfo] { didSet { writeJSON(extraWorkspaces, Key.workspaces) } }
+    /// Each workspace's sidebar (order, hidden items), keyed by workspace ID. Roams via iCloud.
+    var sidebarSetups: [String: SidebarSetup] { didSet { writeJSON(sidebarSetups, Key.sidebarSetups) } }
+    var originalWorkspaceColor: ColonyColor { didSet { write(originalWorkspaceColor.rawValue, Key.originalWorkspaceColor) } }
+    /// The open workspace. Per device, like an open window.
+    var currentWorkspaceID: String {
+        didSet {
+            local.set(currentWorkspaceID, forKey: Key.currentWorkspace)
+            WorkspaceScope.current = currentWorkspaceID
+        }
+    }
 
     init(useICloud: Bool = true, defaults: UserDefaults = .standard) {
         self.store = useICloud ? NSUbiquitousKeyValueStore.default : nil
@@ -122,6 +138,15 @@ final class CloudPreferences {
         dataFontFamily = read(Key.dataFont) ?? ""
         avatarImageData = read(Key.avatarImage)
         avatarColor = ColonyColor(rawValue: read(Key.avatarColor) ?? "") ?? .purple
+        let storedWorkspaces: [WorkspaceInfo] = Self.decode(read(Key.workspaces)) ?? []
+        extraWorkspaces = storedWorkspaces
+        sidebarSetups = Self.decode(read(Key.sidebarSetups)) ?? [:]
+        originalWorkspaceColor = ColonyColor(rawValue: read(Key.originalWorkspaceColor) ?? "") ?? .blue
+        let current = defaults.string(forKey: Key.currentWorkspace) ?? WorkspaceInfo.originalID
+        let known = storedWorkspaces.map(\.id)
+        let open = (current == WorkspaceInfo.originalID || known.contains(current)) ? current : WorkspaceInfo.originalID
+        currentWorkspaceID = open
+        WorkspaceScope.current = open
 
         if let store {
             observer = NotificationCenter.default.addObserver(
@@ -154,11 +179,26 @@ final class CloudPreferences {
         let photo = store.data(forKey: Key.avatarImage)
         if photo != avatarImageData { avatarImageData = photo }
         if let raw = store.string(forKey: Key.avatarColor), let value = ColonyColor(rawValue: raw), value != avatarColor { avatarColor = value }
+        if let value: [WorkspaceInfo] = Self.decode(store.data(forKey: Key.workspaces)), value != extraWorkspaces {
+            extraWorkspaces = value
+            // The open workspace was deleted on another device.
+            if currentWorkspaceID != WorkspaceInfo.originalID, !value.contains(where: { $0.id == currentWorkspaceID }) { currentWorkspaceID = WorkspaceInfo.originalID }
+        }
+        if let value: [String: SidebarSetup] = Self.decode(store.data(forKey: Key.sidebarSetups)), value != sidebarSetups { sidebarSetups = value }
+        if let raw = store.string(forKey: Key.originalWorkspaceColor), let value = ColonyColor(rawValue: raw), value != originalWorkspaceColor { originalWorkspaceColor = value }
     }
 
     private func write(_ value: Any, _ key: String) {
         local.set(value, forKey: key)
         store?.set(value, forKey: key)
+    }
+
+    private func writeJSON<T: Encodable>(_ value: T, _ key: String) {
+        if let data = try? JSONEncoder().encode(value) { write(data, key) }
+    }
+
+    private static func decode<T: Decodable>(_ data: Data?) -> T? {
+        data.flatMap { try? JSONDecoder().decode(T.self, from: $0) }
     }
 
     private func writeOptional(_ value: Any?, _ key: String) {
@@ -179,3 +219,53 @@ final class CloudPreferences {
         #endif
     }
 }
+
+// MARK: - Workspaces
+
+extension CloudPreferences {
+    /// Every workspace, the original first.
+    var workspaces: [WorkspaceInfo] {
+        [WorkspaceInfo(id: WorkspaceInfo.originalID, name: workspaceName, colorRaw: originalWorkspaceColor.rawValue, createdAt: .distantPast)]
+            + extraWorkspaces.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    var currentWorkspace: WorkspaceInfo {
+        workspaces.first { $0.id == currentWorkspaceID } ?? workspaces[0]
+    }
+
+    /// Renames or recolours a workspace (the original one keeps using `workspaceName`).
+    func update(_ workspace: WorkspaceInfo) {
+        if workspace.isOriginal {
+            if workspaceName != workspace.name { workspaceName = workspace.name }
+            if originalWorkspaceColor != workspace.color { originalWorkspaceColor = workspace.color }
+        } else if let index = extraWorkspaces.firstIndex(where: { $0.id == workspace.id }) {
+            extraWorkspaces[index] = workspace
+        }
+    }
+
+    /// Name of the open workspace, editable in Settings › General.
+    var currentWorkspaceName: String {
+        get { currentWorkspace.name }
+        set {
+            var workspace = currentWorkspace
+            workspace.name = newValue
+            update(workspace)
+        }
+    }
+
+    /// Sidebar setup of the open workspace. The original workspace inherits the order
+    /// people set by dragging before setups existed.
+    var sidebarSetup: SidebarSetup {
+        get {
+            if let setup = sidebarSetups[currentWorkspaceID] { return setup }
+            var setup = SidebarSetup()
+            if currentWorkspaceID == WorkspaceInfo.originalID {
+                let legacy = sidebarPinnedItems + sidebarWorkspaceItems
+                if !legacy.isEmpty { setup.order = legacy }
+            }
+            return setup
+        }
+        set { sidebarSetups[currentWorkspaceID] = newValue }
+    }
+}
+
