@@ -4,9 +4,10 @@ title: Agents and AGENT.md
 
 # Agents
 
-Agents are assistants that work in your Colony workspace. Each one runs on your own device with
-Apple Intelligence (the Foundation Models framework). No third-party AI is involved, and nothing
-you or the agents write is sent to a server. Agents and their conversations are stored like the
+Agents are assistants that work in your Colony workspace. By default each one runs on your own
+device with Apple Intelligence (the Foundation Models framework), and nothing you or the agents
+write is sent to a server. Optionally, you can run agents on your own OpenAI, Claude, Gemini or
+OpenAI-compatible account, and let them ask Jev for judgment calls (see *Models and Jev* below). Agents and their conversations are stored like the
 rest of Colony, in your private iCloud database, so they appear on all your devices.
 
 Every agent is described by an **AGENT.md** file. You recruit an agent by giving Colony one:
@@ -101,11 +102,40 @@ Due dates can be written as `today`, `tomorrow`, a weekday (`friday`, `next mond
 - **Calendar.** With **Show automation schedules** on (Settings › Calendar), scheduled agents
   appear as repeating events in the Colony calendar. Hourly agents are left out.
 
+## Models and Jev
+
+**Settings › AI** chooses what runs agents:
+
+| Option | Account | What leaves the device |
+| --- | --- | --- |
+| Apple Intelligence (default) | None | Nothing |
+| OpenAI | Your API key | The agent's chat and what its tools read, sent to OpenAI |
+| Anthropic Claude | Your API key | Same, sent to Anthropic |
+| Google Gemini | Your Google AI Studio key | Same, sent to Google |
+| Other (OpenAI-compatible) | Server address, optional key | Same, sent to that server (e.g. OpenRouter, or a local Ollama / LM Studio) |
+
+Paste a key, press **Check connection** to load your account's models, and pick one. Keys are
+kept in your iCloud Keychain. To use a different model for one agent, open it and choose
+**⋯ › Runs On**. Cloud models use the same tools, so action rows, `ask_user` and the safety rules
+(agents can't delete) are identical.
+
+**Jev** is a decision model by [TypeSafe](https://docs.typesafe.ai/introduction). It doesn't write
+text; it returns calibrated odds. With a Jev key saved and **Let agents ask Jev** on, every agent
+that has tools also gets `ask_jev`:
+
+- a yes/no question ("Is this task urgent?") returns how likely yes, e.g. *96% likely yes*;
+- with options ("Which project fits? Launch, Sales, Ops") it returns the pick and each option's odds.
+
+Each question shows in the chat as an action row (*Asked Jev: Is this task urgent? — 96% likely
+yes*). Jev works with any model above, including Apple Intelligence. You don't list `ask_jev` in
+AGENT.md; it's added automatically when Jev is on.
+
 ## When Apple Intelligence isn't available
 
 Agents need a device that supports Apple Intelligence, with it turned on and its model
 downloaded. Otherwise Colony says why. You can still recruit, edit, export and read agents on
-that device. They run on your devices that support it.
+that device. They run on your devices that support it, or you can pick a cloud model in
+Settings › AI.
 
 The on-device model has a limited context window. If a conversation gets too long, Colony starts
 a fresh session and says so. **Clear Conversation** in the agent's menu does the same on purpose.

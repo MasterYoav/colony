@@ -449,8 +449,8 @@ final class AutomationEngine {
         AutomationEffects(
             notify: { [weak self] _, body in self?.notify(automation.name, body) },
             askAgent: { [weak self] id, text in
-                guard let self, let app = self.app, app.agents.isAvailable,
-                      let agent = self.container?.mainContext.agent(id), !app.agents.isRunning(agent) else { return false }
+                guard let self, let app = self.app,
+                      let agent = self.container?.mainContext.agent(id), app.agents.canRun(agent), !app.agents.isRunning(agent) else { return false }
                 app.agents.send(text, to: agent)
                 return true
             }

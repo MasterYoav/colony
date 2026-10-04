@@ -52,6 +52,12 @@ Later: background runs on iPhone and iPad with `BGTaskScheduler`, and agents tha
 - [x] Tasks + opens New Task / New List.
 - [x] Reports rebuilt around four plain questions.
 
+## Done — AI accounts and Jev
+
+- [x] Settings › AI: Apple Intelligence by default, or the user's own OpenAI, Anthropic, Gemini or OpenAI-compatible account; keys in iCloud Keychain.
+- [x] Per-agent model (⋯ › Runs On); cloud models reuse the on-device tools.
+- [x] Optional Jev: agents get `ask_jev` for calibrated yes/no and pick-one judgments.
+
 ## Then: team workspaces with CloudKit sharing
 
 The private database is single-user: it syncs one person's data across their devices. To let a team share a workspace:

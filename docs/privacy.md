@@ -5,7 +5,7 @@ permalink: /privacy/
 
 # Colony Privacy Policy
 
-**Effective 30 September 2026**
+**Effective 1 October 2026**
 
 Colony is published by Yoav Peretz, an individual developer ("I", "me"). This policy covers the
 Colony app for iPhone, iPad, Mac and Apple Vision Pro.
@@ -57,11 +57,22 @@ any time in Settings (iOS, iPadOS, visionOS) or System Settings › Privacy & Se
 **Automations.** Automations you create and their run history are stored in your iCloud with the
 rest of your workspace and run on your devices. They don't contact any server.
 
-**Agents and Apple Intelligence.** Agents run on your device with Apple Intelligence (Apple's
-on-device Foundation Models). What you write to an agent, and the workspace data it reads with its
-tools (tasks, projects, customers, channel messages, updates), is processed on the device and is not
-sent to me or to anyone else. Colony doesn't use any other AI service. Agents only read and change
-what their AGENT.md allows, and every change they make is shown in their conversation. An AGENT.md
+**Agents and Apple Intelligence.** By default, agents run on your device with Apple Intelligence
+(Apple's on-device Foundation Models). What you write to an agent, and the workspace data it reads
+with its tools (tasks, projects, customers, channel messages, updates), is processed on the device
+and is not sent to me or to anyone else. Agents only read and change what their AGENT.md allows, and
+every change they make is shown in their conversation.
+
+**AI accounts you connect (optional).** In Settings › AI you can connect your own account with
+OpenAI, Anthropic, Google (Gemini) or another OpenAI-compatible service, and choose it for some or all
+agents. When an agent runs on one of these, Colony sends that agent's instructions, its recent
+conversation and the workspace data its tools read directly from your device to that provider, using
+your API key. The provider handles it under your agreement with them and their privacy policy; it
+doesn't pass through me. You can also connect **Jev** (by TypeSafe): agents may then send it a short
+question and the facts it's about (for example a task's title and due date) to get a yes/no or
+pick-one judgment. API keys are stored in your Keychain and synced by iCloud Keychain; they are never
+stored in Colony's data or sent anywhere except to the service they belong to. Remove a key in
+Settings › AI to stop using that service. An AGENT.md
 file you import is read once and stored with the agent; Colony doesn't keep a link to the file.
 
 When you tap to email, call or FaceTime a contact, Colony hands the address or number to Apple's
@@ -74,7 +85,7 @@ Settings › Appearance. That list never leaves the device.
 
 - No analytics, telemetry or usage tracking.
 - No advertising, and no advertising identifiers.
-- No third-party SDKs that collect data.
+- No third-party SDKs that collect data. AI services are used only if you connect your own account.
 - No accounts other than your Apple Account. Colony never sees your Apple Account credentials.
 - No selling or sharing of personal data, because I never receive any.
 

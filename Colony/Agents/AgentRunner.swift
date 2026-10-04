@@ -3,8 +3,12 @@
 //  Colony
 //
 //  Runs agents on the device's own language model (Apple Intelligence, Foundation
-//  Models). Nothing leaves the device: prompts, workspace data and replies stay local;
-//  the conversation itself syncs through the user's iCloud like the rest of Colony.
+//  Models) by default: nothing leaves the device, and the conversation syncs through
+//  the user's iCloud like the rest of Colony.
+//
+//  Optionally (Settings › AI) an agent runs on the user's own cloud model instead —
+//  OpenAI, Claude, Gemini or an OpenAI-compatible server — with the same tools
+//  (CloudModel.swift). With Jev on, every agent also gets `ask_jev` (Jev.swift).
 //
 //  - Chat: a message from the user starts a turn; the reply streams in.
 //  - Schedule: agents with `schedule:` run by themselves while Colony is open (on Mac
@@ -63,7 +67,38 @@ final class AgentRunner {
     private var clock: Task<Void, Never>?
     private let log = Logger(subsystem: "yoavperetz.Colony", category: "agents")
 
-    var isAvailable: Bool { availability == .available }
+    /// Whether agents that use the default model can run.
+    var isAvailable: Bool { canUse(defaultProvider) }
+
+    var defaultProvider: AIProvider { app?.preferences.ai.provider ?? .device }
+
+    /// The model this agent runs on: its own choice, or the default.
+    func provider(for agent: Agent) -> AIProvider {
+        AIProvider(rawValue: agent.brainRaw) ?? defaultProvider
+    }
+
+    func canRun(_ agent: Agent) -> Bool { canUse(provider(for: agent)) }
+
+    func canUse(_ provider: AIProvider) -> Bool {
+        guard provider.isCloud else { return availability == .available }
+        guard let app else { return false }
+        return app.ai.isReady(provider, settings: app.preferences.ai)
+    }
+
+    /// Why the agent can't run, in plain words.
+    func unavailableMessage(for provider: AIProvider) -> String {
+        guard provider.isCloud else {
+            return availability.message + " You can also connect your own AI account in Settings › AI."
+        }
+        if provider == .custom { return "Set the server address and model for your custom AI server in Settings › AI." }
+        return "Add your \(provider.title) API key in Settings › AI to run this agent."
+    }
+
+    /// Jev's key when "Let agents ask Jev" is on.
+    var jevKey: String? {
+        guard let app, app.preferences.ai.jevEnabled else { return nil }
+        return app.ai.jevKey
+    }
 
     func attach(_ container: ModelContainer, app: AppModel) {
         guard self.container == nil else { return }
@@ -140,8 +175,8 @@ final class AgentRunner {
 
     private func start(_ agent: Agent, prompt: String, trigger: Trigger) {
         guard let container, !running.contains(agent.uuid) else { return }
-        guard isAvailable else {
-            note(availability.message, to: agent)
+        guard canRun(agent) else {
+            note(unavailableMessage(for: provider(for: agent)), to: agent)
             return
         }
         guard agent.isEnabled || trigger == .chat else { return }
@@ -163,21 +198,36 @@ final class AgentRunner {
     private func turn(agentID: UUID, prompt: String, trigger: Trigger, container: ModelContainer) async {
         let context = container.mainContext
         guard let agent = fetch(agentID) else { return }
-        let session = session(for: agent, container: container)
+        let provider = provider(for: agent)
         var reply: AgentMessage?
 
         do {
-            let stream = session.streamResponse(to: prompt, options: GenerationOptions(temperature: 0.4))
-            for try await snapshot in stream {
+            if provider.isCloud, let app, let config = app.ai.config(for: provider, settings: app.preferences.ai) {
+                // Cloud: earlier messages go as chat history; the reply arrives whole.
+                let history = cloudHistory(agent, excluding: trigger == .chat ? prompt : nil)
+                let tools = tools(for: agent, container: container)
+                let system = instructions(for: agent, includeHistory: false, hasJev: tools.contains { $0.name == AskJevTool.toolName })
+                let text = try await CloudModel.respond(config, system: system, history: history, prompt: prompt, tools: tools)
                 try Task.checkCancellation()
-                let text = snapshot.content
-                guard !ColonyText.trimmed(text).isEmpty else { continue }
-                if reply == nil, let agent = fetch(agentID) {
-                    let message = AgentMessage(role: .agent, body: "", agent: agent, sequence: nextSequence(agent))
+                if !ColonyText.trimmed(text).isEmpty, let agent = fetch(agentID) {
+                    let message = AgentMessage(role: .agent, body: text, agent: agent, sequence: nextSequence(agent))
                     context.insert(message)
                     reply = message
                 }
-                reply?.body = text
+            } else {
+                let session = session(for: agent, container: container)
+                let stream = session.streamResponse(to: prompt, options: GenerationOptions(temperature: 0.4))
+                for try await snapshot in stream {
+                    try Task.checkCancellation()
+                    let text = snapshot.content
+                    guard !ColonyText.trimmed(text).isEmpty else { continue }
+                    if reply == nil, let agent = fetch(agentID) {
+                        let message = AgentMessage(role: .agent, body: "", agent: agent, sequence: nextSequence(agent))
+                        context.insert(message)
+                        reply = message
+                    }
+                    reply?.body = text
+                }
             }
             guard let agent = fetch(agentID) else { return }
             if agent.status != .waiting { agent.status = .done }
@@ -221,18 +271,34 @@ final class AgentRunner {
     /// One session per agent, kept while Colony runs so the model remembers the chat.
     /// Rebuilt when the agent's definition changes; seeded with recent history.
     private func session(for agent: Agent, container: ModelContainer) -> LanguageModelSession {
-        let signature = [agent.name, agent.instructions, agent.toolsRaw].joined(separator: "\u{1F}")
+        let hasJev = jevKey != nil && !agent.tools.isEmpty
+        let signature = [agent.name, agent.instructions, agent.toolsRaw, hasJev ? "jev" : ""].joined(separator: "\u{1F}")
         if let cached = sessions[agent.uuid], cached.signature == signature {
             return cached.session
         }
-        let bridge = AgentBridge(container: container, agentID: agent.uuid)
-        let tools = AgentToolbox.tools(for: agent.tools, bridge: bridge)
-        let session = LanguageModelSession(tools: tools, instructions: instructions(for: agent))
+        let tools = tools(for: agent, container: container)
+        let session = LanguageModelSession(tools: tools, instructions: instructions(for: agent, hasJev: hasJev))
         sessions[agent.uuid] = (session, signature)
         return session
     }
 
-    func instructions(for agent: Agent) -> String {
+    /// The agent's AGENT.md tools, plus ask_jev when Jev is on (agents with no tools
+    /// only chat, so they don't get it either).
+    private func tools(for agent: Agent, container: ModelContainer) -> [any Tool] {
+        let bridge = AgentBridge(container: container, agentID: agent.uuid)
+        var tools = AgentToolbox.tools(for: agent.tools, bridge: bridge)
+        if let key = jevKey, !tools.isEmpty { tools.append(AskJevTool(bridge: bridge, key: key)) }
+        return tools
+    }
+
+    /// Recent chat for a cloud model, oldest first, without the message being answered.
+    private func cloudHistory(_ agent: Agent, excluding prompt: String?) -> [ChatLine] {
+        var lines = agent.sortedMessages.filter { $0.role == .user || $0.role == .agent }
+        if let prompt, let last = lines.last, last.role == .user, last.body == prompt { lines.removeLast() }
+        return lines.suffix(20).map { ChatLine(role: $0.role == .user ? .user : .assistant, text: String($0.body.prefix(2000))) }
+    }
+
+    func instructions(for agent: Agent, includeHistory: Bool = true, hasJev: Bool = false) -> String {
         let now = Date.now
         let today = now.formatted(.dateTime.weekday(.wide).day().month(.wide).year())
         let time = now.formatted(date: .omitted, time: .shortened)
@@ -242,12 +308,12 @@ final class AgentRunner {
         Today is \(today), \(time). The user is \(app?.preferences.displayName ?? "the user").
         \(toolNames.isEmpty ? "You have no tools; answer from the conversation only." : "Use your tools (\(toolNames)) to look things up before answering; never invent tasks, customers or messages.")
         Keep replies short and plain: a few lines or a short list. Don't use Markdown headings.
-
+        \(hasJev ? "For judgment calls (is this urgent, is this customer at risk, which project fits), ask Jev with ask_jev and follow its answer.\n" : "")
         """
         text += agent.instructions
         // Earlier conversation (from this or another device) so a new session has context.
         let history = agent.sortedMessages.filter { $0.role == .user || $0.role == .agent }.suffix(8)
-        if !history.isEmpty {
+        if includeHistory, !history.isEmpty {
             text += "\n\nEarlier conversation, most recent last:\n"
             text += history.map { "\($0.role == .user ? "User" : agent.name): \($0.body.prefix(300))" }.joined(separator: "\n")
         }
@@ -263,9 +329,9 @@ final class AgentRunner {
     /// Runs each enabled, scheduled agent whose latest slot hasn't run yet. Slots older
     /// than two hours are skipped (the Mac was asleep), not run late.
     func runDueSchedules(now: Date = .now) {
-        guard isAvailable, let context = container?.mainContext else { return }
+        guard let context = container?.mainContext else { return }
         let agents = ((try? context.fetch(FetchDescriptor<Agent>())) ?? []).filter { $0.isEnabled && !$0.isDeleted }
-        for agent in agents {
+        for agent in agents where canRun(agent) {
             guard let schedule = agent.schedule, let slot = schedule.lastSlot(before: now) else { continue }
             guard slot > (agent.lastScheduledSlot ?? agent.createdAt) else { continue }
             agent.lastScheduledSlot = slot

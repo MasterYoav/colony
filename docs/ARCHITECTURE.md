@@ -1,6 +1,6 @@
 # Architecture
 
-Colony is a native Apple app. All data lives in the user's iCloud account and every integration uses a built-in Apple framework. There is no Colony server and no third-party SDK.
+Colony is a native Apple app. All data lives in the user's iCloud account and every integration uses a built-in Apple framework. There is no Colony server and no third-party SDK. The only optional exceptions are AI services the user connects with their own keys (Settings › AI).
 
 ## Storage
 
@@ -34,7 +34,8 @@ Before the first App Store release, deploy the schema to production in the Cloud
 | Share, Mail, Phone, FaceTime | `ShareLink`, `mailto:`, `tel:`, `facetime:` | Hands off to system apps. |
 | Due-date notifications | UserNotifications | Local alerts with Complete / Snooze; also agent notices. |
 | Colony calendar | EventKit (`EKEvent`) | Dated tasks, automation and agent schedules. |
-| Agents | Foundation Models (`LanguageModelSession`, `Tool`) | On-device only. See below. |
+| Agents | Foundation Models (`LanguageModelSession`, `Tool`) | On device by default; optional cloud models and Jev with the user's own keys. See below. |
+| AI keys | Security (Keychain, `kSecAttrSynchronizable`) | Synced by iCloud Keychain; never in SwiftData or KVS. |
 | Identity | iCloud account | No separate sign-up. |
 
 ## Agents
@@ -44,6 +45,10 @@ An agent is an `Agent` record built from an AGENT.md file (`Agents/AgentDefiniti
 Tools (`Agents/AgentTools.swift`) are Foundation Models `Tool`s that hop to the main actor and call `AgentWorkspace`, which reads the SwiftData context and changes it only through `WorkspaceActions`. Each change also adds an action row to the conversation. `AgentWorkspace` is plain Swift, so `AgentTests` covers the tools without a model.
 
 Schedules run from a one-minute clock while the app is open. `Agent.lastScheduledSlot` syncs through iCloud, so each slot runs once across devices.
+
+**Cloud models (optional).** `Agent.brainRaw` picks the model per agent (empty = the default in `AISettings`, a KVS preference). For OpenAI, Anthropic, Gemini and OpenAI-compatible servers, `AI/CloudModel.swift` runs a tool-calling loop over the *same* Foundation Models `Tool`s: each tool's `parameters` (`GenerationSchema`) encodes to JSON Schema, and the model's JSON arguments decode back with `GeneratedContent(json:)`. Each provider's wire format is a small `ChatFormat` value with pure request/parse functions, unit-tested without the network (`AITests`). Keys come from the Keychain (`AIAccounts`).
+
+**Jev (optional).** `AI/Jev.swift` calls TypeSafe's System One API. With Jev on, `AgentRunner` adds `AskJevTool` (`ask_jev`) to every agent that has tools; answers are recorded as action rows.
 
 ## Automations
 
@@ -56,6 +61,7 @@ Colony/
   App/            ColonyApp entry, AppModel (navigation + sheets), RootView, starter content
   Models/         SwiftData models, WorkspaceActions (every mutation goes through here)
   Agents/         AGENT.md format, runner (Foundation Models), tools, agent screens
+  AI/             AI accounts and Keychain, cloud model client, Jev
   Automations/    AutomationEngine, recipes, flow builder screens
   Services/       CloudStore, CloudPreferences, AppleServices (Contacts, Reminders)
   Sidebar/        Rail + expandable panel + collapsed icon column

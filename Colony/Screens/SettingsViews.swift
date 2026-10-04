@@ -19,7 +19,7 @@ import UniformTypeIdentifiers
 import UserNotifications
 
 enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
-    case profile, general, sidebar, appearance, iCloud, notifications, calendar, reminders, contacts, privacy, about
+    case profile, general, sidebar, appearance, ai, iCloud, notifications, calendar, reminders, contacts, privacy, about
 
     var id: String { rawValue }
 
@@ -29,6 +29,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: "General"
         case .sidebar: "Sidebar"
         case .appearance: "Appearance"
+        case .ai: "AI"
         case .iCloud: "iCloud"
         case .notifications: "Notifications"
         case .calendar: "Calendar"
@@ -45,6 +46,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: "gearshape.fill"
         case .sidebar: "sidebar.left"
         case .appearance: "circle.lefthalf.filled"
+        case .ai: "sparkles"
         case .iCloud: "icloud.fill"
         case .notifications: "bell.badge.fill"
         case .calendar: "calendar"
@@ -62,6 +64,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: Color(white: 0.55)
         case .sidebar: Color(red: 0.36, green: 0.42, blue: 0.95)
         case .appearance: Color(white: 0.16)
+        case .ai: Color(red: 0.55, green: 0.36, blue: 0.96)
         case .iCloud: Color(red: 0.20, green: 0.55, blue: 0.98)
         case .notifications: Color(red: 0.96, green: 0.26, blue: 0.27)
         case .calendar: Color(red: 0.93, green: 0.33, blue: 0.33)
@@ -79,6 +82,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         case .general: "workspace name keyboard shortcuts"
         case .sidebar: "hide show items reorder customize crm reports inbox agents automations music workspace"
         case .appearance: "theme dark light mode font typeface"
+        case .ai: "agents model apple intelligence openai chatgpt gpt anthropic claude google gemini openrouter ollama api key jev typesafe"
         case .iCloud: "sync cloudkit storage"
         case .notifications: "alerts due dates background remind tasks sound"
         case .calendar: "apple calendar events schedule automations dated tasks"
@@ -394,6 +398,7 @@ private struct SettingsPage: View {
             case .general: GeneralPage()
             case .sidebar: SidebarSettingsPage()
             case .appearance: AppearancePage()
+            case .ai: AISettingsPage()
             case .iCloud: ICloudPage()
             case .notifications: NotificationsPage()
             case .calendar: CalendarPage()
@@ -407,7 +412,7 @@ private struct SettingsPage: View {
 }
 
 /// Big icon, title and one line of explanation at the top of a service page.
-private struct PageHeader: View {
+struct PageHeader: View {
     let section: SettingsSection
     let text: String
 
@@ -1121,13 +1126,15 @@ private struct ContactsPage: View {
 // MARK: Privacy
 
 private struct PrivacyPage: View {
-    var body: some View {
-        PageHeader(section: .privacy, text: "Colony collects no data about you. Nothing leaves your devices except to your own iCloud.")
+    @Environment(AppModel.self) private var app
 
-        SettingsGroup {
+    var body: some View {
+        PageHeader(section: .privacy, text: "Colony collects no data about you. Nothing leaves your devices except to your own iCloud, and to AI accounts you connect yourself.")
+
+        SettingsGroup(footer: "AI services are optional and use your own accounts. Change them in Settings › AI.") {
             SettingsRow("Tracking") { value("None") }
             SettingsRow("Analytics") { value("None") }
-            SettingsRow("Third-party services") { value("None") }
+            SettingsRow("Third-party services") { value(connectedServices) }
             SettingsRow("Where your data lives") { value("Your iCloud") }
         }
 
@@ -1138,6 +1145,13 @@ private struct PrivacyPage: View {
 
     private func value(_ text: String) -> some View {
         Text(text).appFont(.system(size: 13)).foregroundStyle(Theme.secondaryText)
+    }
+
+    /// The AI services the user connected and that agents actually use.
+    private var connectedServices: String {
+        var names = AIProvider.allCases.filter { $0.isCloud && app.agents.canUse($0) }.map(\.shortTitle)
+        if app.preferences.ai.jevEnabled, app.ai.hasJevKey { names.append("Jev") }
+        return names.isEmpty ? "None" : names.joined(separator: ", ")
     }
 }
 

@@ -30,6 +30,8 @@ final class Agent {
     /// Suggested prompts shown in an empty chat, one per line.
     var promptsRaw: String = ""
     var isEnabled: Bool = true
+    /// `AIProvider` raw value; empty = the default from Settings › AI.
+    var brainRaw: String = ""
     var statusRaw: String = AgentStatus.idle.rawValue
     var lastRunAt: Date?
     /// The schedule slot last run (by any device), so a slot runs once.

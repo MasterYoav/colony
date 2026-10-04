@@ -23,7 +23,7 @@ struct AgentsHome: View {
             VStack(alignment: .leading, spacing: 22) {
                 header
                 if !app.agents.isAvailable {
-                    AvailabilityBanner(availability: app.agents.availability)
+                    AvailabilityBanner(provider: app.agents.defaultProvider)
                 }
                 if agents.isEmpty {
                     EmptyStateView(symbol: "person.2.badge.plus", title: "No agents yet", message: "Recruit one from an AGENT.md file or a template.", actionTitle: "Recruit an agent") {
@@ -170,9 +170,10 @@ struct AgentMenuItems: View {
     var body: some View {
         Button("Open", systemImage: "bubble.left.and.text.bubble.right") { app.go(.agent(agent.uuid)) }
         Button("Run Now", systemImage: "play.fill") { app.agents.runNow(agent) }
-            .disabled(!app.agents.isAvailable || app.agents.isRunning(agent))
+            .disabled(!app.agents.canRun(agent) || app.agents.isRunning(agent))
         Divider()
         Button("Edit AGENT.md…", systemImage: "doc.text") { app.present(.editAgent(agent.uuid)) }
+        AgentModelMenu(agent: agent)
         Button(agent.isEnabled ? "Pause Schedule" : "Resume Schedule", systemImage: agent.isEnabled ? "pause.circle" : "play.circle") {
             agent.isEnabled.toggle()
         }
@@ -216,27 +217,52 @@ struct AgentStatusBadge: View {
 }
 
 private struct AvailabilityBanner: View {
-    let availability: AgentRunner.Availability
+    @Environment(AppModel.self) private var app
+    let provider: AIProvider
 
     var body: some View {
+        let device = !provider.isCloud
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: availability == .downloading ? "arrow.down.circle" : "apple.intelligence")
+            Image(systemName: device && app.agents.availability == .downloading ? "arrow.down.circle" : provider.symbol)
                 .appFont(.system(size: 15))
                 .foregroundStyle(ColonyColor.orange.color)
             VStack(alignment: .leading, spacing: 2) {
-                Text(availability.title)
+                Text(device ? app.agents.availability.title : "Connect \(provider.title)")
                     .appFont(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.text)
-                Text(availability.message)
+                Text(app.agents.unavailableMessage(for: provider))
                     .appFont(.system(size: 12.5))
                     .foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
+            Button("AI Settings") { app.openSettings(.ai) }
+                .buttonStyle(.dialogSecondary)
         }
         .padding(12)
         .background(ColonyColor.orange.color.opacity(0.08), in: .rect(cornerRadius: 10, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(ColonyColor.orange.color.opacity(0.25)) }
+    }
+}
+
+/// "Runs On" submenu: the default model, this device, or one of the user's AI accounts.
+struct AgentModelMenu: View {
+    @Environment(AppModel.self) private var app
+    let agent: Agent
+
+    var body: some View {
+        Menu("Runs On", systemImage: "cpu") {
+            Picker("Runs On", selection: Binding(get: { agent.brainRaw }, set: { agent.brainRaw = $0 })) {
+                Text("Default (\(app.agents.defaultProvider.shortTitle))").tag("")
+                ForEach(AIProvider.allCases) { provider in
+                    Text(app.agents.canUse(provider) ? provider.shortTitle : "\(provider.shortTitle) (not set up)")
+                        .tag(provider.rawValue)
+                }
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button("AI Settings…", systemImage: "gearshape") { app.openSettings(.ai) }
+        }
     }
 }
 
@@ -254,8 +280,8 @@ struct AgentPage: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if !app.agents.isAvailable {
-                AvailabilityBanner(availability: app.agents.availability)
+            if !app.agents.canRun(agent) {
+                AvailabilityBanner(provider: app.agents.provider(for: agent))
                     .padding(.horizontal, 22)
                     .padding(.top, 12)
             }
@@ -287,6 +313,11 @@ struct AgentPage: View {
                     .foregroundStyle(Theme.text)
                 HStack(spacing: 8) {
                     AgentStatusBadge(agent: agent)
+                    let provider = app.agents.provider(for: agent)
+                    Label(provider.shortTitle, systemImage: provider.symbol)
+                        .appFont(.system(size: 11.5))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .help("Runs on \(provider.title). Change it in the ⋯ menu.")
                     if let schedule = agent.schedule {
                         Label(schedule.label, systemImage: "clock")
                             .appFont(.system(size: 11.5))
@@ -302,7 +333,7 @@ struct AgentPage: View {
             } else {
                 Button { app.agents.runNow(agent) } label: { Label("Run now", systemImage: "play.fill") }
                     .buttonStyle(.dialogSecondary)
-                    .disabled(!app.agents.isAvailable)
+                    .disabled(!app.agents.canRun(agent))
                     .help("Do its job now, as on a scheduled run")
             }
             Menu {
@@ -310,6 +341,7 @@ struct AgentPage: View {
                 Button("Export AGENT.md…", systemImage: "square.and.arrow.up") { isExporting = true }
                 ShareLink("Share AGENT.md", item: agent.definition.markdown, subject: Text("\(agent.name) · AGENT.md"))
                 Divider()
+                AgentModelMenu(agent: agent)
                 Button(agent.isEnabled ? "Pause Schedule" : "Resume Schedule", systemImage: agent.isEnabled ? "pause.circle" : "play.circle") { agent.isEnabled.toggle() }
                     .disabled(agent.schedule == nil)
                 Button("Clear Conversation", systemImage: "eraser") { app.agents.clearHistory(agent) }
@@ -393,7 +425,7 @@ struct AgentPage: View {
                         .overlay { Capsule().strokeBorder(agent.color.color.opacity(0.25)) }
                 }
                 .buttonStyle(.plain)
-                .disabled(!app.agents.isAvailable || app.agents.isRunning(agent))
+                .disabled(!app.agents.canRun(agent) || app.agents.isRunning(agent))
             }
         }
         .padding(.leading, 44)
@@ -401,7 +433,7 @@ struct AgentPage: View {
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField(app.agents.isAvailable ? "Message \(agent.name)" : "Apple Intelligence isn't available", text: $draft, axis: .vertical)
+            TextField(app.agents.canRun(agent) ? "Message \(agent.name)" : "\(app.agents.provider(for: agent).shortTitle) isn't set up yet", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .fontRole(.data)
                 .lineLimit(1...6)
@@ -409,7 +441,7 @@ struct AgentPage: View {
                 .onSubmit { send(draft) }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .disabled(!app.agents.isAvailable)
+                .disabled(!app.agents.canRun(agent))
             Button { send(draft) } label: {
                 Image(systemName: "arrow.up")
                     .appFont(.system(size: 13, weight: .bold))
@@ -429,11 +461,11 @@ struct AgentPage: View {
     }
 
     private var canSend: Bool {
-        app.agents.isAvailable && !app.agents.isRunning(agent) && !ColonyText.trimmed(draft).isEmpty
+        app.agents.canRun(agent) && !app.agents.isRunning(agent) && !ColonyText.trimmed(draft).isEmpty
     }
 
     private func send(_ text: String) {
-        guard app.agents.isAvailable, !app.agents.isRunning(agent), !ColonyText.trimmed(text).isEmpty else { return }
+        guard app.agents.canRun(agent), !app.agents.isRunning(agent), !ColonyText.trimmed(text).isEmpty else { return }
         app.agents.send(text, to: agent)
         draft = ""
         focused = true

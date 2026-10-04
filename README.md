@@ -6,7 +6,7 @@
 
 projects, tasks, team channels, and a lightweight CRM in one native SwiftUI app for iPhone, iPad and Mac.
 
-There's no Colony server and no third-party SDK. Your data lives in your iCloud account, and integrations use Apple's built-in apps.
+There's no Colony server and no third-party SDK. Your data lives in your iCloud account, and integrations use Apple's built-in apps. AI services are optional and use your own accounts.
 
 [![CI](https://github.com/MasterYoav/colony/actions/workflows/swift.yml/badge.svg)](https://github.com/MasterYoav/colony/actions/workflows/swift.yml)
 [![Swift](https://img.shields.io/badge/Swift-F54A2A?logo=swift&logoColor=white)](https://developer.apple.com/swift/)
@@ -19,7 +19,7 @@ There's no Colony server and no third-party SDK. Your data lives in your iCloud 
 
 - **iCloud storage.** SwiftData models are mirrored to your private CloudKit database. Preferences, such as appearance and sidebar layout, sync through iCloud key-value storage.
 - **Apple services.** Import people from Contacts, mirror due dates into Reminders, and reach contacts through Mail, Phone, FaceTime and the share sheet.
-- **Agents.** On-device assistants powered by Apple Intelligence. Recruit one from an `AGENT.md` file, a template, or write your own. Agents read and change your tasks, customers and channels through the same actions you use, run on a schedule, and ask before big changes. See [Agents](docs/AGENTS.md).
+- **Agents.** On-device assistants powered by Apple Intelligence. Recruit one from an `AGENT.md` file, a template, or write your own. Agents read and change your tasks, customers and channels through the same actions you use, run on a schedule, and ask before big changes. Optionally run them on your own OpenAI, Claude or Gemini account, and let them ask [Jev](https://docs.typesafe.ai/introduction) for calibrated judgment calls (Settings › AI). See [Agents](docs/AGENTS.md).
 - **Automations.** "When this happens, do that" for beginners, built from blocks instead of code: pick a trigger (a new task, a deal won, a message, a time of day), optional filters, and steps. Each automation reads as one sentence, can be tested without changing anything, and keeps a run log. Start from 8 recipes. See [Automations](docs/AUTOMATIONS.md).
 - **Tasks like Reminders.** Smart lists, due-time notifications, and an optional Colony calendar in Apple Calendar.
 - **Keyboard-first on Mac.** The ⌘K command center searches actions, projects, tasks and contacts. ⌘N creates a task, ⌘⇧N a project, and ⌃⌘S collapses the sidebar.
@@ -70,6 +70,7 @@ Colony/
   App/           app model, root view, starter content
   Models/        SwiftData models and WorkspaceActions (the single mutation path)
   Agents/        AGENT.md format, on-device runner (Foundation Models), tools, agent screens
+  AI/            AI accounts (Keychain), cloud model client, Jev
   Automations/   Automation engine (triggers, filters, steps, schedules), recipes, flow builder
   Services/      CloudStore (SwiftData + CloudKit), CloudPreferences (iCloud KVS), Apple services
   Sidebar/       sidebar, drag-and-drop layout

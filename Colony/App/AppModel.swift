@@ -186,6 +186,8 @@ final class AppModel {
     let scheduler = TaskScheduler()
     /// Runs agents on the on-device model.
     let agents = AgentRunner()
+    /// The user's AI accounts (API keys in the Keychain) for agents and Jev.
+    let ai = AIAccounts()
     /// Runs automations when the workspace changes or their time comes.
     let automations = AutomationEngine()
     /// Colony is the frontmost app (for skipping notifications about what you're looking at).

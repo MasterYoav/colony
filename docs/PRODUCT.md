@@ -4,7 +4,7 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 
 ## Principles
 
-- **Your iCloud, your data.** Everything is stored in the user's private iCloud database. Colony runs no server and uses no third-party services.
+- **Your iCloud, your data.** Everything is stored in the user's private iCloud database. Colony runs no server and uses no third-party services, except AI accounts the user chooses to connect.
 - **Apple-native integrations.** Contacts, Reminders, Calendar, notifications, Music, Mail, Phone, FaceTime and the share sheet instead of external accounts.
 - **Calm by default.** Dark, low-contrast chrome, hairline borders and quiet counts. Color is reserved for projects and status.
 - **Fast everywhere.** Navigation is instant and data is local-first; CloudKit syncs in the background.
@@ -19,7 +19,7 @@ Colony is a private workspace for Apple devices. It brings projects and tasks, c
 - **Channel / Message**: threaded notes and conversations.
 - **Customer**: a person in the CRM with a deal stage and an optional deal value. Can be imported from Apple Contacts.
 - **Activity**: the Updates feed of what changed.
-- **Agents**: on-device assistants, each defined by an AGENT.md file, that read and change the workspace through the same actions you use. See [Agents](AGENTS.md).
+- **Agents**: on-device assistants, each defined by an AGENT.md file, that read and change the workspace through the same actions you use. They run on Apple Intelligence by default, or on the user's own OpenAI, Claude or Gemini account, and can ask Jev for judgment calls. See [Agents](AGENTS.md).
 - **Automations**: beginner-friendly "when … only if … then …" flows built from blocks, with a plain-English sentence, a test run and a run log. See [Automations](AUTOMATIONS.md).
 
 ## Navigation
@@ -36,4 +36,3 @@ The sidebar follows the reference design:
 - Multi-person workspaces (see Roadmap: CloudKit sharing).
 - Voice and video.
 - Importers from Slack, Discord or other tools.
-- Cloud AI. Agents use Apple Intelligence on the device only.

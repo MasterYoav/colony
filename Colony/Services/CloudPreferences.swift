@@ -61,6 +61,7 @@ final class CloudPreferences {
         static let sidebarSetups = "sidebarSetups"
         static let currentWorkspace = "currentWorkspaceID"
         static let originalWorkspaceColor = "originalWorkspaceColor"
+        static let aiSettings = "aiSettings"
     }
 
     private let store: NSUbiquitousKeyValueStore?
@@ -103,6 +104,8 @@ final class CloudPreferences {
     /// Each workspace's sidebar (order, hidden items), keyed by workspace ID. Roams via iCloud.
     var sidebarSetups: [String: SidebarSetup] { didSet { writeJSON(sidebarSetups, Key.sidebarSetups) } }
     var originalWorkspaceColor: ColonyColor { didSet { write(originalWorkspaceColor.rawValue, Key.originalWorkspaceColor) } }
+    /// Which model runs agents, chosen models, Jev on/off. Keys are in the Keychain, not here.
+    var ai: AISettings { didSet { writeJSON(ai, Key.aiSettings) } }
     /// The open workspace. Per device, like an open window.
     var currentWorkspaceID: String {
         didSet {
@@ -142,6 +145,7 @@ final class CloudPreferences {
         extraWorkspaces = storedWorkspaces
         sidebarSetups = Self.decode(read(Key.sidebarSetups)) ?? [:]
         originalWorkspaceColor = ColonyColor(rawValue: read(Key.originalWorkspaceColor) ?? "") ?? .blue
+        ai = Self.decode(read(Key.aiSettings)) ?? AISettings()
         let current = defaults.string(forKey: Key.currentWorkspace) ?? WorkspaceInfo.originalID
         let known = storedWorkspaces.map(\.id)
         let open = (current == WorkspaceInfo.originalID || known.contains(current)) ? current : WorkspaceInfo.originalID
@@ -186,6 +190,7 @@ final class CloudPreferences {
         }
         if let value: [String: SidebarSetup] = Self.decode(store.data(forKey: Key.sidebarSetups)), value != sidebarSetups { sidebarSetups = value }
         if let raw = store.string(forKey: Key.originalWorkspaceColor), let value = ColonyColor(rawValue: raw), value != originalWorkspaceColor { originalWorkspaceColor = value }
+        if let value: AISettings = Self.decode(store.data(forKey: Key.aiSettings)), value != ai { ai = value }
     }
 
     private func write(_ value: Any, _ key: String) {
