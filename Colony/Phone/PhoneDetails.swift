@@ -51,7 +51,7 @@ struct PhoneContactDetail: View {
                     }
                 }
                 LabeledContent("Value") {
-                    TextField("0", value: Binding(get: { contact.dealValue }, set: { WorkspaceActions(context: context).setDealValue($0, for: contact) }),
+                    TextField("None", value: Binding(get: { contact.dealValue == 0 ? nil : contact.dealValue }, set: { WorkspaceActions(context: context).setDealValue($0 ?? 0, for: contact) }),
                               format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
@@ -106,7 +106,9 @@ struct PhoneContactDetail: View {
     private func action(_ title: String, _ symbol: String, url: URL?) -> some View {
         Button { if let url { openURL(url) } } label: {
             VStack(spacing: 5) {
-                Image(systemName: symbol).appFont(.system(size: 18, weight: .semibold))
+                Image(systemName: symbol)
+                    .appFont(.system(size: 18, weight: .semibold))
+                    .frame(height: 22)
                 Text(title).appFont(.system(size: 12, weight: .medium))
             }
             .frame(maxWidth: .infinity, minHeight: 58)
@@ -168,19 +170,31 @@ struct PhoneTaskDetail: View {
 
             Section {
                 Toggle(isOn: hasDate) {
-                    Label { Text("Date") } icon: { CircleIcon(symbol: "calendar", color: ColonyColor.red.color, size: 30) }
+                    Label {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Date")
+                            if let due = task.dueDate {
+                                Text(DueText.day(due)).appFont(.system(size: 14)).foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    } icon: { CircleIcon(symbol: "calendar", color: ColonyColor.red.color, size: 30) }
                 }
                 if task.dueDate != nil {
                     DatePicker("Date", selection: date, displayedComponents: .date)
                         .datePickerStyle(.graphical)
                 }
-                Toggle(isOn: hasTime) {
-                    Label { Text("Time") } icon: { CircleIcon(symbol: "clock.fill", color: ColonyColor.blue.color, size: 30) }
+                HStack {
+                    Toggle(isOn: hasTime) {
+                        Label { Text("Time") } icon: { CircleIcon(symbol: "clock.fill", color: ColonyColor.blue.color, size: 30) }
+                    }
+                    .fixedSize()
+                    Spacer()
+                    if task.dueDate != nil && task.dueHasTime {
+                        DatePicker("Time", selection: date, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                    }
                 }
                 .disabled(task.dueDate == nil)
-                if task.dueDate != nil && task.dueHasTime {
-                    DatePicker("Time", selection: date, displayedComponents: .hourAndMinute)
-                }
             }
 
             Section {

@@ -219,11 +219,12 @@ private struct AppFontModifier: ViewModifier {
     @Environment(\.appTypefaces) private var typefaces
     @Environment(\.fontRole) private var inheritedRole
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.appFontBoost) private var boost
 
     func body(content: Content) -> some View {
         let role = role ?? inheritedRole
         let size = role == .ui ? min(typeSize, .accessibility2) : typeSize
-        content.font(font.resolved(family: typefaces.family(for: role), scale: TextScale.factor(for: size)))
+        content.font(font.resolved(family: typefaces.family(for: role), scale: TextScale.factor(for: size) * boost))
     }
 }
 
@@ -252,4 +253,10 @@ public enum TextScale {
         return body / 17
         #endif
     }
+}
+
+extension EnvironmentValues {
+    /// Extra multiplier for fixed-size fonts in a subtree: views designed at Mac sizes
+    /// (11–13 pt) read at iPhone sizes when shown there.
+    @Entry var appFontBoost: CGFloat = 1
 }

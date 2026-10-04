@@ -436,6 +436,7 @@ struct AutomationEditor: View {
                         phoneStatus.padding(.bottom, 14)
                     }
                     SentenceCard(automation: automation, names: names)
+                        .environment(\.appFontBoost, isPhone ? 1.15 : 1)
                         .padding(.bottom, 18)
                     if let test {
                         TestResultCard(outcome: test, note: testNote, onRun: runForReal, onClose: { withMotion(.snappy(duration: 0.2)) { self.test = nil } })
@@ -443,7 +444,9 @@ struct AutomationEditor: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                     flow(names)
+                        .environment(\.appFontBoost, isPhone ? 1.22 : 1)
                     RunHistory(automation: automation)
+                        .environment(\.appFontBoost, isPhone ? 1.22 : 1)
                         .padding(.top, 34)
                 }
                 .frame(maxWidth: 560)
@@ -1222,12 +1225,22 @@ private struct ConditionRow: View {
 }
 
 private struct InlineChrome: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     func body(content: Content) -> some View {
-        content
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(Theme.field, in: .rect(cornerRadius: 7, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.strongStroke) }
+        if sizeClass == .compact {
+            // iPhone: a filled field like Settings, no outline.
+            content
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(Theme.text.opacity(0.07), in: .rect(cornerRadius: 12, style: .continuous))
+        } else {
+            content
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Theme.field, in: .rect(cornerRadius: 7, style: .continuous))
+                .overlay { RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Theme.strongStroke) }
+        }
     }
 }
 
@@ -1235,11 +1248,12 @@ private struct InlineField: View {
     let placeholder: String
     @Binding var text: String
     var multiline = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
         TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(Theme.tertiaryText), axis: multiline ? .vertical : .horizontal)
             .textFieldStyle(.plain)
-            .appFont(.system(size: 12.5), role: .data)
+            .appFont(.system(size: sizeClass == .compact ? 14 : 12.5), role: .data)
             .foregroundStyle(Theme.text)
             .lineLimit(multiline ? 1...4 : 1...1)
             .modifier(InlineChrome())
@@ -1324,10 +1338,26 @@ private struct TextWithTokens: View {
     let subject: AutomationSubjectKind
     var multiline = false
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// Blanks read the same as in the sentence: "{task}" shows as "[Task name]".
+    private var friendly: Binding<String> {
+        Binding(get: { Self.display(text, subject.tokens) }, set: { text = Self.store($0, subject.tokens) })
+    }
+
+    static func display(_ raw: String, _ tokens: [(token: String, title: String)]) -> String {
+        tokens.reduce(raw) { $0.replacingOccurrences(of: $1.token, with: "[\($1.title)]") }
+    }
+
+    static func store(_ shown: String, _ tokens: [(token: String, title: String)]) -> String {
+        tokens.reduce(shown) { $0.replacingOccurrences(of: "[\($1.title)]", with: $1.token) }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            InlineField(placeholder: placeholder, text: $text, multiline: multiline)
-            HStack(spacing: 5) {
+        let compact = sizeClass == .compact
+        VStack(alignment: .leading, spacing: compact ? 8 : 6) {
+            InlineField(placeholder: placeholder, text: friendly, multiline: multiline)
+            FlowLayout(spacing: 5) {
                 Text("Insert")
                     .appFont(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
@@ -1337,10 +1367,10 @@ private struct TextWithTokens: View {
                         text += spacer + token.token
                     } label: {
                         Text(token.title)
-                            .appFont(.system(size: 11, weight: .medium))
+                            .appFont(.system(size: compact ? 12 : 11, weight: .medium))
                             .foregroundStyle(ColonyColor.blue.color)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2.5)
+                            .padding(.horizontal, compact ? 10 : 7)
+                            .padding(.vertical, compact ? 5 : 2.5)
                             .background(ColonyColor.blue.color.opacity(0.1), in: Capsule())
                             .contentShape(Capsule())
                     }

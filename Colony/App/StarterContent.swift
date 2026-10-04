@@ -13,6 +13,7 @@ import SwiftData
 @MainActor
 enum StarterContent {
     static func seedIfNeeded(context: ModelContext, preferences: CloudPreferences) {
+        retireMacOnlyWelcome(context: context)
         guard !preferences.didSeedStarterContent else { return }
         let existing = context.inWorkspace(Project.self, WorkspaceInfo.originalID).count
         guard existing == 0 else {
@@ -25,6 +26,16 @@ enum StarterContent {
 
     /// Recruits the starter crew from the built-in AGENT.md templates, once per account.
     /// Skips if agents already exist (another device synced them first).
+    /// The first welcome message used to mention only ⌘K and ⌘N, which mean nothing on
+    /// iPhone. Rewrite it in place (once it matches the old text exactly).
+    static func retireMacOnlyWelcome(context: ModelContext) {
+        let old = "Try ⌘K to jump anywhere, or ⌘N to capture a task."
+        let messages = (try? context.fetch(FetchDescriptor<Message>(predicate: #Predicate { $0.body == old }))) ?? []
+        guard !messages.isEmpty else { return }
+        for message in messages { message.body = "Use Search to jump anywhere, and + to capture a task. On a Mac, ⌘K and ⌘N do the same." }
+        try? context.save()
+    }
+
     static func seedAgentsIfNeeded(context: ModelContext, preferences: CloudPreferences) {
         guard !preferences.didSeedStarterAgents else { return }
         preferences.didSeedStarterAgents = true

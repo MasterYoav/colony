@@ -233,18 +233,24 @@ struct SymbolGrid: View {
 
 struct ColorSwatches: View {
     @Binding var selection: ColonyColor
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
-        HStack(spacing: 8) {
+        // iPhone: two even rows of big, easy-to-tap dots across the full width.
+        let layout = isPhone
+            ? AnyLayout(GridLayoutish(columns: 5))
+            : AnyLayout(HStackLayout(spacing: 8))
+        layout {
             ForEach(ColonyColor.allCases) { item in
                 let selected = item == selection
+                let size: CGFloat = isPhone ? 36 : 20
                 Button { selection = item } label: {
                     Circle()
                         .fill(item.color)
-                        .frame(width: 20, height: 20)
+                        .frame(width: size, height: size)
                         .overlay {
                             if selected {
-                                Image(systemName: "checkmark").appFont(.system(size: 9, weight: .heavy)).foregroundStyle(.white)
+                                Image(systemName: "checkmark").appFont(.system(size: isPhone ? 15 : 9, weight: .heavy)).foregroundStyle(.white)
                             }
                         }
                         .padding(3)
@@ -790,6 +796,28 @@ struct DeleteContactDialog: View {
             guard let contact else { return }
             if app.crmSelection == contact.uuid { app.crmSelection = nil }
             WorkspaceActions(context: context).delete(contact)
+        }
+    }
+}
+
+
+/// Evenly spaced columns across the full width, rows as needed.
+struct GridLayoutish: Layout {
+    var columns: Int
+    var rowSpacing: CGFloat = 12
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let item = subviews.first?.sizeThatFits(.unspecified) ?? .zero
+        let rows = (subviews.count + columns - 1) / max(columns, 1)
+        return CGSize(width: proposal.width ?? item.width * CGFloat(columns), height: CGFloat(rows) * item.height + CGFloat(max(rows - 1, 0)) * rowSpacing)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let item = subviews.first?.sizeThatFits(.unspecified) ?? .zero
+        let cell = bounds.width / CGFloat(columns)
+        for (index, view) in subviews.enumerated() {
+            let column = index % columns, row = index / columns
+            view.place(at: CGPoint(x: bounds.minX + cell * (CGFloat(column) + 0.5), y: bounds.minY + CGFloat(row) * (item.height + rowSpacing) + item.height / 2), anchor: .center, proposal: .unspecified)
         }
     }
 }

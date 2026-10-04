@@ -191,6 +191,7 @@ struct DialogPresenter: ViewModifier {
                     .environment(app)
                     .presentationDetents(sheet.isConfirmation ? [.height(380)] : sheet.isShortForm ? [.medium, .large] : [.large])
                     .presentationDragIndicator(sheet.isConfirmation ? .visible : .hidden)
+                    .presentationBackground(Theme.raised)
             }
         } else {
             content.dialogOverlay(item: $app.sheet, width: \.dialogWidth) { sheet in
