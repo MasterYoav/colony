@@ -94,7 +94,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Sidebar groups, separated by space like System Settings.
-    static let groups: [[SettingsSection]] = [[.general, .sidebar, .appearance], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
+    static let groups: [[SettingsSection]] = [[.general, .sidebar, .appearance], [.ai], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
 }
 
 struct SettingsView: View {

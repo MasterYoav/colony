@@ -16,7 +16,11 @@ struct RootView: View {
 
         Group {
             if sizeClass == .compact {
+                #if os(iOS)
+                PhoneRoot()
+                #else
                 compactLayout
+                #endif
             } else {
                 HStack(spacing: 0) {
                     Sidebar()
