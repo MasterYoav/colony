@@ -85,6 +85,7 @@ final class PhoneNavigator {
 
 struct PhoneRoot: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.modelContext) private var context
     @State private var nav = PhoneNavigator()
     /// Set when we write `app.destination` ourselves, so the change isn't routed again.
     @State private var echo: Destination?
@@ -147,6 +148,19 @@ struct PhoneRoot: View {
             case "crm": nav.push(.crm)
             case "reports": nav.push(.reports)
             case "settings": nav.showsSettings = true
+            case "channel": if let c = try? context.fetch(FetchDescriptor<Channel>()).inWorkspace().first { nav.push(.channel(c.uuid), on: .inbox) }
+            case "agent": if let a = try? context.fetch(FetchDescriptor<Agent>()).inWorkspace().first { nav.push(.agent(a.uuid), on: .crew) }
+            case "automation": if let a = try? context.fetch(FetchDescriptor<Automation>()).inWorkspace().first { nav.push(.automation(a.uuid), on: .crew) }
+            case "contact": if let c = try? context.fetch(FetchDescriptor<Contact>()).inWorkspace().first { nav.push(.contact(c.uuid)) }
+            case "task": if let t = try? context.fetch(FetchDescriptor<TaskItem>()).inWorkspace().first { app.present(.task(t.uuid)) }
+            case "newTask": app.present(.newTask(project: nil, list: nil))
+            case "newProject": app.present(.newProject)
+            case "newChannel": app.present(.newChannel)
+            case "newContact": app.present(.newContact)
+            case "newAutomation": app.present(.newAutomation)
+            case "recruit": app.present(.recruitAgent)
+            case "newWorkspace": app.present(.newWorkspace)
+            case "newList": app.present(.newList(project: nil))
             default: break
             }
         }
@@ -212,18 +226,10 @@ struct PhoneRouteView: View {
         switch route {
         case .taskList(let filter): PhoneTaskList(filter: filter)
         case .channel(let id):
-            MessagesView(channelID: id)
-                .navigationTitle(context.channel(id).map { "#\($0.name)" } ?? "Channel")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar(.hidden, for: .tabBar)
+            if let channel = context.channel(id) { PhoneChannelChat(channel: channel) }
         case .updates: PhoneUpdates()
         case .agent(let id):
-            if let agent = context.agent(id) {
-                AgentPage(agent: agent)
-                    .navigationTitle(agent.name)
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar(.hidden, for: .tabBar)
-            }
+            if let agent = context.agent(id) { PhoneAgentChat(agent: agent) }
         case .automation(let id):
             if let automation = context.automation(id) {
                 AutomationEditor(automation: automation)

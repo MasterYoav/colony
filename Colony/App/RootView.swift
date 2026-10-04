@@ -157,7 +157,7 @@ struct SheetHost: View {
         case .newChannel: NewChannelSheet()
         case .newContact: NewContactSheet()
         case .importContacts: ImportContactsSheet()
-        case .task(let id): TaskDetailSheet(taskID: id)
+        case .task(let id): TaskDetailHost(taskID: id)
         case .deleteProject(let id): DeleteProjectDialog(projectID: id)
         case .deleteTask(let id): DeleteTaskDialog(taskID: id)
         case .deleteContact(let id): DeleteContactDialog(contactID: id)
@@ -187,9 +187,10 @@ struct DialogPresenter: ViewModifier {
             content.sheet(item: $app.sheet) { sheet in
                 SheetHost(sheet: sheet)
                     .environment(\.dialogDismiss, DialogDismissAction { app.sheet = nil })
+                    .environment(\.isPhoneDialog, true)
                     .environment(app)
-                    .presentationDetents([.large])
-                    .presentationBackground(Theme.raised)
+                    .presentationDetents(sheet.isConfirmation ? [.height(380)] : sheet.isShortForm ? [.medium, .large] : [.large])
+                    .presentationDragIndicator(sheet.isConfirmation ? .visible : .hidden)
             }
         } else {
             content.dialogOverlay(item: $app.sheet, width: \.dialogWidth) { sheet in
@@ -215,3 +216,35 @@ struct CollapsedSidebarToggle: View {
     }
 }
 #endif
+
+/// The task editor: Reminders-style Details on iPhone, the shared dialog elsewhere.
+struct TaskDetailHost: View {
+    let taskID: UUID
+    @Environment(\.isPhoneDialog) private var isPhone
+
+    var body: some View {
+        #if os(iOS)
+        if isPhone { PhoneTaskDetail(taskID: taskID) } else { TaskDetailSheet(taskID: taskID) }
+        #else
+        TaskDetailSheet(taskID: taskID)
+        #endif
+    }
+}
+
+extension ActiveSheet {
+    /// Two-field forms open half height on iPhone.
+    var isShortForm: Bool {
+        switch self {
+        case .newChannel, .newList: true
+        default: false
+        }
+    }
+
+    /// Short yes/no sheets on iPhone.
+    var isConfirmation: Bool {
+        switch self {
+        case .deleteProject, .deleteTask, .deleteContact, .deleteAgent, .deleteAutomation, .deleteWorkspace, .connectReminders, .connectContacts: true
+        default: false
+        }
+    }
+}

@@ -403,6 +403,17 @@ struct AutomationEditor: View {
     @State private var picker: BlockPicker.Mode?
     @State private var focusName = false
     @FocusState private var nameFocused: Bool
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    /// iPhone: no desktop header row or dotted canvas; controls live in the
+    /// navigation bar and a status card.
+    private var isPhone: Bool {
+        #if os(iOS)
+        sizeClass == .compact
+        #else
+        false
+        #endif
+    }
 
     private var names: AutomationNames {
         AutomationNames(
@@ -415,10 +426,15 @@ struct AutomationEditor: View {
     var body: some View {
         let names = names
         VStack(spacing: 0) {
-            header
-            Divider().overlay(Theme.stroke)
+            if !isPhone {
+                header
+                Divider().overlay(Theme.stroke)
+            }
             ScrollView {
                 VStack(spacing: 0) {
+                    if isPhone {
+                        phoneStatus.padding(.bottom, 14)
+                    }
                     SentenceCard(automation: automation, names: names)
                         .padding(.bottom, 18)
                     if let test {
@@ -432,14 +448,29 @@ struct AutomationEditor: View {
                 }
                 .frame(maxWidth: 560)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 24)
-                .padding(.top, 22)
+                .padding(.horizontal, isPhone ? 16 : 24)
+                .padding(.top, isPhone ? 8 : 22)
                 .padding(.bottom, 40)
             }
-            .background { DotGrid() }
+            .background { if !isPhone { DotGrid() } }
         }
         .background(Theme.canvas)
         .navigationTitle(automation.name)
+        #if os(iOS)
+        .toolbar(isPhone ? .hidden : .automatic, for: .tabBar)
+        .toolbar {
+            if isPhone {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Test", systemImage: "play.circle", action: runTest)
+                        .disabled(!automation.isComplete)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu { moreItems } label: { Image(systemName: "ellipsis") }
+                        .accessibilityLabel("More")
+                }
+            }
+        }
+        #endif
         .defaultFocus($nameFocused, false)
         .onAppear { nameFocused = false }
         .popover(item: $picker) { mode in
@@ -498,20 +529,7 @@ struct AutomationEditor: View {
             .help(automation.isComplete ? "Switch the automation on or off" : "Choose When and add a step first")
             .accessibilityLabel("Automation on")
             Menu {
-                Picker("Colour", selection: Binding(get: { automation.color }, set: { automation.color = $0 })) {
-                    ForEach(ColonyColor.allCases) { color in Text(color.title).tag(color) }
-                }
-                Divider()
-                Button("Duplicate", systemImage: "plus.square.on.square") {
-                    let copy = WorkspaceActions(context: context).duplicate(automation)
-                    try? context.save()
-                    app.go(.automation(copy.uuid))
-                }
-                Button("Clear History", systemImage: "eraser") {
-                    (automation.runs ?? []).forEach(context.delete)
-                }
-                Divider()
-                Button("Delete Automation…", systemImage: "trash", role: .destructive) { app.present(.deleteAutomation(automation.uuid)) }
+                moreItems
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 28, height: 28)
@@ -527,6 +545,57 @@ struct AutomationEditor: View {
         .padding(.horizontal, 22)
         .padding(.leading, app.preferences.isSidebarCollapsed && isMacPlatform ? 22 : 0)
         .frame(minHeight: 60)
+    }
+
+    @ViewBuilder
+    private var moreItems: some View {
+        Picker("Colour", selection: Binding(get: { automation.color }, set: { automation.color = $0 })) {
+            ForEach(ColonyColor.allCases) { color in Text(color.title).tag(color) }
+        }
+        Divider()
+        Button("Duplicate", systemImage: "plus.square.on.square") {
+            let copy = WorkspaceActions(context: context).duplicate(automation)
+            try? context.save()
+            app.go(.automation(copy.uuid))
+        }
+        Button("Clear History", systemImage: "eraser") {
+            (automation.runs ?? []).forEach(context.delete)
+        }
+        Divider()
+        Button("Delete Automation…", systemImage: "trash", role: .destructive) { app.present(.deleteAutomation(automation.uuid)) }
+    }
+
+    /// iPhone: name and the on/off switch as two grouped rows, like Settings.
+    private var phoneStatus: some View {
+        VStack(spacing: 0) {
+            TextField("Name", text: Binding(get: { automation.name }, set: { automation.name = String($0.prefix(60)) }))
+                .appFont(.system(size: 17, weight: .semibold))
+                .focused($nameFocused)
+                .submitLabel(.done)
+                .onSubmit {
+                    if ColonyText.trimmed(automation.name).isEmpty { automation.name = "New automation" }
+                    nameFocused = false
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 50)
+                .accessibilityLabel("Automation name")
+            Rectangle().fill(Theme.stroke).frame(height: 0.5).padding(.leading, 16)
+            Toggle(isOn: Binding(get: { automation.isEnabled }, set: { on in
+                WorkspaceActions(context: context).setEnabled(on, for: automation)
+            })) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enabled").appFont(.system(size: 17))
+                    HStack(spacing: 6) {
+                        Circle().fill(stateColor).frame(width: 7, height: 7)
+                        Text(stateText).appFont(.system(size: 14)).foregroundStyle(Theme.secondaryText)
+                    }
+                }
+            }
+            .disabled(!automation.isComplete)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var stateText: String {

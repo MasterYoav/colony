@@ -94,7 +94,7 @@ enum StarterContent {
 
         if let general = actions.createChannel(name: "general", topic: "Company-wide announcements") {
             context.insert(Message(body: "Welcome to Colony. Everything here is stored in your iCloud account.", authorName: "Colony", isMine: false, channel: general, createdAt: .now.addingTimeInterval(-3600)))
-            context.insert(Message(body: "Try ⌘K to jump anywhere, or ⌘N to capture a task.", authorName: "Colony", isMine: false, channel: general, createdAt: .now.addingTimeInterval(-1800)))
+            context.insert(Message(body: "Use Search to jump anywhere, and + to capture a task. On a Mac, ⌘K and ⌘N do the same.", authorName: "Colony", isMine: false, channel: general, createdAt: .now.addingTimeInterval(-1800)))
             general.lastReadAt = .distantPast
         }
         actions.createChannel(name: "product", topic: "Roadmap and design reviews")

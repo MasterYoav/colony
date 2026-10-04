@@ -28,9 +28,8 @@ private struct CreateFooter: View {
 
     var body: some View {
         KeyHint(keys: ["⌘", "⏎"], label: title.lowercased())
-        Spacer()
-        Button("Cancel") { dismiss() }
-            .buttonStyle(.dialogGhost)
+        DialogFooterSpacer()
+        DialogCancelButton(style: .ghost)
         Button(title, action: commit)
             .buttonStyle(.dialogPrimary)
             .keyboardShortcut(.return, modifiers: .command)
@@ -291,7 +290,7 @@ struct NewTaskSheet: View {
                 DialogTextEditor(placeholder: "Add details, links or acceptance criteria", text: $notes)
             }
 
-            HStack(alignment: .top, spacing: 12) {
+            DialogPair {
                 DialogField(label: "Project") {
                     DialogSelect(selection: $selectedProject, options: [(UUID?.none, "No project", "tray")] + projects.map { (Optional($0.uuid), $0.name, $0.symbol) })
                 }
@@ -399,7 +398,7 @@ struct NewContactSheet: View {
             DialogField(label: "Full name") {
                 DialogTextField(placeholder: "Jane Appleseed", text: $name, symbol: "person", autofocus: true, onSubmit: create)
             }
-            HStack(alignment: .top, spacing: 12) {
+            DialogPair {
                 DialogField(label: "Company") {
                     DialogTextField(placeholder: "Acme Inc.", text: $company, symbol: "building.2")
                 }
@@ -407,7 +406,7 @@ struct NewContactSheet: View {
                     DialogTextField(placeholder: "Head of Design", text: $jobTitle, symbol: "briefcase")
                 }
             }
-            HStack(alignment: .top, spacing: 12) {
+            DialogPair {
                 DialogField(label: "Email", hint: emailInvalid ? "Enter a valid email address." : nil) {
                     DialogTextField(placeholder: "jane@acme.com", text: $email, symbol: "envelope", isInvalid: emailInvalid)
                 }
@@ -421,8 +420,10 @@ struct NewContactSheet: View {
         } footer: {
             Button("Import from Contacts…") { app.present(.importContacts) }
                 .buttonStyle(.dialogGhost)
-            Spacer()
-            Button("Cancel") { dismiss() }.buttonStyle(.dialogGhost)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            DialogFooterSpacer()
+            DialogCancelButton(style: .ghost)
             Button("Add customer", action: create)
                 .buttonStyle(.dialogPrimary)
                 .keyboardShortcut(.return, modifiers: .command)
@@ -481,7 +482,7 @@ struct ImportContactsSheet: View {
                 .buttonStyle(.dialogGhost)
                 .disabled(filtered.isEmpty)
                 Spacer()
-                Button("Cancel") { dismiss() }.buttonStyle(.dialogGhost)
+                DialogCancelButton(style: .ghost)
                 Button(selection.isEmpty ? "Import" : "Import \(selection.count)", action: importSelected)
                     .buttonStyle(.dialogPrimary)
                     .keyboardShortcut(.return, modifiers: .command)

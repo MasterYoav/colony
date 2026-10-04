@@ -17,6 +17,7 @@ struct RecruitAgentDialog: View {
     @Environment(AppModel.self) private var app
     @Environment(\.modelContext) private var context
     @Environment(\.dialogDismiss) private var dismiss
+    @Environment(\.isPhoneDialog) private var isPhone
     /// nil: recruit a new agent. Otherwise: edit this agent's AGENT.md.
     let editing: UUID?
 
@@ -85,9 +86,8 @@ struct RecruitAgentDialog: View {
             preview
         } footer: {
             KeyHint(keys: ["⌘", "⏎"], label: editing == nil ? "recruit" : "save")
-            Spacer()
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.dialogGhost)
+            DialogFooterSpacer()
+            DialogCancelButton(style: .ghost)
             Button(editing == nil ? "Recruit \(definition?.name ?? "agent")" : "Save", action: commit)
                 .buttonStyle(.dialogPrimary)
                 .keyboardShortcut(.return, modifiers: .command)
@@ -113,10 +113,10 @@ struct RecruitAgentDialog: View {
                     Image(systemName: fileName == nil ? "doc.badge.plus" : "doc.text.fill")
                         .appFont(.system(size: 22, weight: .regular))
                         .foregroundStyle(isTargeted ? ColonyColor.blue.color : Theme.secondaryText)
-                    Text(fileName ?? "Drop an AGENT.md file here")
+                    Text(fileName ?? (isPhone ? "Choose an AGENT.md file" : "Drop an AGENT.md file here"))
                         .appFont(.system(size: 13, weight: .medium))
                         .foregroundStyle(Theme.text)
-                    Text(fileName == nil ? "or click to choose a Markdown file" : "Click to choose a different file")
+                    Text(fileName == nil ? (isPhone ? "Tap to open Files" : "or click to choose a Markdown file") : (isPhone ? "Tap to choose a different file" : "Click to choose a different file"))
                         .appFont(.system(size: 11.5))
                         .foregroundStyle(Theme.secondaryText)
                 }

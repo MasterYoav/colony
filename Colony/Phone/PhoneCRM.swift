@@ -222,10 +222,7 @@ struct PhoneContactPage: View {
     @Bindable var contact: Contact
 
     var body: some View {
-        ContactInspector(contact: contact)
-            .background(Phone.canvas)
-            .navigationTitle(contact.name)
-            .navigationBarTitleDisplayMode(.inline)
+        PhoneContactDetail(contact: contact)
     }
 }
 

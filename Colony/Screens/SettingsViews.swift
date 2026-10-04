@@ -27,7 +27,12 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .profile: "Profile"
         case .general: "General"
-        case .sidebar: "Sidebar"
+        case .sidebar:
+            #if os(iOS)
+            UIDevice.current.userInterfaceIdiom == .phone ? "Tabs" : "Sidebar"
+            #else
+            "Sidebar"
+            #endif
         case .appearance: "Appearance"
         case .ai: "AI"
         case .iCloud: "iCloud"
@@ -94,7 +99,7 @@ enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
     }
 
     /// Sidebar groups, separated by space like System Settings.
-    static let groups: [[SettingsSection]] = [[.general, .sidebar, .appearance], [.ai], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
+    static let groups: [[SettingsSection]] = [[.general, .sidebar, .appearance, .ai], [.notifications, .calendar], [.iCloud, .reminders, .contacts], [.privacy, .about]]
 }
 
 struct SettingsView: View {

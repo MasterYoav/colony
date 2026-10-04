@@ -100,6 +100,26 @@ extension EnvironmentValues {
         get { self[DialogDismissKey.self] }
         set { self[DialogDismissKey.self] = newValue }
     }
+
+    /// True inside an iPhone sheet: dialogs use the native layout (navigation bar with
+    /// Cancel, iOS-size text and controls, no keyboard hints).
+    @Entry var isPhoneDialog = false
+}
+
+/// Cancel in a dialog footer. On iPhone the navigation bar already has Cancel, so
+/// it's left out there.
+struct DialogCancelButton: View {
+    var style: DialogButtonStyle.Kind = .secondary
+    @Environment(\.dialogDismiss) private var dismiss
+    @Environment(\.isPhoneDialog) private var isPhone
+
+    var body: some View {
+        if !isPhone {
+            Button("Cancel") { dismiss() }
+                .buttonStyle(DialogButtonStyle(kind: style))
+                .keyboardShortcut(.cancelAction)
+        }
+    }
 }
 
 // MARK: - Frame
@@ -113,8 +133,56 @@ struct DialogFrame<Content: View, Footer: View>: View {
     @ViewBuilder var content: () -> Content
     @ViewBuilder var footer: () -> Footer
     @Environment(\.dialogDismiss) private var dismiss
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
+        if isPhone {
+            phoneBody
+        } else {
+            deskBody
+        }
+    }
+
+    /// iPhone: a native sheet. Title in the navigation bar, Cancel on the left, the
+    /// description as a quiet line above the form, actions as large buttons at the bottom.
+    private var phoneBody: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if let description {
+                        Text(description)
+                            .appFont(.system(size: 15))
+                            .foregroundStyle(Theme.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    content()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            #if os(iOS)
+            .scrollDismissesKeyboard(.interactively)
+            #endif
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 10, content: footer)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 8)
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayModeInline()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var deskBody: some View {
         VStack(spacing: 0) {
             header
             ScrollView {
@@ -202,9 +270,42 @@ struct DialogButtonStyle: ButtonStyle {
     enum Kind { case primary, secondary, ghost, destructive, ghostDestructive }
     var kind: Kind = .secondary
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.isPhoneDialog) private var isPhone
     @State private var isHovering = false
 
     func makeBody(configuration: Configuration) -> some View {
+        if isPhone {
+            phoneBody(configuration)
+        } else {
+            deskBody(configuration)
+        }
+    }
+
+    /// iPhone: full-width capsule buttons, 17 pt, 50 pt tall.
+    private func phoneBody(_ configuration: Configuration) -> some View {
+        configuration.label
+            .appFont(.system(size: 17, weight: .semibold))
+            .foregroundStyle(kind == .secondary || kind == .ghost ? Theme.text : foreground)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(phoneBackground, in: Capsule())
+            .layoutPriority(1) // fill the footer; spacers get nothing
+            .opacity(isEnabled ? 1 : 0.4)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .motion(.snappy(duration: 0.12), value: configuration.isPressed)
+            .contentShape(Capsule())
+    }
+
+    private var phoneBackground: Color {
+        switch kind {
+        case .primary: Theme.text
+        case .destructive: Color.red
+        case .secondary, .ghost: Theme.text.opacity(0.1)
+        case .ghostDestructive: Color.red.opacity(0.12)
+        }
+    }
+
+    private func deskBody(_ configuration: Configuration) -> some View {
         configuration.label
             .appFont(.system(size: 13, weight: .medium))
             .foregroundStyle(foreground)
@@ -256,8 +357,13 @@ extension ButtonStyle where Self == DialogButtonStyle {
 struct KeyHint: View {
     let keys: [String]
     let label: String
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
+        if !isPhone { hint }
+    }
+
+    private var hint: some View {
         HStack(spacing: 4) {
             ForEach(keys, id: \.self) { key in
                 Text(key)
@@ -284,12 +390,13 @@ struct DialogField<Control: View, Accessory: View>: View {
     var hint: String? = nil
     @ViewBuilder var control: () -> Control
     @ViewBuilder var accessory: () -> Accessory
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: isPhone ? 8 : 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(label)
-                    .appFont(.system(size: 12.5, weight: .medium))
+                    .appFont(.system(size: isPhone ? 15 : 12.5, weight: isPhone ? .semibold : .medium))
                     .foregroundStyle(Theme.text)
                 Spacer(minLength: 8)
                 accessory()
@@ -297,7 +404,7 @@ struct DialogField<Control: View, Accessory: View>: View {
             control()
             if let hint {
                 Text(hint)
-                    .appFont(.system(size: 11.5))
+                    .appFont(.system(size: isPhone ? 13 : 11.5))
                     .foregroundStyle(Theme.tertiaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -316,8 +423,26 @@ struct DialogInputChrome: ViewModifier {
     var isFocused: Bool
     var isInvalid: Bool = false
     var minHeight: CGFloat = DialogMetrics.fieldHeight
+    @Environment(\.isPhoneDialog) private var isPhone
 
     func body(content: Content) -> some View {
+        if isPhone {
+            // iOS: a filled rounded field like Settings, no outline unless invalid.
+            content
+                .padding(.horizontal, 14)
+                .frame(minHeight: max(minHeight, 48))
+                .background(Theme.text.opacity(0.07), in: .rect(cornerRadius: 14, style: .continuous))
+                .overlay {
+                    if isInvalid {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.red.opacity(0.7))
+                    }
+                }
+        } else {
+            desk(content)
+        }
+    }
+
+    private func desk(_ content: Content) -> some View {
         content
             .padding(.horizontal, 10)
             .frame(minHeight: minHeight)
@@ -353,19 +478,20 @@ struct DialogTextField: View {
     var autofocus: Bool = false
     var onSubmit: (() -> Void)? = nil
     @FocusState private var focused: Bool
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: isPhone ? 10 : 8) {
             if let symbol {
                 Image(systemName: symbol)
-                    .appFont(.system(size: 12.5))
+                    .appFont(.system(size: isPhone ? 16 : 12.5))
                     .foregroundStyle(Theme.tertiaryText)
                     .frame(width: 16)
                     .accessibilityHidden(true)
             }
             TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(Theme.tertiaryText))
                 .textFieldStyle(.plain)
-                .appFont(.system(size: 13.5), role: .data) // what the user types is content
+                .appFont(.system(size: isPhone ? 17 : 13.5), role: .data) // what the user types is content
                 .foregroundStyle(Theme.text)
                 .focused($focused)
                 .onSubmit { onSubmit?() }
@@ -403,15 +529,16 @@ struct DialogTextEditor: View {
     @Binding var text: String
     var lines: ClosedRange<Int> = 3...6
     @FocusState private var focused: Bool
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
         TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(Theme.tertiaryText), axis: .vertical)
             .textFieldStyle(.plain)
-            .appFont(.system(size: 13.5), role: .data)
+            .appFont(.system(size: isPhone ? 17 : 13.5), role: .data)
             .foregroundStyle(Theme.text)
             .lineLimit(lines)
             .focused($focused)
-            .padding(.vertical, 8)
+            .padding(.vertical, isPhone ? 12 : 8)
             .dialogInput(isFocused: focused)
             .contentShape(.rect)
             .onTapGesture { focused = true }
@@ -422,6 +549,7 @@ struct DialogTextEditor: View {
 struct DialogSelect<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(value: Value, title: String, symbol: String?)]
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
         Menu {
@@ -444,7 +572,7 @@ struct DialogSelect<Value: Hashable>: View {
                     Image(systemName: symbol).appFont(.system(size: 12.5)).foregroundStyle(Theme.icon)
                 }
                 Text(current?.title ?? "Select")
-                    .appFont(.system(size: 13.5))
+                    .appFont(.system(size: isPhone ? 17 : 13.5))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                 Spacer(minLength: 6)
@@ -470,22 +598,23 @@ struct DialogToggleRow: View {
     let title: String
     var description: String? = nil
     @Binding var isOn: Bool
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).appFont(.system(size: 13, weight: .medium)).foregroundStyle(Theme.text)
+                Text(title).appFont(.system(size: isPhone ? 17 : 13, weight: .medium)).foregroundStyle(Theme.text)
                 if let description {
-                    Text(description).appFont(.system(size: 11.5)).foregroundStyle(Theme.secondaryText)
+                    Text(description).appFont(.system(size: isPhone ? 14 : 11.5)).foregroundStyle(Theme.secondaryText)
                 }
             }
             Spacer(minLength: 8)
             Toggle(title, isOn: $isOn.animation(.snappy(duration: 0.2)))
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .controlSize(.small)
+                .controlSize(isPhone ? .regular : .small)
         }
-        .padding(12)
+        .padding(isPhone ? 14 : 12)
         .background(Theme.surface, in: .rect(cornerRadius: 10, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Theme.stroke) }
     }
@@ -612,8 +741,46 @@ struct ConfirmDialog: View {
     var isDestructive: Bool = true
     let confirm: () -> Void
     @Environment(\.dialogDismiss) private var dismiss
+    @Environment(\.isPhoneDialog) private var isPhone
 
     var body: some View {
+        if isPhone { phoneBody } else { deskBody }
+    }
+
+    /// iPhone: a short sheet, centred like an action sheet, stacked buttons.
+    private var phoneBody: some View {
+        VStack(spacing: 14) {
+            Image(systemName: symbol)
+                .appFont(.system(size: 24, weight: .semibold))
+                .foregroundStyle(isDestructive ? Color.red : Theme.text)
+                .frame(width: 60, height: 60)
+                .background((isDestructive ? Color.red : Theme.text).opacity(0.12), in: Circle())
+                .accessibilityHidden(true)
+            Text(title)
+                .appFont(.system(size: 20, weight: .bold))
+                .multilineTextAlignment(.center)
+            Text(message)
+                .appFont(.system(size: 15))
+                .foregroundStyle(Theme.secondaryText)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 10) {
+                Button(confirmTitle) {
+                    confirm()
+                    dismiss()
+                }
+                .buttonStyle(isDestructive ? .dialogDestructive : .dialogPrimary)
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.dialogSecondary)
+            }
+            .padding(.top, 8)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 12)
+    }
+
+    private var deskBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: symbol)
@@ -649,5 +816,41 @@ struct ConfirmDialog: View {
             .padding(.horizontal, DialogMetrics.padding)
             .padding(.bottom, DialogMetrics.padding)
         }
+    }
+}
+
+
+extension View {
+    /// Inline navigation title on iOS; nothing on macOS.
+    @ViewBuilder
+    func navigationBarTitleDisplayModeInline() -> some View {
+        #if os(iOS)
+        navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
+}
+
+/// Fields side by side on Mac and iPad, stacked on iPhone.
+struct DialogPair<Content: View>: View {
+    @ViewBuilder var content: Content
+    @Environment(\.isPhoneDialog) private var isPhone
+
+    var body: some View {
+        if isPhone {
+            VStack(alignment: .leading, spacing: 20) { content }
+        } else {
+            HStack(alignment: .top, spacing: 12) { content }
+        }
+    }
+}
+
+/// The gap between a footer's hint and its buttons; nothing on iPhone, where the
+/// buttons fill the width.
+struct DialogFooterSpacer: View {
+    @Environment(\.isPhoneDialog) private var isPhone
+    var body: some View {
+        if !isPhone { Spacer() }
     }
 }

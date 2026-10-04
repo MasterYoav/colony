@@ -195,7 +195,7 @@ struct CommandPalette: View {
             KeyHint(keys: ["↑", "↓"], label: "navigate")
             KeyHint(keys: ["⏎"], label: "open")
             KeyHint(keys: ["esc"], label: "close")
-            Spacer()
+            DialogFooterSpacer()
             Text("\(results.count) result\(results.count == 1 ? "" : "s")")
                 .appFont(.system(size: 11.5).monospacedDigit())
                 .foregroundStyle(Theme.tertiaryText)

@@ -46,6 +46,7 @@ struct WorkspaceBadge: View {
 struct NewWorkspaceDialog: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dialogDismiss) private var dismiss
+    @Environment(\.isPhoneDialog) private var isPhone
     @State private var name = ""
     @State private var color: ColonyColor = .green
     @State private var preset: WorkspacePreset = .everything
@@ -65,7 +66,7 @@ struct NewWorkspaceDialog: View {
                 ColorSwatches(selection: $color)
             }
             DialogField(label: "What's it for?", hint: "Sets which tools the sidebar shows. Change it any time in Settings › Sidebar.") {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                LazyVGrid(columns: isPhone ? [GridItem(.flexible())] : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(WorkspacePreset.allCases) { item in
                         PresetCard(preset: item, isSelected: preset == item) { preset = item }
                     }
@@ -73,9 +74,8 @@ struct NewWorkspaceDialog: View {
             }
         } footer: {
             KeyHint(keys: ["⌘", "⏎"], label: "create workspace")
-            Spacer()
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.dialogGhost)
+            DialogFooterSpacer()
+            DialogCancelButton(style: .ghost)
             Button("Create workspace", action: create)
                 .buttonStyle(.dialogPrimary)
                 .keyboardShortcut(.return, modifiers: .command)
@@ -210,9 +210,8 @@ struct NewListDialog: View {
             }
         } footer: {
             KeyHint(keys: ["⌘", "⏎"], label: "create list")
-            Spacer()
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.dialogGhost)
+            DialogFooterSpacer()
+            DialogCancelButton(style: .ghost)
             Button("Create list", action: create)
                 .buttonStyle(.dialogPrimary)
                 .keyboardShortcut(.return, modifiers: .command)
