@@ -1,0 +1,517 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Colony \u2014 app architecture",
+    "output": ".archify/architecture-colony-20261004-1330/colony-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:MasterYoav/colony.git",
+      "link_mode": "local-only",
+      "revision": "94c09b192af803c53e8e05c57a34886dbeb4a069"
+    }
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "You",
+      "sublabel": "Mac \u00b7 iPhone \u00b7 iPad \u00b7 Vision",
+      "pos": [
+        30,
+        330
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "views",
+      "type": "frontend",
+      "label": "SwiftUI views",
+      "sublabel": "RootView \u00b7 PhoneRoot \u00b7 Sidebar",
+      "pos": [
+        250,
+        330
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/App/RootView.swift",
+          "line": 9,
+          "end_line": 24,
+          "label": "RootView picks phone or desktop"
+        }
+      ]
+    },
+    {
+      "id": "prefs",
+      "type": "backend",
+      "label": "CloudPreferences",
+      "sublabel": "settings \u00b7 sidebar \u00b7 AI choice",
+      "pos": [
+        250,
+        190
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Services/CloudPreferences.swift",
+          "line": 67,
+          "label": "key-value store handle"
+        }
+      ]
+    },
+    {
+      "id": "kvs",
+      "type": "cloud",
+      "label": "iCloud key-value",
+      "sublabel": "NSUbiquitousKeyValueStore",
+      "pos": [
+        250,
+        50
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "tag": "your iCloud",
+      "sources": [
+        {
+          "path": "Colony/Services/CloudPreferences.swift",
+          "line": 5,
+          "label": "preferences in iCloud KVS"
+        }
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": "AgentRunner",
+      "sublabel": "Foundation Models on device",
+      "pos": [
+        520,
+        190
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Agents/AgentRunner.swift",
+          "line": 30,
+          "label": "runner"
+        },
+        {
+          "path": "Colony/Agents/AgentTools.swift",
+          "line": 14,
+          "end_line": 23,
+          "label": "AgentBridge tools"
+        },
+        {
+          "path": "Colony/Agents/AgentRunner.swift",
+          "line": 210,
+          "label": "cloud turn"
+        }
+      ]
+    },
+    {
+      "id": "cloudai",
+      "type": "external",
+      "label": "Your AI account",
+      "sublabel": "OpenAI \u00b7 Claude \u00b7 Gemini",
+      "pos": [
+        470,
+        50
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "tag": "opt-in",
+      "sources": [
+        {
+          "path": "Colony/AI/CloudModel.swift",
+          "line": 205,
+          "label": "OpenAI-compatible"
+        },
+        {
+          "path": "Colony/AI/CloudModel.swift",
+          "line": 267,
+          "label": "Anthropic"
+        },
+        {
+          "path": "Colony/AI/CloudModel.swift",
+          "line": 320,
+          "label": "Gemini"
+        }
+      ]
+    },
+    {
+      "id": "jev",
+      "type": "external",
+      "label": "Jev",
+      "sublabel": "TypeSafe decisions",
+      "pos": [
+        680,
+        50
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "opt-in",
+      "sources": [
+        {
+          "path": "Colony/AI/Jev.swift",
+          "line": 20,
+          "label": "System One endpoint"
+        },
+        {
+          "path": "Colony/Agents/AgentRunner.swift",
+          "line": 290,
+          "label": "ask_jev added when on"
+        }
+      ]
+    },
+    {
+      "id": "keys",
+      "type": "security",
+      "label": "AIAccounts",
+      "sublabel": "Keychain \u00b7 iCloud Keychain",
+      "pos": [
+        800,
+        190
+      ],
+      "size": [
+        180,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/AI/AIProviders.swift",
+          "line": 149,
+          "end_line": 181,
+          "label": "synchronizable Keychain"
+        },
+        {
+          "path": "Colony/AI/AIProviders.swift",
+          "line": 202,
+          "label": "AIAccounts"
+        }
+      ]
+    },
+    {
+      "id": "actions",
+      "type": "backend",
+      "label": "WorkspaceActions",
+      "sublabel": "the one mutation path",
+      "pos": [
+        520,
+        330
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Models/WorkspaceActions.swift",
+          "line": 21,
+          "label": "WorkspaceActions"
+        },
+        {
+          "path": "Colony/Models/WorkspaceActions.swift",
+          "line": 116,
+          "label": "posts to AutomationBus"
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "SwiftData",
+      "sublabel": "ModelContainer",
+      "pos": [
+        800,
+        330
+      ],
+      "size": [
+        180,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Services/CloudStore.swift",
+          "line": 63,
+          "end_line": 66,
+          "label": "CloudKit-backed config"
+        }
+      ]
+    },
+    {
+      "id": "cloudkit",
+      "type": "cloud",
+      "label": "CloudKit",
+      "sublabel": "private database",
+      "pos": [
+        1150,
+        330
+      ],
+      "size": [
+        160,
+        60
+      ],
+      "tag": "your iCloud",
+      "sources": [
+        {
+          "path": "Colony/Services/CloudStore.swift",
+          "line": 66,
+          "label": ".private(container)"
+        }
+      ]
+    },
+    {
+      "id": "engine",
+      "type": "backend",
+      "label": "AutomationEngine",
+      "sublabel": "When \u00b7 Only if \u00b7 Then",
+      "pos": [
+        520,
+        490
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Automations/AutomationEngine.swift",
+          "line": 299,
+          "label": "engine"
+        },
+        {
+          "path": "Colony/Automations/AutomationEngine.swift",
+          "line": 316,
+          "label": "subscribes to the bus"
+        },
+        {
+          "path": "Colony/Automations/AutomationEngine.swift",
+          "line": 130,
+          "label": "steps via WorkspaceActions"
+        }
+      ]
+    },
+    {
+      "id": "scheduling",
+      "type": "backend",
+      "label": "TaskScheduling",
+      "sublabel": "alerts \u00b7 Colony calendar",
+      "pos": [
+        250,
+        490
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Services/TaskScheduling.swift",
+          "line": 524,
+          "label": "TaskChangeWatcher"
+        },
+        {
+          "path": "Colony/Services/TaskScheduling.swift",
+          "line": 188,
+          "label": "EventKit store"
+        }
+      ]
+    },
+    {
+      "id": "apple",
+      "type": "external",
+      "label": "Apple services",
+      "sublabel": "Notifications \u00b7 EventKit \u00b7 Contacts",
+      "pos": [
+        235,
+        640
+      ],
+      "size": [
+        200,
+        60
+      ],
+      "sources": [
+        {
+          "path": "Colony/Services/TaskScheduling.swift",
+          "line": 43,
+          "label": "UNUserNotificationCenter"
+        },
+        {
+          "path": "Colony/Services/AppleServices.swift",
+          "line": 50,
+          "label": "Contacts import"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Colony app process (on your device)",
+      "wraps": [
+        "views",
+        "prefs",
+        "agents",
+        "keys",
+        "actions",
+        "store",
+        "engine",
+        "scheduling"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Opt-in \u00b7 your own keys",
+      "wraps": [
+        "cloudai",
+        "jev"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "use",
+      "from": "user",
+      "to": "views",
+      "label": "taps, types",
+      "variant": "emphasis"
+    },
+    {
+      "id": "edit",
+      "from": "views",
+      "to": "actions",
+      "label": "edits",
+      "variant": "emphasis"
+    },
+    {
+      "id": "save",
+      "from": "actions",
+      "to": "store",
+      "label": "insert, save",
+      "variant": "emphasis"
+    },
+    {
+      "id": "mirror",
+      "from": "store",
+      "to": "cloudkit",
+      "label": "mirrors (private DB)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "settings",
+      "from": "views",
+      "to": "prefs",
+      "label": "settings"
+    },
+    {
+      "id": "kvsync",
+      "from": "prefs",
+      "to": "kvs",
+      "label": "syncs"
+    },
+    {
+      "id": "chat",
+      "from": "views",
+      "to": "agents",
+      "label": "chat, run"
+    },
+    {
+      "id": "tools",
+      "from": "agents",
+      "to": "actions",
+      "label": "tools (AgentBridge)"
+    },
+    {
+      "id": "cloudcall",
+      "from": "agents",
+      "to": "cloudai",
+      "label": "if chosen",
+      "variant": "dashed"
+    },
+    {
+      "id": "jevcall",
+      "from": "agents",
+      "to": "jev",
+      "label": "ask_jev",
+      "variant": "dashed"
+    },
+    {
+      "id": "readkeys",
+      "from": "agents",
+      "to": "keys",
+      "label": "API keys",
+      "variant": "security"
+    },
+    {
+      "id": "bus",
+      "from": "actions",
+      "to": "engine",
+      "label": "AutomationBus"
+    },
+    {
+      "id": "steps",
+      "from": "engine",
+      "to": "actions",
+      "label": "runs steps"
+    },
+    {
+      "id": "watch",
+      "from": "views",
+      "to": "scheduling",
+      "label": "task changes"
+    },
+    {
+      "id": "system",
+      "from": "scheduling",
+      "to": "apple",
+      "label": "alerts, events"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data",
+      "items": [
+        "SwiftData models, mirrored to your private CloudKit database",
+        "Preferences in iCloud key-value storage",
+        "No Colony server"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Agents & automations",
+      "items": [
+        "Agents run on Apple Intelligence by default",
+        "Both change data only through WorkspaceActions",
+        "Automation chains capped at 3 in a row"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Privacy",
+      "items": [
+        "Cloud AI and Jev are opt-in, with your own keys",
+        "Keys live in the Keychain, never in app data"
+      ]
+    }
+  ]
+}

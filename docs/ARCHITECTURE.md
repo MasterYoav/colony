@@ -1,5 +1,7 @@
 # Architecture
 
+> **See it as a diagram:** [interactive architecture map](https://masteryoav.github.io/colony/architecture.html). Click any box to jump to its code. Its source is [`architecture.json`](architecture.json); to regenerate it, run `archify finalize architecture docs/architecture.json docs/architecture.html`.
+
 Colony is a native Apple app. All data lives in the user's iCloud account and every integration uses a built-in Apple framework. There is no Colony server and no third-party SDK. The only optional exceptions are AI services the user connects with their own keys (Settings › AI).
 
 ## Storage

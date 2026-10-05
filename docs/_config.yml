@@ -5,6 +5,7 @@ theme: jekyll-theme-primer
 include: []
 exclude:
   - ARCHITECTURE.md
+  - architecture.json
   - PRODUCT.md
   - ROADMAP.md
   - THEMING.md

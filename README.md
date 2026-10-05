@@ -85,6 +85,7 @@ When changing models, keep them CloudKit-compatible: every attribute needs a def
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md): storage, CloudKit schema rules, Apple services, code layout
+- [Architecture diagram](https://masteryoav.github.io/colony/architecture.html): interactive map of how the parts connect, with links to the code ([source](docs/architecture.json), made with [Archify](https://github.com/tt-a1i/archify))
 - [Agents and AGENT.md](docs/AGENTS.md)
 - [Automations](docs/AUTOMATIONS.md)
 - [Product](docs/PRODUCT.md)
